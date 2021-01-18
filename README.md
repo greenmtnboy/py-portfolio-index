@@ -1,4 +1,4 @@
-### Py Portfolio Index
+## Py Portfolio Index
 
 `py-portfolio-index` is a python library to make it easier to mantain a broad, index-based approach to stock investing
 while following individual ESG (Environmental, Social, and Governance) or SRI (Socially Response Investing) goals.

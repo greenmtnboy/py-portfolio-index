@@ -2,8 +2,6 @@ import pandas as pd
 
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement
 from .base_portfolio import BaseProvider
-from py_portfolio_index.exceptions import PriceFetchError
-
 
 class AlpacaProvider(BaseProvider):
     def __init__(self, key_id: str, secret_key: str, paper: bool = False):
