@@ -80,7 +80,7 @@ Can be found in the examples folder.
 #### Logging
 
 To see messages, it's helpful to configure the logger to print messages. You can either configure the
-standard python logger or the portfolio specific one using an example like the below.
+standard python logger or use the portfolio specific one using an example like the below.
 
 ```python
 from py_portfolio_index.constants import Logger
