@@ -1,0 +1,2 @@
+class PriceFetchError(Exception):
+    pass
