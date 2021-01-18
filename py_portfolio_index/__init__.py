@@ -12,4 +12,5 @@ __all__ = [
     "compare_portfolios",
     "AlpacaProvider",
     "RobinhoodProvider",
+    "BuyOrder",
 ]
