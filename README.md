@@ -104,7 +104,7 @@ ideal_port.exclude(STOCK_LISTS['oil']).exclude(STOCK_LISTS['vice']).exclude(STOC
 ideal_port.reweight(STOCK_LISTS['renewable'], weight=2.0, min_weight=.001)
 ideal_port.reweight(STOCK_LISTS['semiconductor'], weight=2.0, min_weight=.001)
 
-provider = RobinhoodProvider('#####', '#########')
+provider = RobinhoodProvider(username='#####', password='#########')
 
 real_port = provider.get_holdings()
 
