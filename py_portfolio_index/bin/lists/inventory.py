@@ -30,4 +30,5 @@ class StocklistInventory(object):
         return out
 
     def add_list(self, key: str, ticker_list: List[str]):
+        self.keys.append(key)
         self.loaded[key] = ticker_list

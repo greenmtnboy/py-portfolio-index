@@ -3,7 +3,7 @@ from py_portfolio_index import (
     STOCK_LISTS,
     Logger,
     RobinhoodProvider,
-    BuyOrder,
+    PurchaseStrategy,
     compare_portfolios,
 )
 
@@ -25,7 +25,7 @@ real_port = provider.get_holdings()
 to_buy, to_sell = compare_portfolios(
     ideal=ideal_port,
     real=real_port,
-    buy_order=BuyOrder.LARGEST_DIFF_FIRST,
+    buy_order=PurchaseStrategy.LARGEST_DIFF_FIRST,
     target_size=100000,
 )
 

@@ -1,9 +1,10 @@
-from math import floor
+from math import floor, ceil
 from typing import Dict
 
-from py_portfolio_index.common import print_flat_money
+from py_portfolio_index.common import print_money, print_per
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.exceptions import PriceFetchError
+from py_portfolio_index.enums import RoundingStrategy
 
 
 class BaseProvider(object):
@@ -30,9 +31,11 @@ class BaseProvider(object):
         plan_only: bool = False,
         fractional_shares: bool = True,
         skip_errored_stocks=False,
+        rounding_strategy=RoundingStrategy.CLOSEST,
     ):
         purchased = 0
-        target_quantity = sum([v for k, v in to_buy.items()])
+        target_value = sum([v for k, v in to_buy.items()])
+        diff = 0
         for key, value in to_buy.items():
             try:
                 price = self.get_instrument_price(key)
@@ -50,21 +53,33 @@ class BaseProvider(object):
             if fractional_shares:
                 to_buy_units = round(to_buy, 4)
             else:
-                to_buy_units = floor(to_buy)
+                if rounding_strategy == RoundingStrategy.CLOSEST:
+                    to_buy_units = int(round(to_buy, 0))
+                elif rounding_strategy == RoundingStrategy.FLOOR:
+                    to_buy_units = floor(to_buy)
+                elif rounding_strategy == RoundingStrategy.CEILING:
+                    to_buy_units = ceil(to_buy)
+                else:
+                    raise ValueError(
+                        "Invalid rounding strategy provided with non-fractional shares."
+                    )
             purchasing = to_buy_units * price
-
+            diff += abs(value - purchasing)
             purchasing_power = purchasing_power - purchasing
 
             Logger.info(f"Need to buy {to_buy_units} units of {key}.")
             if purchasing_power < 0:
                 Logger.info(
-                    f"No purchasing power left, purchased {print_flat_money(purchased)} of {print_flat_money(target_quantity)}."
+                    f"No purchasing power left, purchased {print_money(purchased)} of {print_money(target_value)}."
                 )
                 break
             purchased += purchasing
-            Logger.info(f"{print_flat_money(purchasing_power)} purchasing power left")
+            Logger.info(f"{print_money(purchasing_power)} purchasing power left")
             if plan_only:
                 continue
             if to_buy_units > 0:
                 Logger.info(f"going to buy {to_buy_units} of {key}")
                 self.buy_instrument(key, to_buy_units)
+        Logger.info(
+            f"$ diff from ideal for purchased stocks was {print_money(diff)}. {print_per(diff/target_value)} of total purchase goal."
+        )

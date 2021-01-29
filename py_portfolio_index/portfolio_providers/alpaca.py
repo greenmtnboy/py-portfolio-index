@@ -3,6 +3,7 @@ import pandas as pd
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement
 from .base_portfolio import BaseProvider
 
+
 class AlpacaProvider(BaseProvider):
     def __init__(self, key_id: str, secret_key: str, paper: bool = False):
         import alpaca_trade_api as tradeapi
@@ -28,23 +29,20 @@ class AlpacaProvider(BaseProvider):
         )
 
     def get_holdings(self):
+        from decimal import Decimal
+
         my_stocks = self.api.list_positions()
-        for val in my_stocks:
-            print(val)
-        df = pd.DataFrame(my_stocks)
-        if df.empty:
+        # df = pd.DataFrame(my_stocks)
+        if not my_stocks:
             return RealPortfolio(holdings=[])
-        df = df.T
-        df["ticker"] = df.index
-        df = df.reset_index(drop=True)
-        df.sort_values(by=["percentage"], inplace=True)
+        total_value = sum([Decimal(item.market_value) for item in my_stocks])
         out = [
             RealPortfolioElement(
-                ticker=row.ticker,
-                units=int(float(row.quantity)),
-                value=float(row.equity),
-                weight=float(row.percentage) / 100,
+                ticker=row.symbol,
+                units=int(row.qty),
+                value=Decimal(row.market_value),
+                weight=Decimal(row.market_value) / total_value,
             )
-            for row in df.itertuples()
+            for row in my_stocks
         ]
         return RealPortfolio(holdings=out)

@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from py_portfolio_index.common import print_float_per
+from py_portfolio_index.common import print_per
 from py_portfolio_index.constants import Logger
-from py_portfolio_index.enums import BuyOrder
+from py_portfolio_index.enums import PurchaseStrategy
 from py_portfolio_index.models import Money
 from .models import IdealPortfolio, RealPortfolio
 
@@ -23,7 +23,7 @@ class ComparisonResult:
 def compare_portfolios(
     real: RealPortfolio,
     ideal: IdealPortfolio,
-    buy_order=BuyOrder.LARGEST_DIFF_FIRST,
+    buy_order=PurchaseStrategy.LARGEST_DIFF_FIRST,
     target_size: Optional[float] = None,
 ):
     output = {}
@@ -53,13 +53,13 @@ def compare_portfolios(
             buying += abs(_diff)
 
     Logger.info(
-        f"Total portfolio % delta {print_float_per(diff)}. Overweight {print_float_per(selling)}, underweight {print_float_per(buying)}"
+        f"Total portfolio % delta {print_per(diff)}. Overweight {print_per(selling)}, underweight {print_per(buying)}"
     )
-    if buy_order == BuyOrder.LARGEST_DIFF_FIRST:
+    if buy_order == PurchaseStrategy.LARGEST_DIFF_FIRST:
         output = {
             k: v for k, v in sorted(output.items(), key=lambda item: -abs(item[1].diff))
         }
-    elif buy_order == BuyOrder.CHEAPEST_FIRST:
+    elif buy_order == PurchaseStrategy.CHEAPEST_FIRST:
         output = {
             k: v for k, v in sorted(output.items(), key=lambda item: abs(item[1].diff))
         }
@@ -80,6 +80,6 @@ def compare_portfolios(
             )
             # to_purchase.append(key)
         Logger.info(
-            f"{diff} {key}, {print_float_per(value.model)} target vs {print_float_per(value.comparison)} actual. Should be ${target_value * value.model}, is ${value.actual}"
+            f"{diff} {key}, {print_per(value.model)} target vs {print_per(value.comparison)} actual. Should be ${target_value * value.model}, is ${value.actual}"
         )
     return to_purchase, to_sell

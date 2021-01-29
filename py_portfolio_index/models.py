@@ -5,11 +5,12 @@ from pydantic import BaseModel
 from pandas import DataFrame
 from py_portfolio_index.enums import Currency
 from py_portfolio_index.constants import Logger
+from decimal import Decimal
 
 
 @dataclass
 class Money:
-    value: float
+    value: Decimal
     currency: Currency
 
     @classmethod
@@ -19,15 +20,15 @@ class Money:
         currency = Config.default_currency
         if isinstance(val, Money):
             return Money
-        elif isinstance(val, (float, int)):
-            return Money(float(val), currency=currency)
+        elif isinstance(val, (Decimal, float, int)):
+            return Money(Decimal(val), currency=currency)
         elif isinstance(val, str):
 
             for c in Currency:
                 if c.name in val:
                     val = val.replace(c.name, "")
                     currency = c
-            return Money(float(val), currency=currency)
+            return Money(Decimal(val), currency=currency)
 
     def _cmp_helper(self, other):
         if isinstance(other, Money):
@@ -146,7 +147,7 @@ class IdealPortfolio(BaseModel):
 class RealPortfolioElement(IdealPortfolioElement):
     ticker: str
     units: float
-    value: Union[float, int, Money]
+    value: Union[Decimal, float, int, Money]
     weight: Optional[float] = None
 
     def __post_init__(self):
