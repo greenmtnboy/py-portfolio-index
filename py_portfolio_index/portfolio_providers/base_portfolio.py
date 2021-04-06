@@ -65,21 +65,31 @@ class BaseProvider(object):
                     )
             purchasing = to_buy_units * price
             diff += abs(value - purchasing)
-            purchasing_power = purchasing_power - purchasing
-
             Logger.info(f"Need to buy {to_buy_units} units of {key}.")
-            if purchasing_power < 0:
+            if purchasing_power - purchasing < 0:
                 Logger.info(
                     f"No purchasing power left, purchased {print_money(purchased)} of {print_money(target_value)}."
                 )
                 break
-            purchased += purchasing
-            Logger.info(f"{print_money(purchasing_power)} purchasing power left")
+
             if plan_only:
+                purchasing_power = purchasing_power - purchasing
+                purchased += purchasing
+                Logger.info(f"{print_money(purchasing_power)} purchasing power left")
                 continue
-            if to_buy_units > 0:
+            if to_buy_units > 0.0:
                 Logger.info(f"going to buy {to_buy_units} of {key}")
-                self.buy_instrument(key, to_buy_units)
+                try:
+                    self.buy_instrument(key, to_buy_units)
+                    purchasing_power = purchasing_power - purchasing
+                    purchased += purchasing
+                    Logger.info(f"{print_money(purchasing_power)} purchasing power left")
+                except Exception as e:
+                    if not skip_errored_stocks:
+                        raise e
+                    else:
+                        continue
+
         Logger.info(
             f"$ diff from ideal for purchased stocks was {print_money(diff)}. {print_per(diff/target_value)} of total purchase goal."
         )
