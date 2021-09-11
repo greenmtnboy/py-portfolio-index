@@ -2,6 +2,7 @@ import pandas as pd
 
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement
 from .base_portfolio import BaseProvider
+from decimal import Decimal
 
 
 class AlpacaProvider(BaseProvider):
@@ -23,7 +24,8 @@ class AlpacaProvider(BaseProvider):
         raw = self.api.get_last_quote(ticker)
         return float(raw.askprice)
 
-    def buy_instrument(self, ticker: str, qty: int):
+    def buy_instrument(self, ticker: str, qty: Decimal):
+        qty = int(qty)
         self.api.submit_order(
             symbol=ticker, qty=qty, side="buy", type="market", time_in_force="day"
         )

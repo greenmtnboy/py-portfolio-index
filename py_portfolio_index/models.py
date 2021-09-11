@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Sequence, Iterable
 from pydantic import BaseModel
 from pandas import DataFrame
 from py_portfolio_index.enums import Currency
@@ -11,7 +11,13 @@ from decimal import Decimal
 @dataclass
 class Money:
     value: Decimal
-    currency: Currency
+    currency: Currency = Currency.USD
+
+    def __str__(self):
+        return f"{self.currency.value}{self.value}"
+
+    def __repr__(self):
+        return str(self)
 
     @classmethod
     def parse(cls, val):
@@ -73,31 +79,34 @@ class Money:
     def __int__(self):
         return int(self.value)
 
+    def __round__(self, n=None):
+        return Money(Decimal(round(self.value, n)), currency=self.currency)
+
 
 class IdealPortfolioElement(BaseModel):
     ticker: str
-    weight: float
+    weight: Decimal
 
 
 class IdealPortfolio(BaseModel):
     holdings: List[IdealPortfolioElement]
 
     def _reweight_portfolio(self):
-        weights = sum([item.weight for item in self.holdings])
+        weights: Decimal = sum([item.weight for item in self.holdings])
 
-        scaling_factor = 1 / weights
+        scaling_factor = Decimal(1) / weights
 
         for item in self.holdings:
             item.weight = item.weight * scaling_factor
 
     def exclude(self, exclusion_list: List[str]):
         reweighted = []
-        excluded = 0
+        excluded = Decimal(0.0)
         for ticker in exclusion_list:
             for item in self.holdings:
                 if item.ticker == ticker:
                     excluded += item.weight
-                    item.weight = 0.0
+                    item.weight = Decimal(0.0)
                     reweighted.append(item.ticker)
         self.holdings = [
             item for item in self.holdings if item.ticker not in [reweighted]
@@ -109,10 +118,16 @@ class IdealPortfolio(BaseModel):
         return self
 
     def reweight(
-        self, ticker_list: List[str], weight: float, min_weight: float = 0.005
+        self,
+        ticker_list: List[str],
+        weight: Decimal,
+        min_weight: Decimal = Decimal(0.005),
     ):
+        # always convert
+        weight = Decimal(weight)
+        min_weight = Decimal(min_weight)
         reweighted = []
-        total_value = 0
+        total_value = Decimal(0)
         for ticker in ticker_list:
             found = False
             for item in self.holdings:
@@ -146,9 +161,9 @@ class IdealPortfolio(BaseModel):
 
 class RealPortfolioElement(IdealPortfolioElement):
     ticker: str
-    units: float
+    units: Decimal
     value: Union[Decimal, float, int, Money]
-    weight: Optional[float] = None
+    weight: Decimal = Decimal(0.0)
 
     def __post_init__(self):
         self.value = Money.parse(self.value)
@@ -165,13 +180,13 @@ class RealPortfolio(IdealPortfolio):
         return self._index.get(ticker)
 
     @property
-    def value(self) -> float:
+    def value(self) -> Money:
         return sum([item.value for item in self.holdings])
 
     def _reweight_portfolio(self):
         value = self.value
         for item in self.holdings:
-            item.weight = float(item.value / value)
+            item.weight = Decimal(item.value / value.value)
 
     def add_holding(self, holding: RealPortfolioElement):
         existing = self._index.get(holding.ticker)
