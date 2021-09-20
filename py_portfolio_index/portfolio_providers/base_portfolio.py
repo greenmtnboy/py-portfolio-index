@@ -83,7 +83,7 @@ class BaseProvider(object):
             purchasing = to_buy_units * price
 
             Logger.info(f"Need to buy {to_buy_units} units of {key}.")
-            if purchasing_power - purchasing < Decimal(0):
+            if (purchasing_power - purchasing) < Decimal(0):
                 break_flag = True
                 purchasing = purchasing_power
                 to_buy_units = round(purchasing / price, 4)

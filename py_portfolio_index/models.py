@@ -13,6 +13,9 @@ class Money:
     value: Decimal
     currency: Currency = Currency.USD
 
+    def __post_init__(self):
+        self.currency = self.currency or Currency.USD
+
     def __str__(self):
         return f"{self.currency.value}{self.value}"
 
@@ -25,7 +28,7 @@ class Money:
 
         currency = Config.default_currency
         if isinstance(val, Money):
-            return Money
+            return val
         elif isinstance(val, (Decimal, float, int)):
             return Money(Decimal(val), currency=currency)
         elif isinstance(val, str):

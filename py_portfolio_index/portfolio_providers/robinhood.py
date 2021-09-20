@@ -34,13 +34,14 @@ class RobinhoodProvider(BaseProvider):
 
             print(f"was throttled! Sleeping {t}")
             sleep(t)
-            self.buy_instrument(ticker=ticker, qty=qty)
+            output = self.buy_instrument(ticker=ticker, qty=qty)
         elif msg and "Too many requests for fractional orders" in msg:
             print(f"was throttled! Sleeping 60")
             sleep(60)
-            self.buy_instrument(ticker=ticker, qty=qty)
+            output = self.buy_instrument(ticker=ticker, qty=qty)
         if not output.get("id"):
             raise ValueError(msg)
+        return output
 
     def get_unsettled_instruments(self):
         orders = self._provider.get_all_open_stock_orders()
