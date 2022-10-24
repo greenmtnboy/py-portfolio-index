@@ -1,12 +1,23 @@
-import pandas as pd
 import re
+from decimal import Decimal
 from time import sleep
+
+import pandas as pd
+
+from py_portfolio_index.constants import Logger
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement
 from .base_portfolio import BaseProvider
-from decimal import Decimal
+
+FRACTIONAL_SLEEP = 60
 
 
 class RobinhoodProvider(BaseProvider):
+    '''Provider for interacting with Robinhood portfolios.
+
+    Requires username and password.
+
+    '''
+
     def __init__(self, username: str, password: str):
         import robin_stocks as r
 
@@ -32,14 +43,15 @@ class RobinhoodProvider(BaseProvider):
             else:
                 t = 30
 
-            print(f"was throttled! Sleeping {t}")
+            Logger.info(f"RH error: was throttled! Sleeping {t}")
             sleep(t)
             output = self.buy_instrument(ticker=ticker, qty=qty)
         elif msg and "Too many requests for fractional orders" in msg:
-            print(f"was throttled! Sleeping 60")
-            sleep(60)
+            Logger.info(f"RH error: was throttled on fractional orders! Sleeping {FRACTIONAL_SLEEP}")
+            sleep(FRACTIONAL_SLEEP)
             output = self.buy_instrument(ticker=ticker, qty=qty)
         if not output.get("id"):
+            Logger.error(msg)
             raise ValueError(msg)
         return output
 

@@ -126,7 +126,6 @@ class IdealPortfolio(BaseModel):
         weight: Decimal,
         min_weight: Decimal = Decimal(0.005),
     ):
-        # always convert
         weight = Decimal(weight)
         min_weight = Decimal(min_weight)
         reweighted = []
