@@ -1,22 +1,25 @@
 from math import floor, ceil
-from typing import Dict, Union
+from typing import Dict, Union, Optional
 from decimal import Decimal
+from datetime import date
 
 from py_portfolio_index.common import print_money, print_per
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import RoundingStrategy
 from py_portfolio_index.exceptions import PriceFetchError
+from functools import lru_cache
 
 
 class BaseProvider(object):
-    pass
-
-    def _get_instrument_price(self, ticker: str):
+    def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None):
         raise NotImplementedError
 
-    def get_instrument_price(self, ticker: str):
+    @lru_cache(maxsize=None)
+    def get_instrument_price(
+        self, ticker: str, at_day: Optional[date] = None
+    ) -> Optional[Decimal]:
         try:
-            return self._get_instrument_price(ticker)
+            return self._get_instrument_price(ticker, at_day)
         except NotImplementedError as e:
             raise e
         except Exception as e:
@@ -40,7 +43,7 @@ class BaseProvider(object):
     ):
         purchased = Decimal(0)
         purchasing_power = Decimal(purchasing_power)
-        target_value = sum([v for k, v in to_buy.items()])
+        target_value: Decimal = Decimal(sum([v for k, v in to_buy.items()]))
         diff = Decimal(0)
         if ignore_unsettled:
             unsettled = self.get_unsettled_instruments()

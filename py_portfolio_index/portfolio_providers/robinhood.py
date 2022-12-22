@@ -1,22 +1,36 @@
 import re
 from decimal import Decimal
 from time import sleep
-
+from datetime import date, datetime
 import pandas as pd
+from typing import Optional
 
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement
 from .base_portfolio import BaseProvider
+from py_portfolio_index.exceptions import PriceFetchError
 
 FRACTIONAL_SLEEP = 60
 
 
+def nearest_value(all_historicals, pivot) -> Optional[dict]:
+    filtered = [z for z in all_historicals if z]
+    if not filtered:
+        return None
+    return min(
+        filtered,
+        key=lambda x: abs(
+            datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - pivot
+        ),
+    )
+
+
 class RobinhoodProvider(BaseProvider):
-    '''Provider for interacting with Robinhood portfolios.
+    """Provider for interacting with Robinhood portfolios.
 
     Requires username and password.
 
-    '''
+    """
 
     def __init__(self, username: str, password: str):
         import robin_stocks as r
@@ -25,11 +39,24 @@ class RobinhoodProvider(BaseProvider):
         BaseProvider.__init__(self)
         self._provider.login(username=username, password=password)
 
-    def get_instrument_price(self, ticker: str):
-        quotes = self._provider.get_quotes([ticker])
-        if not quotes[0]:
-            return False
-        return Decimal(quotes[0]["ask_price"])
+    def _get_instrument_price(
+        self, ticker: str, at_day: Optional[date] = None
+    ) -> Optional[Decimal]:
+        if at_day:
+            historicals = self._provider.get_stock_historicals(
+                [ticker], interval="day", span="year", bounds="regular"
+            )
+            closest = nearest_value(historicals, at_day)
+            if closest:
+                return Decimal(closest["high_price"])
+            raise PriceFetchError(
+                f"No historical data found for ticker {ticker} on date {at_day.isoformat()}"
+            )
+        else:
+            quotes = self._provider.get_quotes([ticker])
+            if not quotes[0]:
+                return None
+            return Decimal(quotes[0]["ask_price"])
 
     def buy_instrument(self, ticker: str, qty: Decimal):
         float_qty = float(qty)
@@ -47,7 +74,9 @@ class RobinhoodProvider(BaseProvider):
             sleep(t)
             output = self.buy_instrument(ticker=ticker, qty=qty)
         elif msg and "Too many requests for fractional orders" in msg:
-            Logger.info(f"RH error: was throttled on fractional orders! Sleeping {FRACTIONAL_SLEEP}")
+            Logger.info(
+                f"RH error: was throttled on fractional orders! Sleeping {FRACTIONAL_SLEEP}"
+            )
             sleep(FRACTIONAL_SLEEP)
             output = self.buy_instrument(ticker=ticker, qty=qty)
         if not output.get("id"):

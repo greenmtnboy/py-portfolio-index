@@ -1,20 +1,27 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Optional, Union, Sequence, Iterable
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
 from pandas import DataFrame
 from py_portfolio_index.enums import Currency
 from py_portfolio_index.constants import Logger
+from py_portfolio_index.exceptions import PriceFetchError
 from decimal import Decimal
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
 
 
-@dataclass
-class Money:
+class Money(BaseModel):
     value: Decimal
     currency: Currency = Currency.USD
 
-    def __post_init__(self):
-        self.currency = self.currency or Currency.USD
+    @validator("value", pre=True)
+    def coerce_to_decimal(cls, v):
+        if isinstance(v, int):
+            return Decimal(v)
+        return v
 
     def __str__(self):
         return f"{self.currency.value}{self.value}"
@@ -23,7 +30,7 @@ class Money:
         return str(self)
 
     @classmethod
-    def parse(cls, val):
+    def parse(cls, val) -> "Money":
         from py_portfolio_index.config import Config
 
         currency = Config.default_currency
@@ -38,6 +45,7 @@ class Money:
                     val = val.replace(c.name, "")
                     currency = c
             return Money(Decimal(val), currency=currency)
+        raise ValueError(f"Invalid input to Money type {type(val)} {val}")
 
     def _cmp_helper(self, other):
         if isinstance(other, Money):
@@ -93,6 +101,7 @@ class IdealPortfolioElement(BaseModel):
 
 class IdealPortfolio(BaseModel):
     holdings: List[IdealPortfolioElement]
+    source_date: Optional[date] = Field(default_factory=date.today)
 
     def _reweight_portfolio(self):
         weights: Decimal = sum([item.weight for item in self.holdings])
@@ -106,11 +115,12 @@ class IdealPortfolio(BaseModel):
         reweighted = []
         excluded = Decimal(0.0)
         for ticker in exclusion_list:
+            reweighted.append(ticker)
             for item in self.holdings:
                 if item.ticker == ticker:
                     excluded += item.weight
                     item.weight = Decimal(0.0)
-                    reweighted.append(item.ticker)
+
         self.holdings = [
             item for item in self.holdings if item.ticker not in [reweighted]
         ]
@@ -123,32 +133,59 @@ class IdealPortfolio(BaseModel):
     def reweight(
         self,
         ticker_list: List[str],
-        weight: Decimal,
-        min_weight: Decimal = Decimal(0.005),
+        weight: Union[Decimal, float],
+        min_weight: Union[Decimal, float] = Decimal(0.005),
     ):
-        weight = Decimal(weight)
-        min_weight = Decimal(min_weight)
+        cweight = Decimal(weight)
+        cmin_weight = Decimal(min_weight)
         reweighted = []
         total_value = Decimal(0)
         for ticker in ticker_list:
             found = False
             for item in self.holdings:
                 if item.ticker == ticker:
-                    total_value += item.weight * weight
-                    item.weight = item.weight * weight
+                    total_value += item.weight * cweight
+                    item.weight = item.weight * cweight
                     reweighted.append(ticker)
                     found = True
             if not found:
                 reweighted.append(ticker)
-                total_value += min_weight
+                total_value += cmin_weight
                 self.holdings.append(
-                    IdealPortfolioElement(ticker=ticker, weight=min_weight)
+                    IdealPortfolioElement(ticker=ticker, weight=cmin_weight)
                 )
         self._reweight_portfolio()
         Logger.info(
-            f"modified the following by weight {weight} {reweighted}. Total value modified {total_value}."
+            f"modified the following by weight {cweight} {reweighted}. Total value modified {total_value}."
         )
         return self
+
+    def reweight_to_present(self, provider: "BaseProvider"):
+        imaginary_base = Decimal(1_000_000)
+        values = {}
+        for item in self.holdings:
+            try:
+                source_price = provider.get_instrument_price(
+                    item.ticker, self.source_date
+                )
+            except PriceFetchError:
+                source_price = provider.get_instrument_price(item.ticker)
+            today_price = provider.get_instrument_price(item.ticker)
+            if not source_price or not today_price:
+                # if we couldn't get a historical price
+                # keep the value the same
+                values[item.ticker] = imaginary_base * item.weight
+                continue
+            source_shares = imaginary_base * item.weight / source_price
+
+            today_value = today_price * source_shares
+            values[item.ticker] = today_value
+        today_value = Decimal(sum(values.values()))
+
+        for item in self.holdings:
+            new_weight = values[item.ticker] / today_value
+            item.weight = new_weight
+        self._reweight_portfolio()
 
     def produce_tear_sheet_from_date(self, datetime: datetime):
         raise NotImplementedError
@@ -164,11 +201,12 @@ class IdealPortfolio(BaseModel):
 class RealPortfolioElement(IdealPortfolioElement):
     ticker: str
     units: Decimal
-    value: Union[Decimal, float, int, Money]
+    value: Money
     weight: Decimal = Decimal(0.0)
 
-    def __post_init__(self):
-        self.value = Money.parse(self.value)
+    @validator("value", pre=True)
+    def value_coercion(cls, v) -> Money:
+        return Money.parse(v)
 
 
 class RealPortfolio(IdealPortfolio):
@@ -183,7 +221,7 @@ class RealPortfolio(IdealPortfolio):
 
     @property
     def value(self) -> Money:
-        return sum([item.value for item in self.holdings])
+        return Money(sum([item.value for item in self.holdings]))
 
     def _reweight_portfolio(self):
         value = self.value

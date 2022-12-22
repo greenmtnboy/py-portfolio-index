@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Optional, Dict, Union
 from decimal import Decimal
 
 from py_portfolio_index.common import print_per
@@ -25,20 +25,20 @@ def compare_portfolios(
     real: RealPortfolio,
     ideal: IdealPortfolio,
     buy_order=PurchaseStrategy.LARGEST_DIFF_FIRST,
-    target_size: Optional[float] = None,
+    target_size: Optional[Union[Decimal, int]] = None,
 ):
     output: Dict[str, ComparisonResult] = {}
     diff = Decimal(0.0)
     selling = Decimal(0.0)
     buying = Decimal(0.0)
-    target_value = target_size or real.value
+    target_value: Money = Money(target_size) if target_size else real.value
     for value in ideal.holdings:
         comparison = real.get_holding(value.ticker)
         if not comparison:
             percentage = Decimal(0.0)
             actual_value = Money.parse("0.0")
         else:
-            percentage = comparison.value / target_value
+            percentage = Decimal((comparison.value / target_value).value)
             actual_value = comparison.value
         output[value.ticker] = ComparisonResult(
             ticker=value.ticker,
@@ -46,7 +46,7 @@ def compare_portfolios(
             comparison=percentage,
             actual=actual_value,
         )
-        _diff = Decimal(value.weight) - Decimal(percentage)
+        _diff = Decimal(value.weight) - percentage
         diff += abs(_diff)
         if _diff < 0:
             selling += abs(_diff)
