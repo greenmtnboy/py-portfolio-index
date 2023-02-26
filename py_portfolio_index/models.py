@@ -21,6 +21,8 @@ class Money(BaseModel):
     def coerce_to_decimal(cls, v):
         if isinstance(v, int):
             return Decimal(v)
+        if isinstance(v, Money):
+            return Decimal(v.value)
         return v
 
     def __str__(self):
@@ -37,14 +39,14 @@ class Money(BaseModel):
         if isinstance(val, Money):
             return val
         elif isinstance(val, (Decimal, float, int)):
-            return Money(Decimal(val), currency=currency)
+            return Money(value=Decimal(val), currency=currency)
         elif isinstance(val, str):
 
             for c in Currency:
                 if c.name in val:
                     val = val.replace(c.name, "")
                     currency = c
-            return Money(Decimal(val), currency=currency)
+            return Money(value=Decimal(val), currency=currency)
         raise ValueError(f"Invalid input to Money type {type(val)} {val}")
 
     def _cmp_helper(self, other):
@@ -72,26 +74,36 @@ class Money(BaseModel):
     def __le__(self, other):
         return self.value <= self._cmp_helper(other)
 
+    # sum starts with 0
+    def __radd__(self, other):
+        if other == 0:
+            return self
+        else:
+            return self.__add__(other)
+
     def __add__(self, other):
-        return Money(self.value + self._cmp_helper(other), currency=self.currency)
+        return Money(value=self.value + self._cmp_helper(other), currency=self.currency)
 
     def __sub__(self, other):
-        return Money(self.value - self._cmp_helper(other), currency=self.currency)
+        return Money(value=self.value - self._cmp_helper(other), currency=self.currency)
 
     def __mul__(self, other):
-        return Money(self.value * self._cmp_helper(other), currency=self.currency)
+        return Money(value=self.value * self._cmp_helper(other), currency=self.currency)
 
     def __truediv__(self, other):
-        return Money(self.value / self._cmp_helper(other), currency=self.currency)
+        return Money(value=self.value / self._cmp_helper(other), currency=self.currency)
 
     def __float__(self):
-        return self.value
+        return float(self.value)
 
     def __int__(self):
         return int(self.value)
 
+    def __abs__(self):
+        return Money(value=abs(self.value), currency=self.currency)
+
     def __round__(self, n=None):
-        return Money(Decimal(round(self.value, n)), currency=self.currency)
+        return Money(value=Decimal(round(self.value, n)), currency=self.currency)
 
 
 class IdealPortfolioElement(BaseModel):
@@ -221,7 +233,7 @@ class RealPortfolio(IdealPortfolio):
 
     @property
     def value(self) -> Money:
-        return Money(sum([item.value for item in self.holdings]))
+        return Money(value=sum([item.value for item in self.holdings]))
 
     def _reweight_portfolio(self):
         value = self.value

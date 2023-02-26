@@ -1,5 +1,5 @@
 from math import floor, ceil
-from typing import Dict, Union, Optional
+from typing import Dict, Union, Optional, Set
 from decimal import Decimal
 from datetime import date
 
@@ -7,6 +7,7 @@ from py_portfolio_index.common import print_money, print_per
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import RoundingStrategy
 from py_portfolio_index.exceptions import PriceFetchError
+from py_portfolio_index.models import Money
 from functools import lru_cache
 
 
@@ -28,23 +29,24 @@ class BaseProvider(object):
     def buy_instrument(self, ticker: str, qty: Decimal):
         raise NotImplementedError
 
-    def get_unsettled_instruments(self):
+    def get_unsettled_instruments(self) -> Set[str]:
+
         raise NotImplementedError
 
     def purchase_ticker_value_dict(
         self,
-        to_buy: Dict[str, Decimal],
-        purchasing_power: Union[Decimal, float],
+        to_buy: Dict[str, Money],
+        purchasing_power: Union[Money, float],
         plan_only: bool = False,
         fractional_shares: bool = True,
         skip_errored_stocks=False,
         rounding_strategy=RoundingStrategy.CLOSEST,
         ignore_unsettled: bool = True,
     ):
-        purchased = Decimal(0)
-        purchasing_power = Decimal(purchasing_power)
-        target_value: Decimal = Decimal(sum([v for k, v in to_buy.items()]))
-        diff = Decimal(0)
+        purchased = Money(value=0)
+        purchasing_power = Money(value=purchasing_power)
+        target_value: Money = sum([v for k, v in to_buy.items()])
+        diff = Money(value=0)
         if ignore_unsettled:
             unsettled = self.get_unsettled_instruments()
         else:
@@ -56,20 +58,21 @@ class BaseProvider(object):
                 continue
             try:
                 price = self.get_instrument_price(key)
+                Logger.info(f"got price of {price} for {key}")
             except Exception as e:
                 if not skip_errored_stocks:
                     raise e
                 else:
                     continue
             if not price:
-                price = Decimal(0)
-            if price == Decimal(0):
-                to_buy_currency = Decimal(0)
+                price = Money(value=0)
+            if price == Money(value=0):
+                to_buy_currency = Money(value=0)
             else:
                 to_buy_currency = value / price
 
             if fractional_shares:
-                to_buy_units = round(to_buy_currency, 4)
+                to_buy_units = round(to_buy_currency, 4).value
             else:
                 if rounding_strategy == RoundingStrategy.CLOSEST:
                     to_buy_units = Decimal(int(round(to_buy_currency, 0)))
@@ -82,28 +85,28 @@ class BaseProvider(object):
                         "Invalid rounding strategy provided with non-fractional shares."
                     )
             if not to_buy_units:
+                Logger.info(f"skipping {key} because no units to buy")
                 continue
             purchasing = to_buy_units * price
 
             Logger.info(f"Need to buy {to_buy_units} units of {key}.")
-            if (purchasing_power - purchasing) < Decimal(0):
+            if (purchasing_power - purchasing) < Money(value=0):
+                Logger.info("Out of money, buying what is possible and exiting")
                 break_flag = True
                 purchasing = purchasing_power
-                to_buy_units = round(purchasing / price, 4)
-            if to_buy_units > Decimal(0.0):
+                to_buy_units = Decimal(round(purchasing / price, 4).value)
+            if to_buy_units > Decimal(0):
                 Logger.info(f"going to buy {to_buy_units} of {key}")
                 try:
                     if not plan_only:
-                        self.buy_instrument(key, to_buy_units)
-                    purchasing_power = purchasing_power - purchasing
-                    purchased += purchasing
-                    Logger.info(
-                        f"{print_money(purchasing_power)} purchasing power left"
-                    )
-                    diff += abs(value - purchasing)
-                    Logger.info(
-                        f"bought {to_buy_units} of {key}, {purchasing_power} left"
-                    )
+                        purchased = self.buy_instrument(key, to_buy_units)
+                    if purchased:
+                        purchasing_power = purchasing_power - purchasing
+                        purchased += purchasing
+                        diff += abs(value - purchasing)
+                        Logger.info(
+                            f"bought {to_buy_units} of {key}, {purchasing_power} left"
+                        )
                 except Exception as e:
                     print(e)
                     if not skip_errored_stocks:

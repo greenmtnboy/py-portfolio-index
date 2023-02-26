@@ -30,5 +30,7 @@ class StocklistInventory(object):
         return out
 
     def add_list(self, key: str, ticker_list: List[str]):
+        """Add a new list or merge into existing list."""
         self.keys.append(key)
-        self.loaded[key] = ticker_list
+        current = self.loaded.get(key, [])
+        self.loaded[key] = current + ticker_list
