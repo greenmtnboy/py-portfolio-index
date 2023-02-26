@@ -9,6 +9,7 @@ from py_portfolio_index.constants import Logger
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement
 from .base_portfolio import BaseProvider
 from py_portfolio_index.exceptions import PriceFetchError
+from functools import lru_cache
 
 FRACTIONAL_SLEEP = 60
 
@@ -39,6 +40,7 @@ class RobinhoodProvider(BaseProvider):
         BaseProvider.__init__(self)
         self._provider.login(username=username, password=password)
 
+    @lru_cache(maxsize=None)
     def _get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
     ) -> Optional[Decimal]:
@@ -82,7 +84,7 @@ class RobinhoodProvider(BaseProvider):
         if not output.get("id"):
             Logger.error(msg)
             raise ValueError(msg)
-        return output
+        return True
 
     def get_unsettled_instruments(self):
         orders = self._provider.get_all_open_stock_orders()

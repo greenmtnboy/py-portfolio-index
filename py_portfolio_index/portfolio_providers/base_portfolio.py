@@ -58,6 +58,7 @@ class BaseProvider(object):
                 continue
             try:
                 price = self.get_instrument_price(key)
+                Logger.info(f"got price of {price} for {key}")
             except Exception as e:
                 if not skip_errored_stocks:
                     raise e
@@ -84,11 +85,13 @@ class BaseProvider(object):
                         "Invalid rounding strategy provided with non-fractional shares."
                     )
             if not to_buy_units:
+                Logger.info(f"skipping {key} because no units to buy")
                 continue
             purchasing = to_buy_units * price
 
             Logger.info(f"Need to buy {to_buy_units} units of {key}.")
             if (purchasing_power - purchasing) < Money(value=0):
+                Logger.info("Out of money, buying what is possible and exiting")
                 break_flag = True
                 purchasing = purchasing_power
                 to_buy_units = Decimal(round(purchasing / price, 4).value)
@@ -96,13 +99,14 @@ class BaseProvider(object):
                 Logger.info(f"going to buy {to_buy_units} of {key}")
                 try:
                     if not plan_only:
-                        self.buy_instrument(key, to_buy_units)
-                    purchasing_power = purchasing_power - purchasing
-                    purchased += purchasing
-                    diff += abs(value - purchasing)
-                    Logger.info(
-                        f"bought {to_buy_units} of {key}, {purchasing_power} left"
-                    )
+                        purchased = self.buy_instrument(key, to_buy_units)
+                    if purchased:
+                        purchasing_power = purchasing_power - purchasing
+                        purchased += purchasing
+                        diff += abs(value - purchasing)
+                        Logger.info(
+                            f"bought {to_buy_units} of {key}, {purchasing_power} left"
+                        )
                 except Exception as e:
                     print(e)
                     if not skip_errored_stocks:

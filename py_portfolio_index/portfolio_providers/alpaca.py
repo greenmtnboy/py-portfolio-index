@@ -1,10 +1,9 @@
-import pandas as pd
-
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement
 from .base_portfolio import BaseProvider
 from decimal import Decimal
 from typing import Optional
 from datetime import date, datetime, timezone, timedelta
+from functools import lru_cache
 
 
 class AlpacaProvider(BaseProvider):
@@ -22,12 +21,13 @@ class AlpacaProvider(BaseProvider):
         )
         BaseProvider.__init__(self)
 
+    @lru_cache(maxsize=None)
     def _get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
     ) -> Optional[Decimal]:
-        if at_day:
-            from alpaca_trade_api.rest import TimeFrame, TimeFrameUnit
+        from alpaca_trade_api.rest import TimeFrame, TimeFrameUnit
 
+        if at_day:
             start = datetime(at_day.year, at_day.month, at_day.day, tzinfo=timezone.utc)
             end = start + timedelta(days=7)
             # end = datetime(at_day.year, at_day.month, at_day.day+7, hour=23, tzinfo=timezone.utc)
@@ -41,13 +41,35 @@ class AlpacaProvider(BaseProvider):
             return Decimal(raw[0].h)
         else:
             raw = self.api.get_latest_quote(ticker)
-            return Decimal(raw.askprice)
+            # if we don't have a value for the current day
+            # expand out
+            # this is requuired on weekends
+            if not raw.ap:
+                default = datetime.now(tz=timezone.utc) - timedelta(hours=1)
+                start = default - timedelta(days=7)
+                end = default
+                raw = self.api.get_bars(
+                    [ticker],
+                    timeframe=TimeFrame(amount=1, unit=TimeFrameUnit.Day),
+                    start=start.isoformat(),
+                    end=end.isoformat(),
+                )
+                # take the first day after target day
+                return Decimal(raw[0].h)
+            return Decimal(raw.ap)
 
     def buy_instrument(self, ticker: str, qty: Decimal):
+        import alpaca_trade_api as tradeapi
+
         qty_float = float(qty)
-        self.api.submit_order(
-            symbol=ticker, qty=qty_float, side="buy", type="market", time_in_force="day"
+        order = self.api.submit_order(
+            symbol=ticker,
+            qty=qty_float,
+            side="buy",
+            type="market",
+            time_in_force="day",
         )
+        return True
 
     def get_unsettled_instruments(self):
         open_orders = self.api.list_orders(
