@@ -31,7 +31,7 @@ def compare_portfolios(
     diff = Decimal(0.0)
     selling = Decimal(0.0)
     buying = Decimal(0.0)
-    target_value: Money = Money(target_size) if target_size else real.value
+    target_value: Money = Money(value=target_size) if target_size else real.value
     for value in ideal.holdings:
         comparison = real.get_holding(value.ticker)
         if not comparison:
@@ -83,6 +83,6 @@ def compare_portfolios(
             )
             # to_purchase.append(key)
         Logger.info(
-            f"{diff_text} {key}, {print_per(diffvalue.model)} target vs {print_per(diffvalue.comparison)} actual. Should be ${target_value * diffvalue.model}, is ${diffvalue.actual}"
+            f"{diff_text} {key}, {print_per(diffvalue.model)} target vs {print_per(diffvalue.comparison)} actual. Should be {target_value * diffvalue.model}, is {diffvalue.actual}"
         )
     return to_purchase, to_sell

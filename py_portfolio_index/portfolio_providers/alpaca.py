@@ -49,6 +49,12 @@ class AlpacaProvider(BaseProvider):
             symbol=ticker, qty=qty_float, side="buy", type="market", time_in_force="day"
         )
 
+    def get_unsettled_instruments(self):
+        open_orders = self.api.list_orders(
+            status="open", limit=100, nested=True  # show nested multi-leg orders
+        )
+        return set([o.symbol for o in open_orders])
+
     def get_holdings(self):
         from decimal import Decimal
 
