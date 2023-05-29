@@ -1,6 +1,5 @@
-from dataclasses import dataclass
 from datetime import datetime, date
-from typing import List, Optional, Union, Sequence, Iterable
+from typing import List, Optional, Union
 from pydantic import BaseModel, Field, validator
 from pandas import DataFrame
 from py_portfolio_index.enums import Currency
@@ -14,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class Money(BaseModel):
-    value: Decimal
+    value: Decimal | int | float | "Money"
     currency: Currency = Currency.USD
 
     @validator("value", pre=True)
@@ -22,6 +21,7 @@ class Money(BaseModel):
         if isinstance(v, int):
             return Decimal(v)
         if isinstance(v, Money):
+            #TODO convert this
             return Decimal(v.value)
         return v
 
@@ -41,7 +41,6 @@ class Money(BaseModel):
         elif isinstance(val, (Decimal, float, int)):
             return Money(value=Decimal(val), currency=currency)
         elif isinstance(val, str):
-
             for c in Currency:
                 if c.name in val:
                     val = val.replace(c.name, "")
@@ -75,19 +74,19 @@ class Money(BaseModel):
         return self.value <= self._cmp_helper(other)
 
     # sum starts with 0
-    def __radd__(self, other):
+    def __radd__(self, other)->"Money":
         if other == 0:
             return self
         else:
             return self.__add__(other)
 
-    def __add__(self, other):
+    def __add__(self, other)->"Money":
         return Money(value=self.value + self._cmp_helper(other), currency=self.currency)
 
-    def __sub__(self, other):
+    def __sub__(self, other)->"Money":
         return Money(value=self.value - self._cmp_helper(other), currency=self.currency)
 
-    def __mul__(self, other):
+    def __mul__(self, other)->"Money":
         return Money(value=self.value * self._cmp_helper(other), currency=self.currency)
 
     def __truediv__(self, other):
@@ -233,7 +232,8 @@ class RealPortfolio(IdealPortfolio):
 
     @property
     def value(self) -> Money:
-        return Money(value=sum([item.value for item in self.holdings]))
+        values:List[Money]  = [item.value for item in self.holdings]
+        return Money(value=sum(values))
 
     def _reweight_portfolio(self):
         value = self.value
