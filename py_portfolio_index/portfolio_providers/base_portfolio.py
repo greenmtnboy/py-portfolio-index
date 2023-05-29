@@ -36,7 +36,7 @@ class BaseProvider(object):
     def purchase_ticker_value_dict(
         self,
         to_buy: Dict[str, Money],
-        purchasing_power: Union[Money, float],
+        purchasing_power: Union[Money, Decimal, int, float], 
         plan_only: bool = False,
         fractional_shares: bool = True,
         skip_errored_stocks=False,
@@ -44,7 +44,7 @@ class BaseProvider(object):
         ignore_unsettled: bool = True,
     ):
         purchased = Money(value=0)
-        purchasing_power = Money(value=purchasing_power)
+        purchasing_power_resolved = Money(value=purchasing_power)
         target_value: Money = sum([v for k, v in to_buy.items()])
         diff = Money(value=0)
         if ignore_unsettled:
@@ -90,10 +90,10 @@ class BaseProvider(object):
             purchasing = to_buy_units * price
 
             Logger.info(f"Need to buy {to_buy_units} units of {key}.")
-            if (purchasing_power - purchasing) < Money(value=0):
+            if (purchasing_power_resolved - purchasing) < Money(value=0):
                 Logger.info("Out of money, buying what is possible and exiting")
                 break_flag = True
-                purchasing = purchasing_power
+                purchasing = purchasing_power_resolved
                 to_buy_units = Decimal(round(purchasing / price, 4).value)
             if to_buy_units > Decimal(0):
                 Logger.info(f"going to buy {to_buy_units} of {key}")
@@ -101,11 +101,11 @@ class BaseProvider(object):
                     if not plan_only:
                         purchased = self.buy_instrument(key, to_buy_units)
                     if purchased:
-                        purchasing_power = purchasing_power - purchasing
+                        purchasing_power_resolved = purchasing_power_resolved - purchasing
                         purchased += purchasing
                         diff += abs(value - purchasing)
                         Logger.info(
-                            f"bought {to_buy_units} of {key}, {purchasing_power} left"
+                            f"bought {to_buy_units} of {key}, {purchasing_power_resolved} left"
                         )
                 except Exception as e:
                     print(e)

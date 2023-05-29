@@ -10,6 +10,7 @@ from py_portfolio_index.models import RealPortfolio, RealPortfolioElement
 from .base_portfolio import BaseProvider
 from py_portfolio_index.exceptions import PriceFetchError
 from functools import lru_cache
+from os import environ
 
 FRACTIONAL_SLEEP = 60
 
@@ -33,9 +34,17 @@ class RobinhoodProvider(BaseProvider):
 
     """
 
-    def __init__(self, username: str, password: str):
-        import robin_stocks as r
+    def __init__(self, username: str | None = None, password: str | None = None):
+        import robin_stocks.robinhood as r
 
+        if not username:
+            username = environ.get("ROBINHOOD_USERNAME", None)
+        if not password:
+            password = environ.get("ROBINHOOD_PASSWORD", None)
+        if not (username and password):
+            raise ValueError(
+                "Must provide username and password arguments or set environment variables ROBINHOOD_USERNAME and ROBINHOOD_PASSWORD "
+            )
         self._provider = r
         BaseProvider.__init__(self)
         self._provider.login(username=username, password=password)
@@ -63,6 +72,7 @@ class RobinhoodProvider(BaseProvider):
     def buy_instrument(self, ticker: str, qty: Decimal):
         float_qty = float(qty)
         output = self._provider.order_buy_fractional_by_quantity(ticker, float_qty)
+        print(output)
         msg = output.get("detail")
         if msg and "throttled" in msg:
             m = re.search("available in ([0-9]+) seconds", msg)

@@ -3,13 +3,14 @@ from os.path import dirname, join
 from typing import List
 import re
 from datetime import date
+from decimal import Decimal 
 
 from py_portfolio_index.models import IdealPortfolioElement, IdealPortfolio
 
 QUARTER_TO_MONTH = {1: 1, 2: 4, 3: 7, 4: 10}
 
 
-def parse_date_from_name(input: str):
+def parse_date_from_name(input: str)-> date | None:
     components = input.lower().split("_")
     year = None
     quarter = None
@@ -47,7 +48,7 @@ class IndexInventory(object):
             contents = f.read()
             for row in contents.split("\n"):
                 ticker, weight = row.split(",", 1)
-                out.append(IdealPortfolioElement(ticker=ticker, weight=float(weight)))
+                out.append(IdealPortfolioElement(ticker=ticker, weight=Decimal(weight)))
         start_date = parse_date_from_name(item)
         if start_date:
             return IdealPortfolio(holdings=out, source_date=start_date)

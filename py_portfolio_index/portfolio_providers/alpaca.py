@@ -5,12 +5,21 @@ from typing import Optional
 from datetime import date, datetime, timezone, timedelta
 from functools import lru_cache
 
+from os import environ
 
-class AlpacaProvider(BaseProvider):
-    def __init__(self, key_id: str, secret_key: str, paper: bool = False):
+
+
+
+class AlpacaProviderLegacy(BaseProvider):
+    def __init__(self, key_id: str | None = None, secret_key: str | None = None, paper: bool = False):
         import alpaca_trade_api as tradeapi
         from alpaca_trade_api.common import URL
-
+        if not key_id:
+            key_id = environ.get('ALPACA_API_KEY', None)
+        if not secret_key:
+            secret_key = environ.get('ALPACA_API_SECRET', None)
+        if not (key_id and secret_key):
+            raise ValueError('Must provide key_id and secret_key or set environment variables ALPACA_API_KEY and ALPACA_API_SECRET ')
         TARGET_URL = (
             "https://paper-api.alpaca.markets"
             if paper
@@ -59,10 +68,9 @@ class AlpacaProvider(BaseProvider):
             return Decimal(raw.ap)
 
     def buy_instrument(self, ticker: str, qty: Decimal):
-        import alpaca_trade_api as tradeapi
 
         qty_float = float(qty)
-        order = self.api.submit_order(
+        self.api.submit_order(
             symbol=ticker,
             qty=qty_float,
             side="buy",
