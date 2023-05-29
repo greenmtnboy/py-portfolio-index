@@ -6,14 +6,14 @@ from py_portfolio_index.enums import Currency
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.exceptions import PriceFetchError
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
 
 
 class Money(BaseModel):
-    value: Decimal | int | float
+    value: Union[Decimal, int, float, "Money"]
     currency: Currency = Currency.USD
 
     @validator("value", pre=True)
@@ -21,7 +21,7 @@ class Money(BaseModel):
         if isinstance(v, int):
             return Decimal(v)
         if isinstance(v, Money):
-            #TODO convert this
+            # TODO convert this
             return Decimal(v.value)
         return v
 
@@ -74,19 +74,19 @@ class Money(BaseModel):
         return self.value <= self._cmp_helper(other)
 
     # sum starts with 0
-    def __radd__(self, other)->"Money":
+    def __radd__(self, other) -> "Money":
         if other == 0:
             return self
         else:
             return self.__add__(other)
 
-    def __add__(self, other)->"Money":
+    def __add__(self, other) -> "Money":
         return Money(value=self.value + self._cmp_helper(other), currency=self.currency)
 
-    def __sub__(self, other)->"Money":
+    def __sub__(self, other) -> "Money":
         return Money(value=self.value - self._cmp_helper(other), currency=self.currency)
 
-    def __mul__(self, other)->"Money":
+    def __mul__(self, other) -> "Money":
         return Money(value=self.value * self._cmp_helper(other), currency=self.currency)
 
     def __truediv__(self, other):
@@ -220,8 +220,8 @@ class RealPortfolioElement(IdealPortfolioElement):
         return Money.parse(v)
 
 
-class RealPortfolio(IdealPortfolio): 
-    holdings: List[RealPortfolioElement] #type: ignore
+class RealPortfolio(IdealPortfolio):
+    holdings: List[RealPortfolioElement]  # type: ignore
 
     @property
     def _index(self):
@@ -232,7 +232,7 @@ class RealPortfolio(IdealPortfolio):
 
     @property
     def value(self) -> Money:
-        values:List[Money]  = [item.value for item in self.holdings]
+        values: List[Money] = [item.value for item in self.holdings]
         return Money(value=sum(values))
 
     def _reweight_portfolio(self):
