@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class Money(BaseModel):
-    value: Decimal | int | float | "Money"
+    value: Decimal | int | float
     currency: Currency = Currency.USD
 
     @validator("value", pre=True)
