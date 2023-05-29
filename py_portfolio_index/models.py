@@ -1,12 +1,11 @@
 from datetime import datetime, date
-from typing import List, Optional, Union
+from typing import List, Optional, Union, TYPE_CHECKING
 from pydantic import BaseModel, Field, validator
 from pandas import DataFrame
 from py_portfolio_index.enums import Currency
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.exceptions import PriceFetchError
 from decimal import Decimal
-from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
