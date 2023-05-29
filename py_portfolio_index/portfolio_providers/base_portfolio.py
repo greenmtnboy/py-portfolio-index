@@ -45,7 +45,7 @@ class BaseProvider(object):
     ):
         purchased = Money(value=0)
         purchasing_power_resolved = Money(value=purchasing_power)
-        target_value: Money = sum([v for k, v in to_buy.items()])
+        target_value: Money = Money(value=sum([v for k, v in to_buy.items()]))
         diff = Money(value=0)
         if ignore_unsettled:
             unsettled = self.get_unsettled_instruments()
@@ -57,7 +57,10 @@ class BaseProvider(object):
                 Logger.info(f"Skipping {key} with unsettled orders.")
                 continue
             try:
-                price = self.get_instrument_price(key)
+                raw_price = self.get_instrument_price(key)
+                if not raw_price:
+                    raise ValueError(f"No price found for this instrument: {key}")
+                price:Money = Money(value=raw_price)
                 Logger.info(f"got price of {price} for {key}")
             except Exception as e:
                 if not skip_errored_stocks:

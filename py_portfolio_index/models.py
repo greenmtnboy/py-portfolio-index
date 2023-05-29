@@ -220,8 +220,8 @@ class RealPortfolioElement(IdealPortfolioElement):
         return Money.parse(v)
 
 
-class RealPortfolio(IdealPortfolio):
-    holdings: List[RealPortfolioElement]
+class RealPortfolio(IdealPortfolio): 
+    holdings: List[RealPortfolioElement] #type: ignore
 
     @property
     def _index(self):
