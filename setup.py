@@ -17,27 +17,41 @@ with open("requirements.txt", "r") as f:
     install_requires = [line.strip().replace("==", ">=") for line in f.readlines()]
 
 setuptools.setup(
-    name="pyportfolioindex",
+    name="py-portfolio-index",
     version=version,
     url="",
     author="",
     description="Build index portfolios.",
     long_description=open("README.md").read(),
-    long_description_content_type='text/markdown',
-    # package_dir={'':'pyterraformer'},
-    packages=setuptools.find_packages(exclude=["dist", "build", "*.tests", "*.tests.*", "tests.*", "tests", "docs", ".github", "", "examples"]),
+    long_description_content_type="text/markdown",
+    packages=setuptools.find_packages(
+        exclude=[
+            "dist",
+            "build",
+            "*.tests",
+            "*.tests.*",
+            "tests.*",
+            "tests",
+            "docs",
+            ".github",
+            "",
+            "examples",
+            "local_examples",
+            ".vscode"
+
+        ]
+    ),
     package_data={
-        "": ["*.tf", "*.jinja", "py.typed"],
+        "": ["*.jinja", "py.typed", "*.csv"],
     },
     install_requires=install_requires,
-    requirements_extra={'alpaca':['alpaca-trade-api']},
+    extras_require={"alpaca": ["alpaca-py"],
+                        "robinhood": ["robin-stocks"],},
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
 )

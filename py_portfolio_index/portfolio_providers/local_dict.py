@@ -4,8 +4,8 @@ from datetime import date
 from py_portfolio_index.models import (
     RealPortfolio,
     RealPortfolioElement,
-    IdealPortfolio,
 )
+from py_portfolio_index.models import Money
 from decimal import Decimal
 from .base_portfolio import BaseProvider
 
@@ -51,7 +51,7 @@ class LocalDictProvider(BaseProvider):
         if not price:
             raise ValueError("No available price for this instrument")
         self._portfolio += RealPortfolioElement(
-            ticker=ticker, units=qty, value=qty * price
+            ticker=ticker, units=qty, value=Money(value=qty * price)
         )
 
     def get_holdings(self):
