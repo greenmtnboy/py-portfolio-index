@@ -1,4 +1,4 @@
-from py_portfolio_index.models import RealPortfolio, RealPortfolioElement
+from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
 from .base_portfolio import BaseProvider
 from decimal import Decimal
 from typing import Optional
@@ -121,7 +121,7 @@ class AlpacaProvider(BaseProvider):
         from decimal import Decimal
 
         my_stocks = self.trading_client.get_all_positions()
-        # df = pd.DataFrame(my_stocks)
+
         if not my_stocks:
             return RealPortfolio(holdings=[])
         total_value = sum([Decimal(item.market_value) for item in my_stocks])
@@ -129,7 +129,7 @@ class AlpacaProvider(BaseProvider):
             RealPortfolioElement(
                 ticker=row.symbol,
                 units=row.qty,
-                value=Decimal(row.market_value),
+                value=Money(value=Decimal(row.market_value)),
                 weight=Decimal(row.market_value) / total_value,
             )
             for row in my_stocks

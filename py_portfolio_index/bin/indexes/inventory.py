@@ -1,9 +1,9 @@
-from os import listdir
-from os.path import dirname, join
-from typing import List
+from typing import Set
 import re
 from datetime import date
 from decimal import Decimal 
+from pydantic import BaseModel, Field
+from pathlib import Path
 
 from py_portfolio_index.models import IdealPortfolioElement, IdealPortfolio
 
@@ -25,12 +25,18 @@ def parse_date_from_name(input: str)-> date | None:
     return date(year=year, month=QUARTER_TO_MONTH[quarter], day=1)
 
 
-class IndexInventory(object):
-    def __init__(self):
-        self.keys: List[str] = []
-        base = dirname(__file__)
-        self.keys = [f.split(".")[0] for f in listdir(base) if f.endswith(".csv")]
-        self.loaded = {}
+class IndexInventory(BaseModel):
+    keys: Set[str] = Field(exclude=True)
+    base: Path = Field(exclude=True)
+    loaded: dict[str, IdealPortfolio] = Field(default_factory = dict)
+
+    @classmethod
+    def from_path(cls, path):
+        path = Path(path)
+        if path.is_file():
+            path = path.parent
+        keys = [f.stem for f in path.iterdir() if f.suffix== ".csv"]
+        return IndexInventory(keys = keys, base = path)
 
     def __getitem__(self, item: str) -> IdealPortfolio:
         if item in self.keys:
@@ -44,7 +50,7 @@ class IndexInventory(object):
 
     def get_values(self, item: str) -> IdealPortfolio:
         out = []
-        with open(join(dirname(__file__), f"{item}.csv")) as f:
+        with open(self.base / f"{item}.csv") as f:
             contents = f.read()
             for row in contents.split("\n"):
                 ticker, weight = row.split(",", 1)
