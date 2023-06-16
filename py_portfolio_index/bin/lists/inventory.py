@@ -1,15 +1,22 @@
-from os import listdir
 from os.path import dirname, join
-from typing import List
+from pydantic import BaseModel, Field
+from typing import List, Set
+from pathlib import Path
 
 
-class StocklistInventory(object):
-    def __init__(self):
-        self.keys: List[str] = []
-        base = dirname(__file__)
-        self.keys = [f.split(".")[0] for f in listdir(base) if f.endswith(".csv")]
-        self.loaded = {}
+class StocklistInventory(BaseModel):
+    keys: Set[str] = Field(exclude=True)
+    base: Path = Field(exclude=True)
+    loaded: dict[str, List[str]] = Field(default_factory = dict)
 
+    @classmethod
+    def from_path(cls, path):
+        path = Path(path)
+        if path.is_file():
+            path = path.parent
+        keys = [f.stem for f in path.iterdir() if f.suffix== ".csv"]
+        return StocklistInventory(keys = keys, base = path)
+    
     def __getitem__(self, item: str) -> List[str]:
         if item in self.keys:
             values = self.loaded.get(item, None)
@@ -31,6 +38,6 @@ class StocklistInventory(object):
 
     def add_list(self, key: str, ticker_list: List[str]):
         """Add a new list or merge into existing list."""
-        self.keys.append(key)
+        self.keys.add(key)
         current = self.loaded.get(key, [])
         self.loaded[key] = current + ticker_list

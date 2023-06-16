@@ -38,6 +38,8 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+.ruff_cache
+.mypy_cache
 nosetests.xml
 coverage.xml
 *,cover

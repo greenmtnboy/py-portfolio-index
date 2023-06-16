@@ -72,7 +72,6 @@ class RobinhoodProvider(BaseProvider):
     def buy_instrument(self, ticker: str, qty: Decimal):
         float_qty = float(qty)
         output = self._provider.order_buy_fractional_by_quantity(ticker, float_qty)
-        print(output)
         msg = output.get("detail")
         if msg and "throttled" in msg:
             m = re.search("available in ([0-9]+) seconds", msg)

@@ -26,7 +26,7 @@ class BaseProvider(object):
         except Exception as e:
             raise PriceFetchError(e)
 
-    def buy_instrument(self, ticker: str, qty: Decimal):
+    def buy_instrument(self, ticker: str, qty: Decimal)->bool:
         raise NotImplementedError
 
     def get_unsettled_instruments(self) -> Set[str]:
@@ -75,14 +75,14 @@ class BaseProvider(object):
                 to_buy_currency = value / price
 
             if fractional_shares:
-                to_buy_units = round(to_buy_currency, 4).value
+                to_buy_units = round(to_buy_currency, 4)
             else:
                 if rounding_strategy == RoundingStrategy.CLOSEST:
-                    to_buy_units = Decimal(int(round(to_buy_currency, 0)))
+                    to_buy_units = Money(value=int(round(to_buy_currency, 0)))
                 elif rounding_strategy == RoundingStrategy.FLOOR:
-                    to_buy_units = Decimal(floor(to_buy_currency))
+                    to_buy_units = Money(value=floor(to_buy_currency))
                 elif rounding_strategy == RoundingStrategy.CEILING:
-                    to_buy_units = Decimal(ceil(to_buy_currency))
+                    to_buy_units = Money(value=ceil(to_buy_currency))
                 else:
                     raise ValueError(
                         "Invalid rounding strategy provided with non-fractional shares."
@@ -102,8 +102,8 @@ class BaseProvider(object):
                 Logger.info(f"going to buy {to_buy_units} of {key}")
                 try:
                     if not plan_only:
-                        purchased = self.buy_instrument(key, to_buy_units)
-                    if purchased:
+                        successfully_purchased = self.buy_instrument(key, to_buy_units)
+                    if successfully_purchased:
                         purchasing_power_resolved = purchasing_power_resolved - purchasing
                         purchased += purchasing
                         diff += abs(value - purchasing)
@@ -117,7 +117,7 @@ class BaseProvider(object):
             if break_flag:
                 Logger.info(
                     f"No purchasing power left, purchased {print_money(purchased)} of {print_money(target_value)}."
-                )
+                )    
                 break
         Logger.info(
             f"$ diff from ideal for purchased stocks was {print_money(diff)}. {print_per(diff / target_value)} of total purchase goal."
