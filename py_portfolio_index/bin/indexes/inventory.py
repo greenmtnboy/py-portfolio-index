@@ -35,7 +35,13 @@ class IndexInventory(BaseModel):
         path = Path(path)
         if path.is_file():
             path = path.parent
-        keys = [f.stem for f in path.iterdir() if f.suffix== ".csv"]
+        keys = []
+        for f in path.iterdir():
+            try:
+                if f.suffix == ".csv":
+                    keys.append(f.stem)
+            except FileNotFoundError:
+                pass
         return IndexInventory(keys = keys, base = path)
 
     def __getitem__(self, item: str) -> IdealPortfolio:
