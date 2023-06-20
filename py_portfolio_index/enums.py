@@ -1,8 +1,10 @@
 from enum import IntEnum, Enum
 
+
 class Provider(str, Enum):
     ALPACA = "alpaca"
     ROBINHOOD = "robinhood"
+
 
 class PurchaseStrategy(IntEnum):
     CHEAPEST_FIRST = 1

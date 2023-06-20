@@ -26,17 +26,16 @@ class BaseProvider(object):
         except Exception as e:
             raise PriceFetchError(e)
 
-    def buy_instrument(self, ticker: str, qty: Decimal)->bool:
+    def buy_instrument(self, ticker: str, qty: Decimal) -> bool:
         raise NotImplementedError
 
     def get_unsettled_instruments(self) -> Set[str]:
-
         raise NotImplementedError
 
     def purchase_ticker_value_dict(
         self,
         to_buy: Dict[str, Money],
-        purchasing_power: Union[Money, Decimal, int, float], 
+        purchasing_power: Union[Money, Decimal, int, float],
         plan_only: bool = False,
         fractional_shares: bool = True,
         skip_errored_stocks=False,
@@ -60,7 +59,7 @@ class BaseProvider(object):
                 raw_price = self.get_instrument_price(key)
                 if not raw_price:
                     raise ValueError(f"No price found for this instrument: {key}")
-                price:Money = Money(value=raw_price)
+                price: Money = Money(value=raw_price)
                 Logger.info(f"got price of {price} for {key}")
             except Exception as e:
                 if not skip_errored_stocks:
@@ -104,7 +103,9 @@ class BaseProvider(object):
                     if not plan_only:
                         successfully_purchased = self.buy_instrument(key, to_buy_units)
                     if successfully_purchased:
-                        purchasing_power_resolved = purchasing_power_resolved - purchasing
+                        purchasing_power_resolved = (
+                            purchasing_power_resolved - purchasing
+                        )
                         purchased += purchasing
                         diff += abs(value - purchasing)
                         Logger.info(
@@ -117,12 +118,11 @@ class BaseProvider(object):
             if break_flag:
                 Logger.info(
                     f"No purchasing power left, purchased {print_money(purchased)} of {print_money(target_value)}."
-                )    
+                )
                 break
         Logger.info(
             f"$ diff from ideal for purchased stocks was {print_money(diff)}. {print_per(diff / target_value)} of total purchase goal."
         )
-    
 
     def purchase_order_plan(
         self,
@@ -146,24 +146,23 @@ class BaseProvider(object):
                 try:
                     raw_price = self.get_instrument_price(item.ticker)
                     if not raw_price:
-                        raise ValueError(f"No price found for this instrument: {item.ticker}")
-                    price:Money = Money(value=raw_price)
+                        raise ValueError(
+                            f"No price found for this instrument: {item.ticker}"
+                        )
+                    price: Money = Money(value=raw_price)
                     Logger.info(f"got price of {price} for {item.ticker}")
                 except Exception as e:
                     if not skip_errored_stocks:
                         raise e
                     else:
                         continue
-                units = round(item.value/price,4).value
+                units = round(item.value / price, 4).value
             else:
-                raise ValueError('Order element must have qty or value')
+                raise ValueError("Order element must have qty or value")
             try:
                 self.buy_instrument(item.ticker, units)
-                Logger.info(
-                    f"bought {units} of {item.ticker}"
-                )
+                Logger.info(f"bought {units} of {item.ticker}")
             except Exception as e:
                 print(e)
                 if not skip_errored_stocks:
                     raise e
-            

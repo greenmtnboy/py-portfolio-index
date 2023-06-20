@@ -8,18 +8,24 @@ from functools import lru_cache
 from os import environ
 
 
-
-
 class AlpacaProviderLegacy(BaseProvider):
-    def __init__(self, key_id: str | None = None, secret_key: str | None = None, paper: bool = False):
+    def __init__(
+        self,
+        key_id: str | None = None,
+        secret_key: str | None = None,
+        paper: bool = False,
+    ):
         import alpaca_trade_api as tradeapi
         from alpaca_trade_api.common import URL
+
         if not key_id:
-            key_id = environ.get('ALPACA_API_KEY', None)
+            key_id = environ.get("ALPACA_API_KEY", None)
         if not secret_key:
-            secret_key = environ.get('ALPACA_API_SECRET', None)
+            secret_key = environ.get("ALPACA_API_SECRET", None)
         if not (key_id and secret_key):
-            raise ValueError('Must provide key_id and secret_key or set environment variables ALPACA_API_KEY and ALPACA_API_SECRET ')
+            raise ValueError(
+                "Must provide key_id and secret_key or set environment variables ALPACA_API_KEY and ALPACA_API_SECRET "
+            )
         TARGET_URL = (
             "https://paper-api.alpaca.markets"
             if paper
@@ -68,7 +74,6 @@ class AlpacaProviderLegacy(BaseProvider):
             return Decimal(raw.ap)
 
     def buy_instrument(self, ticker: str, qty: Decimal):
-
         qty_float = float(qty)
         self.api.submit_order(
             symbol=ticker,

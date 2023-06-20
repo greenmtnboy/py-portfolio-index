@@ -214,7 +214,7 @@ class RealPortfolioElement(IdealPortfolioElement):
     units: Decimal
     value: Money
     weight: Decimal = Decimal(0.0)
-    unsettled:bool = False
+    unsettled: bool = False
 
     @validator("value", pre=True)
     def value_coercion(cls, v) -> Money:
@@ -263,11 +263,12 @@ class RealPortfolio(IdealPortfolio):
 
 
 class OrderType(Enum):
-    BUY= "BUY"
+    BUY = "BUY"
     SELL = "SELL"
 
+
 class OrderElement(BaseModel):
-    ticker:str
+    ticker: str
     order_type: OrderType
     value: Money | None
     qty: int | None

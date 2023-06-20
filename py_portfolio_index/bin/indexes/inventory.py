@@ -1,7 +1,7 @@
 from typing import Set
 import re
 from datetime import date
-from decimal import Decimal 
+from decimal import Decimal
 from pydantic import BaseModel, Field
 from pathlib import Path
 
@@ -10,7 +10,7 @@ from py_portfolio_index.models import IdealPortfolioElement, IdealPortfolio
 QUARTER_TO_MONTH = {1: 1, 2: 4, 3: 7, 4: 10}
 
 
-def parse_date_from_name(input: str)-> date | None:
+def parse_date_from_name(input: str) -> date | None:
     components = input.lower().split("_")
     year = None
     quarter = None
@@ -28,7 +28,7 @@ def parse_date_from_name(input: str)-> date | None:
 class IndexInventory(BaseModel):
     keys: Set[str] = Field(exclude=True)
     base: Path = Field(exclude=True)
-    loaded: dict[str, IdealPortfolio] = Field(default_factory = dict)
+    loaded: dict[str, IdealPortfolio] = Field(default_factory=dict)
 
     @classmethod
     def from_path(cls, path):
@@ -42,7 +42,7 @@ class IndexInventory(BaseModel):
                     keys.append(f.stem)
             except FileNotFoundError:
                 pass
-        return IndexInventory(keys = keys, base = path)
+        return IndexInventory(keys=keys, base=path)
 
     def __getitem__(self, item: str) -> IdealPortfolio:
         if item in self.keys:
