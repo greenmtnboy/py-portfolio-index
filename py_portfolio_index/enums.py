@@ -7,6 +7,7 @@ class Provider(str, Enum):
 class PurchaseStrategy(IntEnum):
     CHEAPEST_FIRST = 1
     LARGEST_DIFF_FIRST = 2
+    PEANUT_BUTTER = 3
 
 
 class RoundingStrategy(int, Enum):

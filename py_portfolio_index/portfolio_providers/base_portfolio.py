@@ -7,7 +7,7 @@ from py_portfolio_index.common import print_money, print_per
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import RoundingStrategy
 from py_portfolio_index.exceptions import PriceFetchError
-from py_portfolio_index.models import Money, OrderPlan, OrderElement, OrderType
+from py_portfolio_index.models import Money, OrderPlan
 from functools import lru_cache
 
 
