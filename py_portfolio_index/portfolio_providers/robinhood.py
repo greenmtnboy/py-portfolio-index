@@ -4,7 +4,7 @@ from time import sleep
 from datetime import date, datetime
 import pandas as pd
 from typing import Optional
-
+from py_portfolio_index.exceptions import ConfigurationError
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement
 from .base_portfolio import BaseProvider
@@ -42,7 +42,7 @@ class RobinhoodProvider(BaseProvider):
         if not password:
             password = environ.get("ROBINHOOD_PASSWORD", None)
         if not (username and password):
-            raise ValueError(
+            raise ConfigurationError(
                 "Must provide username and password arguments or set environment variables ROBINHOOD_USERNAME and ROBINHOOD_PASSWORD "
             )
         self._provider = r

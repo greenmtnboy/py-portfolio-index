@@ -1,4 +1,5 @@
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
+from py_portfolio_index.exceptions import ConfigurationError
 from .base_portfolio import BaseProvider
 from decimal import Decimal
 from typing import Optional
@@ -23,7 +24,7 @@ class AlpacaProvider(BaseProvider):
         if not secret_key:
             secret_key = environ.get("ALPACA_API_SECRET", None)
         if not (key_id and secret_key):
-            raise ValueError(
+            raise ConfigurationError(
                 "Must provide key_id and secret_key or set environment variables ALPACA_API_KEY and ALPACA_API_SECRET "
             )
         self.trading_client = TradingClient(
@@ -121,9 +122,22 @@ class AlpacaProvider(BaseProvider):
         from decimal import Decimal
 
         my_stocks = self.trading_client.get_all_positions()
-
+        account = self.trading_client.get_account()
+        unsettled = self.get_unsettled_instruments()
+        unsettled_elements = [
+            RealPortfolioElement(
+                ticker=ticker,
+                units=0,
+                value=Money(value=Decimal(0)),
+                weight=Decimal(0),
+                unsettled=True,
+            )
+            for ticker in unsettled
+        ]
         if not my_stocks:
-            return RealPortfolio(holdings=[])
+            return RealPortfolio(
+                holdings=unsettled_elements, cash=Money(value=account.cash)
+            )
         total_value = sum([Decimal(item.market_value) for item in my_stocks])
         out = [
             RealPortfolioElement(
@@ -131,7 +145,15 @@ class AlpacaProvider(BaseProvider):
                 units=row.qty,
                 value=Money(value=Decimal(row.market_value)),
                 weight=Decimal(row.market_value) / total_value,
+                unsettled=row.symbol in unsettled,
             )
             for row in my_stocks
         ]
-        return RealPortfolio(holdings=out)
+
+        extra_unsettled = [
+            item
+            for item in unsettled_elements
+            if item.ticker not in [x.ticker for x in out]
+        ]
+        out.extend(extra_unsettled)
+        return RealPortfolio(holdings=out, cash=Money(value=account.cash))

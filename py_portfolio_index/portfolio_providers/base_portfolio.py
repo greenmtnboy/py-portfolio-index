@@ -7,7 +7,7 @@ from py_portfolio_index.common import print_money, print_per
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import RoundingStrategy
 from py_portfolio_index.exceptions import PriceFetchError
-from py_portfolio_index.models import Money
+from py_portfolio_index.models import Money, OrderPlan, OrderElement, OrderType
 from functools import lru_cache
 
 
@@ -122,3 +122,48 @@ class BaseProvider(object):
         Logger.info(
             f"$ diff from ideal for purchased stocks was {print_money(diff)}. {print_per(diff / target_value)} of total purchase goal."
         )
+    
+
+    def purchase_order_plan(
+        self,
+        plan: OrderPlan,
+        skip_errored_stocks=False,
+        ignore_unsettled: bool = True,
+    ):
+        if ignore_unsettled:
+            unsettled = self.get_unsettled_instruments()
+        else:
+            unsettled = set()
+        for item in plan.to_buy:
+            if item.ticker in unsettled:
+                Logger.info(f"Skipping {item.ticker} with unsettled orders.")
+                continue
+
+            # round decimal units to 4 places
+            if item.qty:
+                units = Decimal(item.qty)
+            elif item.value:
+                try:
+                    raw_price = self.get_instrument_price(item.ticker)
+                    if not raw_price:
+                        raise ValueError(f"No price found for this instrument: {item.ticker}")
+                    price:Money = Money(value=raw_price)
+                    Logger.info(f"got price of {price} for {item.ticker}")
+                except Exception as e:
+                    if not skip_errored_stocks:
+                        raise e
+                    else:
+                        continue
+                units = round(item.value/price,4).value
+            else:
+                raise ValueError('Order element must have qty or value')
+            try:
+                self.buy_instrument(item.ticker, units)
+                Logger.info(
+                    f"bought {units} of {item.ticker}"
+                )
+            except Exception as e:
+                print(e)
+                if not skip_errored_stocks:
+                    raise e
+            

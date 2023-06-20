@@ -6,6 +6,7 @@ from py_portfolio_index.enums import Currency
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.exceptions import PriceFetchError
 from decimal import Decimal
+from enum import Enum
 
 if TYPE_CHECKING:
     from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
@@ -132,7 +133,7 @@ class IdealPortfolio(BaseModel):
                     item.weight = Decimal(0.0)
 
         self.holdings = [
-            item for item in self.holdings if item.ticker not in [reweighted]
+            item for item in self.holdings if item.ticker not in reweighted
         ]
         self._reweight_portfolio()
         Logger.info(
@@ -213,6 +214,7 @@ class RealPortfolioElement(IdealPortfolioElement):
     units: Decimal
     value: Money
     weight: Decimal = Decimal(0.0)
+    unsettled:bool = False
 
     @validator("value", pre=True)
     def value_coercion(cls, v) -> Money:
@@ -221,6 +223,7 @@ class RealPortfolioElement(IdealPortfolioElement):
 
 class RealPortfolio(IdealPortfolio):
     holdings: List[RealPortfolioElement]  # type: ignore
+    cash: None | Money = None
 
     @property
     def _index(self):
@@ -257,3 +260,19 @@ class RealPortfolio(IdealPortfolio):
         else:
             raise ValueError
         return self
+
+
+class OrderType(Enum):
+    BUY= "BUY"
+    SELL = "SELL"
+
+class OrderElement(BaseModel):
+    ticker:str
+    order_type: OrderType
+    value: Money | None
+    qty: int | None
+
+
+class OrderPlan(BaseModel):
+    to_buy: List[OrderElement]
+    to_sell: List[OrderElement]
