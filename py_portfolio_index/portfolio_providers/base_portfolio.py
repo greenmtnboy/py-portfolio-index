@@ -129,6 +129,7 @@ class BaseProvider(object):
         plan: OrderPlan,
         skip_errored_stocks=False,
         ignore_unsettled: bool = True,
+        plan_only:bool = False
     ):
         if ignore_unsettled:
             unsettled = self.get_unsettled_instruments()
@@ -160,8 +161,11 @@ class BaseProvider(object):
             else:
                 raise ValueError("Order element must have qty or value")
             try:
-                self.buy_instrument(item.ticker, units)
-                Logger.info(f"bought {units} of {item.ticker}")
+                if not plan_only:
+                    self.buy_instrument(item.ticker, units)
+                    Logger.info(f"Bought {units} of {item.ticker}")
+                else:
+                    Logger.info(f"Would have bought {units} of {item.ticker}")
             except Exception as e:
                 print(e)
                 if not skip_errored_stocks:
