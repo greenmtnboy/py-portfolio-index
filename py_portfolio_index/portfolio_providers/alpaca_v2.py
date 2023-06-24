@@ -1,10 +1,11 @@
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
-from py_portfolio_index.exceptions import ConfigurationError
+from py_portfolio_index.exceptions import ConfigurationError, OrderError
 from .base_portfolio import BaseProvider
 from decimal import Decimal
 from typing import Optional
 from datetime import date, datetime, timezone, timedelta
 from functools import lru_cache
+
 
 from os import environ
 
@@ -99,6 +100,7 @@ class AlpacaProvider(BaseProvider):
     def buy_instrument(self, ticker: str, qty: Decimal):
         from alpaca.trading.requests import MarketOrderRequest
         from alpaca.trading.enums import OrderSide, TimeInForce
+        from alpaca.common.exceptions import APIError
 
         market_order_data = MarketOrderRequest(
             symbol=ticker,
@@ -106,8 +108,13 @@ class AlpacaProvider(BaseProvider):
             side=OrderSide.BUY,
             time_in_force=TimeInForce.DAY,
         )
-        self.trading_client.submit_order(order_data=market_order_data)
-
+        try:
+            self.trading_client.submit_order(order_data=market_order_data)
+        except APIError as e:
+            import json
+            error = json.loads(e._error)
+            message = error.get('message', 'Unknown Error')
+            raise OrderError(message= f"Failed to buy {ticker} {qty} {e}: {message}")
         return True
 
     def get_unsettled_instruments(self):

@@ -9,6 +9,8 @@ from py_portfolio_index.enums import PurchaseStrategy, RoundingStrategy
 from py_portfolio_index.models import Money, OrderElement, OrderPlan, OrderType
 from .models import IdealPortfolio, RealPortfolio
 
+MIN_ORDER_SIZE = 2
+MIN_ORDER_MONEY = Money(value=MIN_ORDER_SIZE)
 
 @dataclass
 class ComparisonResult:
@@ -110,6 +112,7 @@ def generate_order_plan(
     # rounding_strategy=RoundingStrategy.CLOSEST,
     target_size: Optional[Money | float | int] = None,
     purchase_power: Optional[Money | float | int] = None,
+    min_order_value: Money = MIN_ORDER_MONEY
     # fractional_shares: bool = True,
 ) -> OrderPlan:
     diff = Decimal(0.0)
@@ -148,7 +151,7 @@ def generate_order_plan(
         f"Total portfolio % delta {print_per(diff)}. Overweight {print_per(selling)}, underweight {print_per(buying)}"
     )
 
-    scaling_factor = 1.0
+    scaling_factor = Money(value=1.0)
 
     if buy_order == PurchaseStrategy.LARGEST_DIFF_FIRST:
         diff_output: Dict[str, ComparisonResult] = {
@@ -186,7 +189,8 @@ def generate_order_plan(
             # if not fractional_shares:
             #     price = real.get_instrument_price(key)
             #     qty = round_with_strategy(target/price, rounding_strategy)
-            #     target = None
+            #     target = 
+            sell_target = max(sell_target, MIN_ORDER_MONEY )
             to_sell.append(
                 OrderElement(
                     ticker=key, value=sell_target, order_type=OrderType.SELL, qty=None
@@ -212,11 +216,11 @@ def generate_order_plan(
             if buy_order == PurchaseStrategy.PEANUT_BUTTER:
                 if buy_target > 0.0:
                     max_value: Decimal = max(
-                        Decimal(float(buy_target.value)) * Decimal(scaling_factor),
+                        Decimal(float(buy_target.value)) * scaling_factor.decimal,
                         Decimal(1.0),
                     )
                     buy_target = Money(value=max_value)
-
+            buy_target = max(buy_target, min_order_value )
             to_purchase.append(
                 OrderElement(
                     ticker=key, value=buy_target, qty=None, order_type=OrderType.BUY

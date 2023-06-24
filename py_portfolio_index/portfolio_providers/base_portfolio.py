@@ -3,7 +3,7 @@ from typing import Dict, Union, Optional, Set
 from decimal import Decimal
 from datetime import date
 
-from py_portfolio_index.common import print_money, print_per
+from py_portfolio_index.common import print_money, print_per, round_up_to_place
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import RoundingStrategy
 from py_portfolio_index.exceptions import PriceFetchError
@@ -12,6 +12,9 @@ from functools import lru_cache
 
 
 class BaseProvider(object):
+    MIN_ORDER_VALUE = Money(value=1)
+    MAX_ORDER_DECIMALS = 2
+    
     def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None):
         raise NotImplementedError
 
@@ -157,7 +160,7 @@ class BaseProvider(object):
                         raise e
                     else:
                         continue
-                units = round(item.value / price, 4).value
+                units = round_up_to_place((item.value/price).value, self.MAX_ORDER_DECIMALS)
             else:
                 raise ValueError("Order element must have qty or value")
             try:
