@@ -16,14 +16,20 @@ class Money(BaseModel):
     value: Union[Decimal, int, float, "Money"]
     currency: Currency = Currency.USD
 
+    @property
+    def decimal(self) -> Decimal:
+        return self.value #type: ignore
+    
     @validator("value", pre=True)
-    def coerce_to_decimal(cls, v):
-        if isinstance(v, int):
+    def coerce_to_decimal(cls, v)-> Decimal:
+        if isinstance(v, (int, float)):
             return Decimal(v)
-        if isinstance(v, Money):
+        elif isinstance(v, Money):
             # TODO convert this
-            return Decimal(v.value)
-        return v
+            return v.decimal
+        elif isinstance(v, Decimal):
+            return v
+        return Decimal(v)
 
     def __str__(self):
         return f"{self.currency.value}{self.value}"
@@ -118,7 +124,6 @@ class IdealPortfolio(BaseModel):
         weights: Decimal = sum([item.weight for item in self.holdings])
 
         scaling_factor = Decimal(1) / weights
-
         for item in self.holdings:
             item.weight = item.weight * scaling_factor
 
@@ -165,6 +170,7 @@ class IdealPortfolio(BaseModel):
                 self.holdings.append(
                     IdealPortfolioElement(ticker=ticker, weight=cmin_weight)
                 )
+            
         self._reweight_portfolio()
         Logger.info(
             f"modified the following by weight {cweight} {reweighted}. Total value modified {total_value}."
