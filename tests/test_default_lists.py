@@ -1,5 +1,6 @@
 from py_portfolio_index import INDEXES, STOCK_LISTS
 
+
 def test_indexes():
     for key in INDEXES.keys:
         x = INDEXES[key]

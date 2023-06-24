@@ -7,7 +7,7 @@ from pathlib import Path
 class StocklistInventory(BaseModel):
     keys: Set[str] = Field(exclude=True)
     base: Path = Field(exclude=True)
-    loaded: dict[str, List[str]] = Field(default_factory = dict)
+    loaded: dict[str, List[str]] = Field(default_factory=dict)
 
     @classmethod
     def from_path(cls, path):
@@ -21,8 +21,8 @@ class StocklistInventory(BaseModel):
                     keys.append(f.stem)
             except FileNotFoundError:
                 pass
-        return StocklistInventory(keys = keys, base = path)
-    
+        return StocklistInventory(keys=keys, base=path)
+
     def __getitem__(self, item: str) -> List[str]:
         if item in self.keys:
             values = self.loaded.get(item, None)

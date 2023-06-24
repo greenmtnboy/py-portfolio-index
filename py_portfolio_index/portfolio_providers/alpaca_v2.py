@@ -1,9 +1,11 @@
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
+from py_portfolio_index.exceptions import ConfigurationError, OrderError
 from .base_portfolio import BaseProvider
 from decimal import Decimal
 from typing import Optional
 from datetime import date, datetime, timezone, timedelta
 from functools import lru_cache
+
 
 from os import environ
 
@@ -23,7 +25,7 @@ class AlpacaProvider(BaseProvider):
         if not secret_key:
             secret_key = environ.get("ALPACA_API_SECRET", None)
         if not (key_id and secret_key):
-            raise ValueError(
+            raise ConfigurationError(
                 "Must provide key_id and secret_key or set environment variables ALPACA_API_KEY and ALPACA_API_SECRET "
             )
         self.trading_client = TradingClient(
@@ -98,6 +100,7 @@ class AlpacaProvider(BaseProvider):
     def buy_instrument(self, ticker: str, qty: Decimal):
         from alpaca.trading.requests import MarketOrderRequest
         from alpaca.trading.enums import OrderSide, TimeInForce
+        from alpaca.common.exceptions import APIError
 
         market_order_data = MarketOrderRequest(
             symbol=ticker,
@@ -105,8 +108,13 @@ class AlpacaProvider(BaseProvider):
             side=OrderSide.BUY,
             time_in_force=TimeInForce.DAY,
         )
-        self.trading_client.submit_order(order_data=market_order_data)
-
+        try:
+            self.trading_client.submit_order(order_data=market_order_data)
+        except APIError as e:
+            import json
+            error = json.loads(e._error)
+            message = error.get('message', 'Unknown Error')
+            raise OrderError(message= f"Failed to buy {ticker} {qty} {e}: {message}")
         return True
 
     def get_unsettled_instruments(self):
@@ -121,9 +129,22 @@ class AlpacaProvider(BaseProvider):
         from decimal import Decimal
 
         my_stocks = self.trading_client.get_all_positions()
-
+        account = self.trading_client.get_account()
+        unsettled = self.get_unsettled_instruments()
+        unsettled_elements = [
+            RealPortfolioElement(
+                ticker=ticker,
+                units=0,
+                value=Money(value=Decimal(0)),
+                weight=Decimal(0),
+                unsettled=True,
+            )
+            for ticker in unsettled
+        ]
         if not my_stocks:
-            return RealPortfolio(holdings=[])
+            return RealPortfolio(
+                holdings=unsettled_elements, cash=Money(value=account.cash)
+            )
         total_value = sum([Decimal(item.market_value) for item in my_stocks])
         out = [
             RealPortfolioElement(
@@ -131,7 +152,15 @@ class AlpacaProvider(BaseProvider):
                 units=row.qty,
                 value=Money(value=Decimal(row.market_value)),
                 weight=Decimal(row.market_value) / total_value,
+                unsettled=row.symbol in unsettled,
             )
             for row in my_stocks
         ]
-        return RealPortfolio(holdings=out)
+
+        extra_unsettled = [
+            item
+            for item in unsettled_elements
+            if item.ticker not in [x.ticker for x in out]
+        ]
+        out.extend(extra_unsettled)
+        return RealPortfolio(holdings=out, cash=Money(value=account.cash))

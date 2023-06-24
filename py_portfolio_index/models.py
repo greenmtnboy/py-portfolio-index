@@ -6,6 +6,7 @@ from py_portfolio_index.enums import Currency
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.exceptions import PriceFetchError
 from decimal import Decimal
+from enum import Enum
 
 if TYPE_CHECKING:
     from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
@@ -15,14 +16,20 @@ class Money(BaseModel):
     value: Union[Decimal, int, float, "Money"]
     currency: Currency = Currency.USD
 
+    @property
+    def decimal(self) -> Decimal:
+        return self.value #type: ignore
+    
     @validator("value", pre=True)
-    def coerce_to_decimal(cls, v):
-        if isinstance(v, int):
+    def coerce_to_decimal(cls, v)-> Decimal:
+        if isinstance(v, (int, float)):
             return Decimal(v)
-        if isinstance(v, Money):
+        elif isinstance(v, Money):
             # TODO convert this
-            return Decimal(v.value)
-        return v
+            return v.decimal
+        elif isinstance(v, Decimal):
+            return v
+        return Decimal(v)
 
     def __str__(self):
         return f"{self.currency.value}{self.value}"
@@ -117,7 +124,6 @@ class IdealPortfolio(BaseModel):
         weights: Decimal = sum([item.weight for item in self.holdings])
 
         scaling_factor = Decimal(1) / weights
-
         for item in self.holdings:
             item.weight = item.weight * scaling_factor
 
@@ -132,7 +138,7 @@ class IdealPortfolio(BaseModel):
                     item.weight = Decimal(0.0)
 
         self.holdings = [
-            item for item in self.holdings if item.ticker not in [reweighted]
+            item for item in self.holdings if item.ticker not in reweighted
         ]
         self._reweight_portfolio()
         Logger.info(
@@ -164,6 +170,7 @@ class IdealPortfolio(BaseModel):
                 self.holdings.append(
                     IdealPortfolioElement(ticker=ticker, weight=cmin_weight)
                 )
+            
         self._reweight_portfolio()
         Logger.info(
             f"modified the following by weight {cweight} {reweighted}. Total value modified {total_value}."
@@ -213,6 +220,7 @@ class RealPortfolioElement(IdealPortfolioElement):
     units: Decimal
     value: Money
     weight: Decimal = Decimal(0.0)
+    unsettled: bool = False
 
     @validator("value", pre=True)
     def value_coercion(cls, v) -> Money:
@@ -221,6 +229,7 @@ class RealPortfolioElement(IdealPortfolioElement):
 
 class RealPortfolio(IdealPortfolio):
     holdings: List[RealPortfolioElement]  # type: ignore
+    cash: None | Money = None
 
     @property
     def _index(self):
@@ -257,3 +266,20 @@ class RealPortfolio(IdealPortfolio):
         else:
             raise ValueError
         return self
+
+
+class OrderType(Enum):
+    BUY = "BUY"
+    SELL = "SELL"
+
+
+class OrderElement(BaseModel):
+    ticker: str
+    order_type: OrderType
+    value: Money | None
+    qty: int | None
+
+
+class OrderPlan(BaseModel):
+    to_buy: List[OrderElement]
+    to_sell: List[OrderElement]
