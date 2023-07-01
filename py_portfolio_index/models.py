@@ -1,7 +1,6 @@
-from datetime import datetime, date
+from datetime import  date
 from typing import List, Optional, Union, TYPE_CHECKING
 from pydantic import BaseModel, Field, validator
-from pandas import DataFrame
 from py_portfolio_index.enums import Currency
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.exceptions import PriceFetchError
@@ -177,7 +176,8 @@ class IdealPortfolio(BaseModel):
         )
         return self
 
-    def reweight_to_present(self, provider: "BaseProvider"):
+    def reweight_to_present(self, provider: "BaseProvider")->dict:
+        output = {}
         imaginary_base = Decimal(1_000_000)
         values = {}
         for item in self.holdings:
@@ -185,34 +185,33 @@ class IdealPortfolio(BaseModel):
                 source_price = provider.get_instrument_price(
                     item.ticker, self.source_date
                 )
+                today_price = provider.get_instrument_price(item.ticker)
             except PriceFetchError:
-                source_price = provider.get_instrument_price(item.ticker)
-            today_price = provider.get_instrument_price(item.ticker)
+                try:
+                    source_price = provider.get_instrument_price(item.ticker)
+                    today_price = source_price
+                except PriceFetchError:
+                    source_price = None
+                    today_price = None
             if not source_price or not today_price:
                 # if we couldn't get a historical price
                 # keep the value the same
                 values[item.ticker] = imaginary_base * item.weight
                 continue
             source_shares = imaginary_base * item.weight / source_price
-
-            today_value = today_price * source_shares
-            values[item.ticker] = today_value
+            stock_value_old = source_shares * source_price
+            stock_value_today = today_price * source_shares
+            # print(item.ticker, '-', stock_value_old, '-', stock_value_today)
+            values[item.ticker] = stock_value_today
         today_value = Decimal(sum(values.values()))
 
         for item in self.holdings:
             new_weight = values[item.ticker] / today_value
+            ratio = round(((new_weight-item.weight)/item.weight)*100,2)
+            output[item.ticker] = ratio
             item.weight = new_weight
         self._reweight_portfolio()
-
-    def produce_tear_sheet_from_date(self, datetime: datetime):
-        raise NotImplementedError
-        import pyfolio
-
-        columns = ["date"] + [item.ticker for item in self.holdings]
-        values = [datetime] + [item.value for item in self.holdings]
-        df = DataFrame([values], columns=columns)
-        df.set_index(keys=["date"], drop=True)
-        pyfolio.create_simple_tear_sheet(positions=df, live_start_date=datetime)
+        return output
 
 
 class RealPortfolioElement(IdealPortfolioElement):
