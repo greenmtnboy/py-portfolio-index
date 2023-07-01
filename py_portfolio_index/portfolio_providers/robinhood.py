@@ -186,6 +186,7 @@ class RobinhoodProvider(BaseProvider):
             raise ValueError(msg)
         return True
 
+
     def get_unsettled_instruments(self) -> set[str]:
         """We need to efficiently bypass"""
         accounts_data = self._provider.load_account_profile()
@@ -198,9 +199,12 @@ class RobinhoodProvider(BaseProvider):
 
         window = datetime.now() - timedelta(days=7)
         data = request_get(
-            url, "pagination", payload={"updated_at": window.isoformat()}
+            url, "results", payload={"updated_at": window.isoformat()}
         )
         orders = [item for item in data if item["cancel"] is not None]
+        if len(orders) == len(data):
+            # bit the bullet
+            data = request_get(url, "paginate", payload={"updated_at": window.isoformat()})
         instrument_to_symbol_map = {
             row["url"]: row["symbol"] for row in self._local_instrument_cache
         }
@@ -219,6 +223,7 @@ class RobinhoodProvider(BaseProvider):
     def get_holdings(self):
         accounts_data = self._provider.load_account_profile()
         my_stocks = self._provider.get_open_stock_positions()
+        unsettled = self.get_unsettled_instruments()
         if not self._local_instrument_cache:
             self._refresh_local_instruments()
         instrument_to_symbol_map = {
@@ -247,21 +252,22 @@ class RobinhoodProvider(BaseProvider):
         price_raw = []
         for batch in divide_into_batches(symbols):
             price_raw += self._provider.get_latest_price(batch)
-        prices = {s: price_raw[idx] for idx, s in enumerate(symbols)}
+        prices = {s: Decimal(price_raw[idx]) for idx, s in enumerate(symbols)}
         self._local_latest_price_cache = {**prices, **self._local_latest_price_cache}
-        total_value = 0.0
+        total_value = Decimal(0.0)
         for s in symbols:
-            total_value += float(prices[s]) * float(pre[s]["units"])
+            total_value += prices[s] * Decimal(pre[s]["units"])
         final = []
         for s in symbols:
             local = pre[s]
-            value = float(prices[s]) * float(pre[s]["units"])
+            value = Decimal(prices[s]) * Decimal(pre[s]["units"])
             local["value"] = Money(value=value)
             local["weight"] = value / total_value
+            local["unsettled"] = s in unsettled
             final.append(local)
         out = [RealPortfolioElement(**row) for row in final]
 
-        cash = float(accounts_data["portfolio_cash"]) - float(
+        cash = Decimal(accounts_data["portfolio_cash"]) - Decimal(
             accounts_data["cash_held_for_orders"]
         )
         return RealPortfolio(holdings=out, cash=Money(value=cash))

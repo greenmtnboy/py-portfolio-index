@@ -199,7 +199,6 @@ class IdealPortfolio(BaseModel):
                 values[item.ticker] = imaginary_base * item.weight
                 continue
             source_shares = imaginary_base * item.weight / source_price
-            source_shares * source_price
             stock_value_today = today_price * source_shares
             # print(item.ticker, '-', stock_value_old, '-', stock_value_today)
             values[item.ticker] = stock_value_today
