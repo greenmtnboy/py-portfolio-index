@@ -255,8 +255,9 @@ class RobinhoodProvider(BaseProvider):
         final = []
         for s in symbols:
             local = pre[s]
-            local["value"] = Money(value=float(prices[s]) * float(pre[s]["units"]))
-            local["weight"] = local["value"] / total_value
+            value = float(prices[s]) * float(pre[s]["units"])
+            local["value"] = Money(value=value)
+            local["weight"] = value / total_value
             final.append(local)
         out = [RealPortfolioElement(**row) for row in final]
         return RealPortfolio(
