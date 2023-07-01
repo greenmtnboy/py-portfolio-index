@@ -1,4 +1,4 @@
-from datetime import  date
+from datetime import date
 from typing import List, Optional, Union, TYPE_CHECKING
 from pydantic import BaseModel, Field, validator
 from py_portfolio_index.enums import Currency
@@ -17,10 +17,10 @@ class Money(BaseModel):
 
     @property
     def decimal(self) -> Decimal:
-        return self.value #type: ignore
-    
+        return self.value  # type: ignore
+
     @validator("value", pre=True)
-    def coerce_to_decimal(cls, v)-> Decimal:
+    def coerce_to_decimal(cls, v) -> Decimal:
         if isinstance(v, (int, float)):
             return Decimal(v)
         elif isinstance(v, Money):
@@ -169,14 +169,14 @@ class IdealPortfolio(BaseModel):
                 self.holdings.append(
                     IdealPortfolioElement(ticker=ticker, weight=cmin_weight)
                 )
-            
+
         self._reweight_portfolio()
         Logger.info(
             f"modified the following by weight {cweight} {reweighted}. Total value modified {total_value}."
         )
         return self
 
-    def reweight_to_present(self, provider: "BaseProvider")->dict:
+    def reweight_to_present(self, provider: "BaseProvider") -> dict:
         output = {}
         imaginary_base = Decimal(1_000_000)
         values = {}
@@ -199,7 +199,7 @@ class IdealPortfolio(BaseModel):
                 values[item.ticker] = imaginary_base * item.weight
                 continue
             source_shares = imaginary_base * item.weight / source_price
-            stock_value_old = source_shares * source_price
+            source_shares * source_price
             stock_value_today = today_price * source_shares
             # print(item.ticker, '-', stock_value_old, '-', stock_value_today)
             values[item.ticker] = stock_value_today
@@ -207,7 +207,7 @@ class IdealPortfolio(BaseModel):
 
         for item in self.holdings:
             new_weight = values[item.ticker] / today_value
-            ratio = round(((new_weight-item.weight)/item.weight)*100,2)
+            ratio = round(((new_weight - item.weight) / item.weight) * 100, 2)
             output[item.ticker] = ratio
             item.weight = new_weight
         self._reweight_portfolio()

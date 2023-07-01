@@ -112,9 +112,10 @@ class AlpacaProvider(BaseProvider):
             self.trading_client.submit_order(order_data=market_order_data)
         except APIError as e:
             import json
+
             error = json.loads(e._error)
-            message = error.get('message', 'Unknown Error')
-            raise OrderError(message= f"Failed to buy {ticker} {qty} {e}: {message}")
+            message = error.get("message", "Unknown Error")
+            raise OrderError(message=f"Failed to buy {ticker} {qty} {e}: {message}")
         return True
 
     def get_unsettled_instruments(self):

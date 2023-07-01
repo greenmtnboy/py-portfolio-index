@@ -260,6 +260,8 @@ class RobinhoodProvider(BaseProvider):
             local["weight"] = value / total_value
             final.append(local)
         out = [RealPortfolioElement(**row) for row in final]
-        return RealPortfolio(
-            holdings=out, cash=Money(value=accounts_data["portfolio_cash"])
+
+        cash = float(accounts_data["portfolio_cash"]) - float(
+            accounts_data["cash_held_for_orders"]
         )
+        return RealPortfolio(holdings=out, cash=Money(value=cash))
