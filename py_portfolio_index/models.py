@@ -180,19 +180,27 @@ class IdealPortfolio(BaseModel):
         output = {}
         imaginary_base = Decimal(1_000_000)
         values = {}
-        for item in self.holdings:
-            try:
-                source_price = provider.get_instrument_price(
-                    item.ticker, self.source_date
-                )
-                today_price = provider.get_instrument_price(item.ticker)
-            except PriceFetchError:
+        if provider.SUPPORTS_BATCH_HISTORY:
+            tickers = [item.ticker for item in self.holdings]
+            historic_prices = provider.get_instrument_prices(tickers, self.source_date)
+            today_prices = provider.get_instrument_prices(tickers, None)
+        else:
+            historic_prices = {}
+            today_prices = {}
+            for item in self.holdings:
                 try:
-                    source_price = provider.get_instrument_price(item.ticker)
-                    today_price = source_price
+                    historic_prices[item.ticker] = provider.get_instrument_price(
+                        item.ticker, self.source_date
+                    )
+                    today_prices[item.ticker] = provider.get_instrument_price(
+                        item.ticker
+                    )
                 except PriceFetchError:
-                    source_price = None
-                    today_price = None
+                    historic_prices[item.ticker] = None
+                    today_prices[item.ticker] = None
+        for item in self.holdings:
+            source_price = historic_prices.get(item.ticker, None)
+            today_price = today_prices.get(item.ticker, None)
             if not source_price or not today_price:
                 # if we couldn't get a historical price
                 # keep the value the same
@@ -200,7 +208,6 @@ class IdealPortfolio(BaseModel):
                 continue
             source_shares = imaginary_base * item.weight / source_price
             stock_value_today = today_price * source_shares
-            # print(item.ticker, '-', stock_value_old, '-', stock_value_today)
             values[item.ticker] = stock_value_today
         today_value = Decimal(sum(values.values()))
 

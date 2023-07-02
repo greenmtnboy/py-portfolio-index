@@ -15,12 +15,21 @@ from py_portfolio_index.models import RealPortfolio
 class BaseProvider(object):
     MIN_ORDER_VALUE = Money(value=1)
     MAX_ORDER_DECIMALS = 2
+    SUPPORTS_BATCH_HISTORY = 0
 
     def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None):
         raise NotImplementedError
 
     def get_holdings(self) -> RealPortfolio:
         raise NotImplementedError
+
+    def get_instrument_prices(
+        self, tickers: Set[str], at_day: Optional[date] = None
+    ) -> Dict[str, Optional[Decimal]]:
+        output = {}
+        for ticker in tickers:
+            output[ticker] = self.get_instrument_price(ticker, at_day=at_day)
+        return output
 
     @lru_cache(maxsize=None)
     def get_instrument_price(

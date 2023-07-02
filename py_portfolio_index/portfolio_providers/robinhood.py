@@ -2,10 +2,11 @@ import re
 from decimal import Decimal
 from time import sleep
 from datetime import date, datetime
-from typing import Optional, Any, List, Dict
+from typing import Optional, List, Dict, Set
 from py_portfolio_index.exceptions import ConfigurationError
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
+from py_portfolio_index.common import divide_into_batches
 from .base_portfolio import BaseProvider
 from py_portfolio_index.exceptions import PriceFetchError
 from functools import lru_cache
@@ -13,24 +14,6 @@ from os import environ
 
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
-
-
-def divide_into_batches(lst: list, batch_size: int = BATCH_SIZE) -> list[list[Any]]:
-    """
-    Divide a list into batches of a specified size.
-
-    Args:
-        lst: The list to be divided.
-        batch_size: The size of each batch.
-
-    Returns:
-        A list of batches, where each batch is a sublist of the original list.
-    """
-    batches = []
-    for i in range(0, len(lst), batch_size):
-        batch = lst[i : i + batch_size]
-        batches.append(batch)
-    return batches
 
 
 def nearest_value(all_historicals, pivot) -> Optional[dict]:
@@ -45,12 +28,35 @@ def nearest_value(all_historicals, pivot) -> Optional[dict]:
     )
 
 
+def nearest_multi_value(
+    symbol: str, all_historicals, pivot: Optional[date] = None
+) -> Optional[Decimal]:
+    filtered = [z for z in all_historicals if z and z["symbol"] == symbol]
+    if not filtered:
+        return None
+    if pivot:
+        closest = min(
+            filtered,
+            key=lambda x: abs(
+                datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - pivot
+            ),
+        )
+    else:
+        closest = filtered[0]
+    if closest:
+        value = closest.get('last_trade_price', closest['high_price'])
+        return Decimal(value)
+    return None
+
+
 class RobinhoodProvider(BaseProvider):
     """Provider for interacting with Robinhood portfolios.
 
     Requires username and password.
 
     """
+
+    SUPPORTS_BATCH_HISTORY = 70
 
     def __init__(
         self,
@@ -247,11 +253,7 @@ class RobinhoodProvider(BaseProvider):
             local["value"] = 0
             local["weight"] = 0
             pre[ticker] = local
-
-        price_raw = []
-        for batch in divide_into_batches(symbols):
-            price_raw += self._provider.get_latest_price(batch)
-        prices = {s: Decimal(price_raw[idx]) for idx, s in enumerate(symbols)}
+        prices = self.get_instrument_prices(symbols)
         self._local_latest_price_cache = {**prices, **self._local_latest_price_cache}
         total_value = Decimal(0.0)
         for s in symbols:
@@ -270,3 +272,24 @@ class RobinhoodProvider(BaseProvider):
             accounts_data["cash_held_for_orders"]
         )
         return RealPortfolio(holdings=out, cash=Money(value=cash))
+
+    def get_instrument_prices(
+        self, tickers: Set[str], at_day: Optional[date] = None
+    ) -> Dict[str, Optional[Decimal]]:
+        ticker_list = list(tickers)
+        batches = []
+        for batch in divide_into_batches(ticker_list, BATCH_SIZE):
+            if at_day:
+                historicals = self._provider.get_stock_historicals(
+                    batch, interval="day", span="year", bounds="regular"
+                )
+                batches.append(
+                    {s: nearest_multi_value(s, historicals, at_day) for s in batch}
+                )
+            else:
+                results = self._provider.get_quotes(batch)
+                batches.append({s: nearest_multi_value(s, results) for s in batch})
+        prices: Dict[str, Optional[Decimal]] = {}
+        for fbatch in batches:
+            prices = {**prices, **fbatch}
+        return prices
