@@ -44,7 +44,7 @@ def nearest_multi_value(
     else:
         closest = filtered[0]
     if closest:
-        value = closest.get('last_trade_price', closest['high_price'])
+        value = closest.get('last_trade_price', closest.get('high_price', None))
         return Decimal(value)
     return None
 

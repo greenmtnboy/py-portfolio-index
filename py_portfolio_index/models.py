@@ -130,14 +130,14 @@ class IdealPortfolio(BaseModel):
         reweighted = []
         excluded = Decimal(0.0)
         for ticker in exclusion_list:
-            reweighted.append(ticker)
             for item in self.holdings:
                 if item.ticker == ticker:
+                    reweighted.append(ticker)
                     excluded += item.weight
                     item.weight = Decimal(0.0)
 
         self.holdings = [
-            item for item in self.holdings if item.ticker not in reweighted
+            item for item in self.holdings if item.ticker not in exclusion_list
         ]
         self._reweight_portfolio()
         Logger.info(
