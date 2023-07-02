@@ -2,7 +2,7 @@ from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
 from py_portfolio_index.exceptions import ConfigurationError, OrderError
 from .base_portfolio import BaseProvider
 from decimal import Decimal
-from typing import Optional, Set, Dict, List
+from typing import Optional, Dict, List
 from datetime import date, datetime, timezone, timedelta
 from functools import lru_cache
 from py_portfolio_index.common import divide_into_batches
@@ -118,7 +118,7 @@ class AlpacaProvider(BaseProvider):
             }
 
     def get_instrument_prices(
-        self, tickers: Set[str], at_day: Optional[date] = None
+        self, tickers: List[str], at_day: Optional[date] = None
     ) -> Dict[str, Optional[Decimal]]:
         batches = divide_into_batches(list(tickers), self.SUPPORTS_BATCH_HISTORY)
         final: Dict[str, Optional[Decimal]] = {}

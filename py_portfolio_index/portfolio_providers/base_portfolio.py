@@ -1,5 +1,5 @@
 from math import floor, ceil
-from typing import Dict, Union, Optional, Set
+from typing import Dict, Union, Optional, Set, List
 from decimal import Decimal
 from datetime import date
 
@@ -24,7 +24,7 @@ class BaseProvider(object):
         raise NotImplementedError
 
     def get_instrument_prices(
-        self, tickers: Set[str], at_day: Optional[date] = None
+        self, tickers: List[str], at_day: Optional[date] = None
     ) -> Dict[str, Optional[Decimal]]:
         output = {}
         for ticker in tickers:

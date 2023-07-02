@@ -2,7 +2,7 @@ import re
 from decimal import Decimal
 from time import sleep
 from datetime import date, datetime
-from typing import Optional, List, Dict, Set
+from typing import Optional, List, Dict
 from py_portfolio_index.exceptions import ConfigurationError
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
@@ -34,11 +34,12 @@ def nearest_multi_value(
     filtered = [z for z in all_historicals if z and z["symbol"] == symbol]
     if not filtered:
         return None
-    if pivot:
+    if pivot is not None:
+        lpivot = pivot or date.today()
         closest = min(
             filtered,
             key=lambda x: abs(
-                datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - pivot
+                datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - lpivot
             ),
         )
     else:
@@ -274,9 +275,9 @@ class RobinhoodProvider(BaseProvider):
         return RealPortfolio(holdings=out, cash=Money(value=cash))
 
     def get_instrument_prices(
-        self, tickers: Set[str], at_day: Optional[date] = None
+        self, tickers: List[str], at_day: Optional[date] = None
     ) -> Dict[str, Optional[Decimal]]:
-        ticker_list = list(tickers)
+        ticker_list = tickers
         batches = []
         for batch in divide_into_batches(ticker_list, BATCH_SIZE):
             if at_day:
