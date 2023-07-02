@@ -1,5 +1,5 @@
 from math import floor, ceil
-from typing import Dict, Union, Optional, Set
+from typing import Dict, Union, Optional, Set, List
 from decimal import Decimal
 from datetime import date
 
@@ -9,14 +9,27 @@ from py_portfolio_index.enums import RoundingStrategy
 from py_portfolio_index.exceptions import PriceFetchError
 from py_portfolio_index.models import Money, OrderPlan
 from functools import lru_cache
+from py_portfolio_index.models import RealPortfolio
 
 
 class BaseProvider(object):
     MIN_ORDER_VALUE = Money(value=1)
     MAX_ORDER_DECIMALS = 2
-    
+    SUPPORTS_BATCH_HISTORY = 0
+
     def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None):
         raise NotImplementedError
+
+    def get_holdings(self) -> RealPortfolio:
+        raise NotImplementedError
+
+    def get_instrument_prices(
+        self, tickers: List[str], at_day: Optional[date] = None
+    ) -> Dict[str, Optional[Decimal]]:
+        output = {}
+        for ticker in tickers:
+            output[ticker] = self.get_instrument_price(ticker, at_day=at_day)
+        return output
 
     @lru_cache(maxsize=None)
     def get_instrument_price(
@@ -132,7 +145,7 @@ class BaseProvider(object):
         plan: OrderPlan,
         skip_errored_stocks=False,
         ignore_unsettled: bool = True,
-        plan_only:bool = False
+        plan_only: bool = False,
     ):
         if ignore_unsettled:
             unsettled = self.get_unsettled_instruments()
@@ -160,7 +173,9 @@ class BaseProvider(object):
                         raise e
                     else:
                         continue
-                units = round_up_to_place((item.value/price).value, self.MAX_ORDER_DECIMALS)
+                units = round_up_to_place(
+                    (item.value / price).value, self.MAX_ORDER_DECIMALS
+                )
             else:
                 raise ValueError("Order element must have qty or value")
             try:

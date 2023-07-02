@@ -12,6 +12,7 @@ from .models import IdealPortfolio, RealPortfolio
 MIN_ORDER_SIZE = 2
 MIN_ORDER_MONEY = Money(value=MIN_ORDER_SIZE)
 
+
 @dataclass
 class ComparisonResult:
     ticker: str
@@ -189,8 +190,8 @@ def generate_order_plan(
             # if not fractional_shares:
             #     price = real.get_instrument_price(key)
             #     qty = round_with_strategy(target/price, rounding_strategy)
-            #     target = 
-            sell_target = max(sell_target, MIN_ORDER_MONEY )
+            #     target =
+            sell_target = max(sell_target, MIN_ORDER_MONEY)
             to_sell.append(
                 OrderElement(
                     ticker=key, value=sell_target, order_type=OrderType.SELL, qty=None
@@ -220,7 +221,7 @@ def generate_order_plan(
                         Decimal(1.0),
                     )
                     buy_target = Money(value=max_value)
-            buy_target = max(buy_target, min_order_value )
+            buy_target = max(buy_target, min_order_value)
             to_purchase.append(
                 OrderElement(
                     ticker=key, value=buy_target, qty=None, order_type=OrderType.BUY
