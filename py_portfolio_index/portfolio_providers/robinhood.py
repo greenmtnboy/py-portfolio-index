@@ -186,7 +186,6 @@ class RobinhoodProvider(BaseProvider):
             raise ValueError(msg)
         return True
 
-
     def get_unsettled_instruments(self) -> set[str]:
         """We need to efficiently bypass"""
         accounts_data = self._provider.load_account_profile()
@@ -198,13 +197,13 @@ class RobinhoodProvider(BaseProvider):
         from datetime import datetime, timedelta
 
         window = datetime.now() - timedelta(days=7)
-        data = request_get(
-            url, "results", payload={"updated_at": window.isoformat()}
-        )
+        data = request_get(url, "results", payload={"updated_at": window.isoformat()})
         orders = [item for item in data if item["cancel"] is not None]
         if len(orders) == len(data):
             # bit the bullet
-            data = request_get(url, "paginate", payload={"updated_at": window.isoformat()})
+            data = request_get(
+                url, "paginate", payload={"updated_at": window.isoformat()}
+            )
         instrument_to_symbol_map = {
             row["url"]: row["symbol"] for row in self._local_instrument_cache
         }

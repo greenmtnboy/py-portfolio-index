@@ -29,10 +29,11 @@ class AlpacaProvider(BaseProvider):
                 "Must provide key_id and secret_key or set environment variables ALPACA_API_KEY and ALPACA_API_SECRET "
             )
         self.trading_client = TradingClient(
-            api_key=key_id, secret_key=secret_key, paper=False
+            api_key=key_id, secret_key=secret_key, paper=paper
         )
         self.historical_client = StockHistoricalDataClient(
-            api_key=key_id, secret_key=secret_key
+            api_key=key_id,
+            secret_key=secret_key,
         )
         # tradeapi.REST(
         #     key_id=key_id, secret_key=secret_key, base_url=URL(TARGET_URL)
@@ -165,3 +166,12 @@ class AlpacaProvider(BaseProvider):
         ]
         out.extend(extra_unsettled)
         return RealPortfolio(holdings=out, cash=Money(value=account.cash))
+
+
+class PaperAlpacaProvider(AlpacaProvider):
+    def __init__(
+        self,
+        key_id: str | None = None,
+        secret_key: str | None = None,
+    ):
+        super().__init__(key_id=key_id, secret_key=secret_key, paper=True)
