@@ -9,7 +9,10 @@ from py_portfolio_index.common import divide_into_batches
 
 from os import environ
 
-def filter_prices_response(ticker:str, response, earliest:bool = True)->Decimal | None:
+
+def filter_prices_response(
+    ticker: str, response, earliest: bool = True
+) -> Decimal | None:
     try:
         ticker_vals = response[ticker]
     except KeyError:
@@ -20,7 +23,6 @@ def filter_prices_response(ticker:str, response, earliest:bool = True)->Decimal 
         if x.high:
             return Decimal(x.high)
     return None
-
 
 
 class AlpacaProvider(BaseProvider):
@@ -54,17 +56,23 @@ class AlpacaProvider(BaseProvider):
         #     key_id=key_id, secret_key=secret_key, base_url=URL(TARGET_URL)
         # )
         BaseProvider.__init__(self)
-    
+
     def _get_instrument_prices(
-        self, tickers:List[str], at_day: Optional[date] = None
-    ) -> Dict[str,Optional[Decimal]]:
+        self, tickers: List[str], at_day: Optional[date] = None
+    ) -> Dict[str, Optional[Decimal]]:
         from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
         from alpaca.data.requests import StockBarsRequest
 
         if at_day:
             today = datetime.now(tz=timezone.utc)
-            start = min(datetime(at_day.year, at_day.month, at_day.day, tzinfo=timezone.utc), today-timedelta(days=7))
-            end = min(datetime.now(tz=timezone.utc) - timedelta(minutes=30), start + timedelta(days=7))
+            start = min(
+                datetime(at_day.year, at_day.month, at_day.day, tzinfo=timezone.utc),
+                today - timedelta(days=7),
+            )
+            end = min(
+                datetime.now(tz=timezone.utc) - timedelta(minutes=30),
+                start + timedelta(days=7),
+            )
             # end = datetime(at_day.year, at_day.month, at_day.day+7, hour=23, tzinfo=timezone.utc)
             raw = self.historical_client.get_stock_bars(
                 StockBarsRequest(
@@ -72,7 +80,7 @@ class AlpacaProvider(BaseProvider):
                     start=start,
                     end=end,
                     timeframe=TimeFrame(amount=1, unit=TimeFrameUnit.Day),
-                    limit=len(tickers)*7,
+                    limit=len(tickers) * 7,
                     adjustment=None,
                     feed=None,
                 )
@@ -83,7 +91,7 @@ class AlpacaProvider(BaseProvider):
             )
             # take the first day after target day
 
-            return {ticker:filter_prices_response(ticker, raw) for ticker in tickers}
+            return {ticker: filter_prices_response(ticker, raw) for ticker in tickers}
         else:
             default = datetime.now(tz=timezone.utc) - timedelta(hours=1)
             start = default - timedelta(days=7)
@@ -96,7 +104,7 @@ class AlpacaProvider(BaseProvider):
                     timeframe=TimeFrame(amount=1, unit=TimeFrameUnit.Day),
                     feed=None,
                     adjustment=None,
-                    limit=len(tickers)*7,
+                    limit=len(tickers) * 7,
                 )
                 # [ticker],
                 # timeframe=TimeFrame(amount=1, unit=TimeFrameUnit.Day),
@@ -104,17 +112,20 @@ class AlpacaProvider(BaseProvider):
                 # end=end.isoformat(),
             )
             # take the first day after target day
-            return {ticker:filter_prices_response(ticker, raw, earliest=False) for ticker in tickers}
+            return {
+                ticker: filter_prices_response(ticker, raw, earliest=False)
+                for ticker in tickers
+            }
 
     def get_instrument_prices(
         self, tickers: Set[str], at_day: Optional[date] = None
     ) -> Dict[str, Optional[Decimal]]:
         batches = divide_into_batches(list(tickers), self.SUPPORTS_BATCH_HISTORY)
-        final:Dict[str, Optional[Decimal]] = {}
+        final: Dict[str, Optional[Decimal]] = {}
         for batch in batches:
             final = {**final, **self._get_instrument_prices(batch, at_day=at_day)}
         return final
-    
+
     @lru_cache(maxsize=None)
     def _get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
@@ -172,7 +183,6 @@ class AlpacaProvider(BaseProvider):
             )
             # take the first day after target day
             return Decimal(raw[ticker][0].high)
-
 
     def buy_instrument(self, ticker: str, qty: Decimal):
         from alpaca.trading.requests import MarketOrderRequest

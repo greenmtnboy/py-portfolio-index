@@ -20,6 +20,7 @@ def round_up_to_place(input: Decimal, places: int = 2) -> Decimal:
     factor = Decimal(pow(Decimal(10.0), places))
     return ceil(input * factor) / Decimal(factor)
 
+
 def divide_into_batches(lst: list, batch_size: int = 50) -> list[list[Any]]:
     """
     Divide a list into batches of a specified size.
