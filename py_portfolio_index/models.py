@@ -1,14 +1,22 @@
 from datetime import date
-from typing import List, Optional, Union, TYPE_CHECKING
+from typing import List, Optional, Union, TYPE_CHECKING, Collection, Any
 from pydantic import BaseModel, Field, validator
 from py_portfolio_index.enums import Currency
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.exceptions import PriceFetchError
 from decimal import Decimal
 from enum import Enum
+from typing import Protocol
 
 if TYPE_CHECKING:
     from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
+
+
+class PortfolioProtocol(Protocol):
+
+    @property
+    def holdings(self) ->  Collection["IdealPortfolioElement"]: 
+        pass
 
 
 class Money(BaseModel):
@@ -239,15 +247,21 @@ class RealPortfolioElement(IdealPortfolioElement):
         return Money.parse(v)
 
 
-class RealPortfolio(IdealPortfolio):
-    holdings: List[RealPortfolioElement]  # type: ignore
+class RealPortfolio(BaseModel):
+    holdings: List[RealPortfolioElement]
+    provider: Optional[Any] = None
     cash: None | Money = None
 
+
+    # @property
+    # def provider(self) -> Optional["BaseProvider" ]:
+    #     return self._provider
+    
     @property
     def _index(self):
         return {val.ticker: val for val in self.holdings}
 
-    def get_holding(self, ticker: str):
+    def get_holding(self, ticker: str)->RealPortfolioElement | None:
         return self._index.get(ticker)
 
     @property
@@ -258,7 +272,7 @@ class RealPortfolio(IdealPortfolio):
     def _reweight_portfolio(self):
         value = self.value
         for item in self.holdings:
-            item.weight = Decimal(item.value / value.value)
+            item.weight = Decimal(item.value.value / value.value)
 
     def add_holding(self, holding: RealPortfolioElement):
         existing = self._index.get(holding.ticker)
@@ -280,6 +294,30 @@ class RealPortfolio(IdealPortfolio):
         return self
 
 
+class CompositePortfolio():
+
+
+    def __init__(self, portfolios: List[RealPortfolio]):
+        self.portfolios = portfolios
+        self.internal_base = RealPortfolio(holdings=[])
+        for item in self.portfolios:
+            self.internal_base += item
+
+    @property
+    def cash(self)->Money:
+        return Money(value=sum([item.cash for item in self.portfolios if item.cash is not None]))
+    
+    @property
+    def value(self) -> Money:
+        return self.internal_base.value
+
+    @property
+    def holdings(self) -> List[RealPortfolioElement]:
+        return self.internal_base.holdings
+
+    def get_holding(self, ticker: str)->RealPortfolioElement | None:
+        return self.internal_base.get_holding(ticker)
+
 class OrderType(Enum):
     BUY = "BUY"
     SELL = "SELL"
@@ -295,3 +333,4 @@ class OrderElement(BaseModel):
 class OrderPlan(BaseModel):
     to_buy: List[OrderElement]
     to_sell: List[OrderElement]
+

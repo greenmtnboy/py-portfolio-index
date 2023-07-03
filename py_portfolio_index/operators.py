@@ -6,7 +6,7 @@ from math import floor, ceil
 from py_portfolio_index.common import print_per
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import PurchaseStrategy, RoundingStrategy
-from py_portfolio_index.models import Money, OrderElement, OrderPlan, OrderType
+from py_portfolio_index.models import Money, OrderElement, OrderPlan, OrderType, PortfolioProtocol
 from .models import IdealPortfolio, RealPortfolio
 
 MIN_ORDER_SIZE = 2
@@ -26,7 +26,7 @@ class ComparisonResult:
 
 
 def compare_portfolios(
-    real: RealPortfolio,
+    real: PortfolioProtocol,
     ideal: IdealPortfolio,
     buy_order=PurchaseStrategy.LARGEST_DIFF_FIRST,
     target_size: Optional[Union[Decimal, int]] = None,
@@ -107,7 +107,7 @@ def round_with_strategy(to_buy_currency, rounding_strategy: RoundingStrategy) ->
 
 
 def generate_order_plan(
-    real: RealPortfolio,
+    real: PortfolioProtocol,
     ideal: IdealPortfolio,
     buy_order=PurchaseStrategy.LARGEST_DIFF_FIRST,
     # rounding_strategy=RoundingStrategy.CLOSEST,

@@ -7,7 +7,7 @@ from py_portfolio_index.common import print_money, print_per, round_up_to_place
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import RoundingStrategy
 from py_portfolio_index.exceptions import PriceFetchError
-from py_portfolio_index.models import Money, OrderPlan
+from py_portfolio_index.models import Money, OrderPlan, OrderElement
 from functools import lru_cache
 from py_portfolio_index.models import RealPortfolio
 
@@ -144,6 +144,28 @@ class BaseProvider(object):
             f"$ diff from ideal for purchased stocks was {print_money(diff)}. {print_per(diff / target_value)} of total purchase goal."
         )
 
+    def handle_order_element(self, element: OrderElement, dry_run: bool = False):
+        if element.qty:
+            units = Decimal(element.qty)
+        elif element.value:
+            raw_price = self.get_instrument_price(element.ticker)
+            if not raw_price:
+                raise ValueError(
+                    f"No price found for this instrument: {element.ticker}"
+                )
+            price: Money = Money(value=raw_price)
+            Logger.info(f"got price of {price} for {element.ticker}")
+            units = round_up_to_place(
+                (element.value / price).value, self.MAX_ORDER_DECIMALS
+            )
+        else:
+            raise ValueError("Order element must have qty or value")
+        if not dry_run:
+            self.buy_instrument(element.ticker, units)
+            Logger.info(f"Bought {units} of {element.ticker}")
+        else:
+            Logger.info(f"Would have bought {units} of {element.ticker}")
+
     def purchase_order_plan(
         self,
         plan: OrderPlan,
@@ -159,36 +181,12 @@ class BaseProvider(object):
             if item.ticker in unsettled:
                 Logger.info(f"Skipping {item.ticker} with unsettled orders.")
                 continue
-
-            # round decimal units to 4 places
-            if item.qty:
-                units = Decimal(item.qty)
-            elif item.value:
-                try:
-                    raw_price = self.get_instrument_price(item.ticker)
-                    if not raw_price:
-                        raise ValueError(
-                            f"No price found for this instrument: {item.ticker}"
-                        )
-                    price: Money = Money(value=raw_price)
-                    Logger.info(f"got price of {price} for {item.ticker}")
-                except Exception as e:
-                    if not skip_errored_stocks:
-                        raise e
-                    else:
-                        continue
-                units = round_up_to_place(
-                    (item.value / price).value, self.MAX_ORDER_DECIMALS
-                )
-            else:
-                raise ValueError("Order element must have qty or value")
             try:
-                if not plan_only:
-                    self.buy_instrument(item.ticker, units)
-                    Logger.info(f"Bought {units} of {item.ticker}")
-                else:
-                    Logger.info(f"Would have bought {units} of {item.ticker}")
+                self.handle_order_element(item, dry_run=plan_only)
             except Exception as e:
                 print(e)
                 if not skip_errored_stocks:
                     raise e
+
+    def refresh(self):
+        pass

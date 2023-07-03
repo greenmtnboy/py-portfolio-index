@@ -278,7 +278,7 @@ class RobinhoodProvider(BaseProvider):
         cash = Decimal(accounts_data["portfolio_cash"]) - Decimal(
             accounts_data["cash_held_for_orders"]
         )
-        return RealPortfolio(holdings=out, cash=Money(value=cash))
+        return RealPortfolio(holdings=out, cash=Money(value=cash), provider=self)
 
     def get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
