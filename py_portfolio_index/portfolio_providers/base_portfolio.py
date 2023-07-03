@@ -17,6 +17,10 @@ class BaseProvider(object):
     MAX_ORDER_DECIMALS = 2
     SUPPORTS_BATCH_HISTORY = 0
 
+    @property
+    def valid_assets(self) -> Set[str]:
+        return set()
+
     def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None):
         raise NotImplementedError
 

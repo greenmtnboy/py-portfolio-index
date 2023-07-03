@@ -2,7 +2,7 @@ import re
 from decimal import Decimal
 from time import sleep
 from datetime import date, datetime
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Set
 from py_portfolio_index.exceptions import ConfigurationError
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
@@ -82,6 +82,12 @@ class RobinhoodProvider(BaseProvider):
         if not skip_cache:
             self._load_local_instrument_cache()
         self._local_latest_price_cache: Dict[str, Decimal] = {}
+
+    @property
+    def valid_assets(self) -> Set[str]:
+        if not self._local_instrument_cache:
+            self._load_local_instrument_cache()
+        return {row["symbol"] for row in self._local_instrument_cache}
 
     def _load_local_instrument_cache(self):
         from platformdirs import user_cache_dir

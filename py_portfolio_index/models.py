@@ -125,6 +125,7 @@ class IdealPortfolio(BaseModel):
         scaling_factor = Decimal(1) / weights
         for item in self.holdings:
             item.weight = item.weight * scaling_factor
+        self.holdings = sorted(self.holdings, key=lambda x: x.weight, reverse=True)
 
     def exclude(self, exclusion_list: List[str]):
         reweighted = []
@@ -180,14 +181,17 @@ class IdealPortfolio(BaseModel):
         output = {}
         imaginary_base = Decimal(1_000_000)
         values = {}
+        valid_assets = [
+            item for item in self.holdings if item.ticker in provider.valid_assets
+        ]
         if provider.SUPPORTS_BATCH_HISTORY:
-            tickers = [item.ticker for item in self.holdings]
+            tickers = [item.ticker for item in valid_assets]
             historic_prices = provider.get_instrument_prices(tickers, self.source_date)
             today_prices = provider.get_instrument_prices(tickers, None)
         else:
             historic_prices = {}
             today_prices = {}
-            for item in self.holdings:
+            for item in valid_assets:
                 try:
                     historic_prices[item.ticker] = provider.get_instrument_price(
                         item.ticker, self.source_date
@@ -213,7 +217,10 @@ class IdealPortfolio(BaseModel):
 
         for item in self.holdings:
             new_weight = values[item.ticker] / today_value
-            ratio = round(((new_weight - item.weight) / item.weight) * 100, 2)
+            if item.weight > 0:
+                ratio = round(((new_weight - item.weight) / item.weight) * 100, 2)
+            else:
+                ratio = Decimal(0.0)
             output[item.ticker] = ratio
             item.weight = new_weight
         self._reweight_portfolio()
