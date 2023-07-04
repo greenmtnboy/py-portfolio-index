@@ -7,15 +7,15 @@ from py_portfolio_index.exceptions import PriceFetchError
 from decimal import Decimal
 from enum import Enum
 from typing import Protocol
+from dataclasses import dataclass, field
 
 if TYPE_CHECKING:
     from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
 
 
 class PortfolioProtocol(Protocol):
-
     @property
-    def holdings(self) ->  Collection["IdealPortfolioElement"]: 
+    def holdings(self) -> Collection["IdealPortfolioElement"]:
         pass
 
 
@@ -252,16 +252,15 @@ class RealPortfolio(BaseModel):
     provider: Optional[Any] = None
     cash: None | Money = None
 
-
     # @property
     # def provider(self) -> Optional["BaseProvider" ]:
     #     return self._provider
-    
+
     @property
     def _index(self):
         return {val.ticker: val for val in self.holdings}
 
-    def get_holding(self, ticker: str)->RealPortfolioElement | None:
+    def get_holding(self, ticker: str) -> RealPortfolioElement | None:
         return self._index.get(ticker)
 
     @property
@@ -294,9 +293,7 @@ class RealPortfolio(BaseModel):
         return self
 
 
-class CompositePortfolio():
-
-
+class CompositePortfolio:
     def __init__(self, portfolios: List[RealPortfolio]):
         self.portfolios = portfolios
         self.internal_base = RealPortfolio(holdings=[])
@@ -304,9 +301,11 @@ class CompositePortfolio():
             self.internal_base += item
 
     @property
-    def cash(self)->Money:
-        return Money(value=sum([item.cash for item in self.portfolios if item.cash is not None]))
-    
+    def cash(self) -> Money:
+        return Money(
+            value=sum([item.cash for item in self.portfolios if item.cash is not None])
+        )
+
     @property
     def value(self) -> Money:
         return self.internal_base.value
@@ -315,8 +314,9 @@ class CompositePortfolio():
     def holdings(self) -> List[RealPortfolioElement]:
         return self.internal_base.holdings
 
-    def get_holding(self, ticker: str)->RealPortfolioElement | None:
+    def get_holding(self, ticker: str) -> RealPortfolioElement | None:
         return self.internal_base.get_holding(ticker)
+
 
 class OrderType(Enum):
     BUY = "BUY"
@@ -334,3 +334,14 @@ class OrderPlan(BaseModel):
     to_buy: List[OrderElement]
     to_sell: List[OrderElement]
 
+
+class LoginResponseStatus(Enum):
+    MFA_REQUIRED = 1
+    CHALLENGE_REQUIRED = 2
+    SUCCESS = 3
+
+
+@dataclass
+class LoginResponse:
+    status: LoginResponseStatus
+    data: dict = field(default_factory=dict)

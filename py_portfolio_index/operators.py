@@ -6,8 +6,14 @@ from math import floor, ceil
 from py_portfolio_index.common import print_per
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import PurchaseStrategy, RoundingStrategy
-from py_portfolio_index.models import Money, OrderElement, OrderPlan, OrderType, PortfolioProtocol
-from .models import IdealPortfolio, RealPortfolio
+from py_portfolio_index.models import (
+    Money,
+    OrderElement,
+    OrderPlan,
+    OrderType,
+    PortfolioProtocol,
+)
+from .models import IdealPortfolio
 
 MIN_ORDER_SIZE = 2
 MIN_ORDER_MONEY = Money(value=MIN_ORDER_SIZE)

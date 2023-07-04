@@ -67,7 +67,9 @@ class AlpacaProvider(BaseProvider):
             self._valid_assets = {
                 (x.symbol if isinstance(x, Asset) else x)
                 for x in self.trading_client.get_all_assets(
-                    GetAssetsRequest(status=None, exchange=None, asset_class=AssetClass.US_EQUITY)
+                    GetAssetsRequest(
+                        status=None, exchange=None, asset_class=AssetClass.US_EQUITY
+                    )
                 )
             }
         return self._valid_assets
@@ -252,8 +254,9 @@ class AlpacaProvider(BaseProvider):
         ]
         if not my_stocks:
             return RealPortfolio(
-                holdings=unsettled_elements, cash=Money(value=account.cash),
-                provider = self
+                holdings=unsettled_elements,
+                cash=Money(value=account.cash),
+                provider=self,
             )
         total_value = sum([Decimal(item.market_value) for item in my_stocks])
         out = [
@@ -273,7 +276,9 @@ class AlpacaProvider(BaseProvider):
             if item.ticker not in [x.ticker for x in out]
         ]
         out.extend(extra_unsettled)
-        return RealPortfolio(holdings=out, cash=Money(value=account.cash), provider=self)
+        return RealPortfolio(
+            holdings=out, cash=Money(value=account.cash), provider=self
+        )
 
 
 class PaperAlpacaProvider(AlpacaProvider):

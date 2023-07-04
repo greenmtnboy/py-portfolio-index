@@ -9,6 +9,11 @@ from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
 from py_portfolio_index.common import divide_into_batches
 from .base_portfolio import BaseProvider
 from py_portfolio_index.exceptions import PriceFetchError
+from py_portfolio_index.portfolio_providers.helpers.robinhood import (
+    validate_login,
+    ROBINHOOD_PASSWORD_ENV,
+    ROBINHOOD_USERNAME_ENV,
+)
 from functools import lru_cache
 from os import environ
 
@@ -64,20 +69,24 @@ class RobinhoodProvider(BaseProvider):
         username: str | None = None,
         password: str | None = None,
         skip_cache: bool = False,
+        external_auth: bool = False,
     ):
         import robin_stocks.robinhood as r
 
         if not username:
-            username = environ.get("ROBINHOOD_USERNAME", None)
+            username = environ.get(ROBINHOOD_USERNAME_ENV, None)
         if not password:
-            password = environ.get("ROBINHOOD_PASSWORD", None)
+            password = environ.get(ROBINHOOD_PASSWORD_ENV, None)
         if not (username and password):
             raise ConfigurationError(
                 "Must provide username and password arguments or set environment variables ROBINHOOD_USERNAME and ROBINHOOD_PASSWORD "
             )
         self._provider = r
         BaseProvider.__init__(self)
-        self._provider.login(username=username, password=password)
+        if not external_auth:
+            self._provider.login(username=username, password=password)
+        else:
+            validate_login()
         self._local_instrument_cache: List[Dict] = []
         if not skip_cache:
             self._load_local_instrument_cache()
