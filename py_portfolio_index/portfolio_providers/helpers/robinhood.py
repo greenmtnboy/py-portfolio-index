@@ -184,16 +184,6 @@ def login(
             raise ExtraAuthenticationStepException(
                 response=LoginResponse(status=LoginResponseStatus.MFA_REQUIRED)
             )
-            mfa_token = input("Please type in the MFA code: ")
-            payload["mfa_code"] = mfa_token
-            res = request_post(url, payload, jsonify_data=False)
-            while res.status_code != 200:
-                mfa_token = input(
-                    "That MFA code was not correct. Please type in another MFA code: "
-                )
-                payload["mfa_code"] = mfa_token
-                res = request_post(url, payload, jsonify_data=False)
-            data = res.json()
         elif "challenge" in data:
             challenge_id = data["challenge"]["id"]
             raise ExtraAuthenticationStepException(
@@ -202,21 +192,6 @@ def login(
                     data={"challenge_id": challenge_id},
                 )
             )
-            return LoginResponse(
-                status=LoginResponseStatus.MFA_REQUIRED,
-                data={"challenge_id": challenge_id},
-            )
-            sms_code = input("Enter Robinhood code for validation: ")
-            res = respond_to_challenge(challenge_id, sms_code)
-            while "challenge" in res and res["challenge"]["remaining_attempts"] > 0:
-                sms_code = input(
-                    "That code was not correct. {0} tries remaining. Please type in another code: ".format(
-                        res["challenge"]["remaining_attempts"]
-                    )
-                )
-                res = respond_to_challenge(challenge_id, sms_code)
-            update_session("X-ROBINHOOD-CHALLENGE-RESPONSE-ID", challenge_id)
-            data = request_post(url, payload)
         # Update Session data with authorization or raise exception with the information present in data.
         if "access_token" in data:
             token = "{0} {1}".format(data["token_type"], data["access_token"])

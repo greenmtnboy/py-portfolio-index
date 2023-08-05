@@ -1,12 +1,12 @@
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
 from py_portfolio_index.exceptions import ConfigurationError, OrderError
-from .base_portfolio import BaseProvider
+from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
 from decimal import Decimal
 from typing import Optional, Dict, List, Set
 from datetime import date, datetime, timezone, timedelta
 from functools import lru_cache
 from py_portfolio_index.common import divide_into_batches
-
+from py_portfolio_index.enums import Provider
 from os import environ
 
 
@@ -27,6 +27,7 @@ def filter_prices_response(
 
 class AlpacaProvider(BaseProvider):
     SUPPORTS_BATCH_HISTORY = 50
+    PROVIDER = Provider.ALPACA
 
     def __init__(
         self,
@@ -207,14 +208,16 @@ class AlpacaProvider(BaseProvider):
             # take the first day after target day
             return Decimal(raw[ticker][0].high)
 
-    def buy_instrument(self, ticker: str, qty: Decimal):
+    def buy_instrument(self, ticker: str, qty: Decimal, value:Optional[Decimal]=None):
         from alpaca.trading.requests import MarketOrderRequest
         from alpaca.trading.enums import OrderSide, TimeInForce
         from alpaca.common.exceptions import APIError
-
+        if value:
+            qty = None
         market_order_data = MarketOrderRequest(
             symbol=ticker,
-            qty=float(qty),
+            notional=float(value) if value else None,
+            qty=float(qty) if qty else None,
             side=OrderSide.BUY,
             time_in_force=TimeInForce.DAY,
         )
@@ -282,6 +285,8 @@ class AlpacaProvider(BaseProvider):
 
 
 class PaperAlpacaProvider(AlpacaProvider):
+    PROVIDER = Provider.ALPACA_PAPER
+
     def __init__(
         self,
         key_id: str | None = None,

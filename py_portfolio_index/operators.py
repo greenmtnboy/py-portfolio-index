@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Dict, Union
+from typing import Optional, Dict, Union, Mapping
 from decimal import Decimal
 from math import floor, ceil
 
@@ -8,10 +8,13 @@ from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import PurchaseStrategy, RoundingStrategy
 from py_portfolio_index.models import (
     Money,
+    Provider,
     OrderElement,
     OrderPlan,
     OrderType,
     PortfolioProtocol,
+    CompositePortfolio,
+    RealPortfolio
 )
 from .models import IdealPortfolio
 
@@ -112,6 +115,46 @@ def round_with_strategy(to_buy_currency, rounding_strategy: RoundingStrategy) ->
     return to_buy_units
 
 
+def generate_composite_order_plan(
+    composite: CompositePortfolio,
+    ideal: IdealPortfolio,
+    purchase_order_maps: Mapping[Provider, PurchaseStrategy],
+    # rounding_strategy=RoundingStrategy.CLOSEST,
+    target_size: Optional[Money | float | int] = None,
+    min_order_value: Money = MIN_ORDER_MONEY,
+    safety_threshold:Decimal = Decimal(.95)
+)->Mapping[Provider, OrderPlan]:
+    providers = [x.provider for x in composite.portfolios if x.provider]
+    processed = set()
+    # check each of our p
+    output = {}
+    skip_tickers:set[str] = set()   
+    while providers:
+        provider = providers.pop()
+        processed.add(provider.PROVIDER)
+        port = composite.get_provider_portfolio(provider=provider.PROVIDER)
+        # build the plan across the _entire_ composite portfolio
+
+        # if we don't know how much cash we have, skip
+        print(f'doing provider {provider} with {port.cash}')
+        if not port.cash:
+            continue
+        purchase_plan = generate_order_plan(
+            ideal=ideal,
+            real=composite,
+            buy_order=purchase_order_maps[provider.PROVIDER],
+            # rounding_strategy=RoundingStrategy.CLOSEST,
+            target_size=target_size,
+            purchase_power=port.cash*safety_threshold,
+            min_order_value=min_order_value,
+            skip_tickers=skip_tickers
+        )
+        port.refresh()
+        for ticker in purchase_plan.tickers:
+            skip_tickers.add(ticker)
+        output[provider.PROVIDER] = purchase_plan
+    return output
+
 def generate_order_plan(
     real: PortfolioProtocol,
     ideal: IdealPortfolio,
@@ -119,7 +162,8 @@ def generate_order_plan(
     # rounding_strategy=RoundingStrategy.CLOSEST,
     target_size: Optional[Money | float | int] = None,
     purchase_power: Optional[Money | float | int] = None,
-    min_order_value: Money = MIN_ORDER_MONEY
+    min_order_value: Money = MIN_ORDER_MONEY,
+    skip_tickers: Optional[set[str]] = None
     # fractional_shares: bool = True,
 ) -> OrderPlan:
     diff = Decimal(0.0)
@@ -130,8 +174,9 @@ def generate_order_plan(
     purchase_power = Money(value=purchase_power or target_value)
     currently_held = Money(value=0)
     for value in ideal.holdings:
+        if skip_tickers and value.ticker in skip_tickers:
+            continue
         comparison = real.get_holding(value.ticker)
-
         if not comparison:
             percentage = Decimal(0.0)
             actual_value = Money.parse("0.0")

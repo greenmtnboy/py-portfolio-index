@@ -5,7 +5,7 @@ from datetime import date
 
 from py_portfolio_index.common import print_money, print_per, round_up_to_place
 from py_portfolio_index.constants import Logger
-from py_portfolio_index.enums import RoundingStrategy
+from py_portfolio_index.enums import RoundingStrategy, Provider
 from py_portfolio_index.exceptions import PriceFetchError
 from py_portfolio_index.models import Money, OrderPlan, OrderElement
 from functools import lru_cache
@@ -13,6 +13,7 @@ from py_portfolio_index.models import RealPortfolio
 
 
 class BaseProvider(object):
+    PROVIDER = Provider.DUMMY
     MIN_ORDER_VALUE = Money(value=1)
     MAX_ORDER_DECIMALS = 2
     SUPPORTS_BATCH_HISTORY = 0
@@ -46,7 +47,7 @@ class BaseProvider(object):
         except Exception as e:
             raise PriceFetchError(e)
 
-    def buy_instrument(self, ticker: str, qty: Decimal) -> bool:
+    def buy_instrument(self, ticker: str, qty: Decimal, value:Optional[Decimal] = None) -> bool:
         raise NotImplementedError
 
     def get_unsettled_instruments(self) -> Set[str]:
@@ -147,6 +148,7 @@ class BaseProvider(object):
     def handle_order_element(self, element: OrderElement, dry_run: bool = False):
         if element.qty:
             units = Decimal(element.qty)
+
         elif element.value:
             raw_price = self.get_instrument_price(element.ticker)
             if not raw_price:
@@ -161,7 +163,7 @@ class BaseProvider(object):
         else:
             raise ValueError("Order element must have qty or value")
         if not dry_run:
-            self.buy_instrument(element.ticker, units)
+            self.buy_instrument(element.ticker, units, value)
             Logger.info(f"Bought {units} of {element.ticker}")
         else:
             Logger.info(f"Would have bought {units} of {element.ticker}")

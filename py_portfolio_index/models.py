@@ -1,7 +1,7 @@
 from datetime import date
-from typing import List, Optional, Union, TYPE_CHECKING, Collection, Any
+from typing import List, Optional, Union, TYPE_CHECKING, Collection, runtime_checkable
 from pydantic import BaseModel, Field, validator
-from py_portfolio_index.enums import Currency
+from py_portfolio_index.enums import Currency, Provider
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.exceptions import PriceFetchError
 from decimal import Decimal
@@ -12,10 +12,25 @@ from dataclasses import dataclass, field
 if TYPE_CHECKING:
     from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
 
+@runtime_checkable
+class ProviderProtocol(Protocol):
+    PROVIDER:Provider = Provider.DUMMY
+
+
+    def handle_order_element(self, element: "OrderElement") -> bool:
+        pass
+
 
 class PortfolioProtocol(Protocol):
     @property
     def holdings(self) -> Collection["IdealPortfolioElement"]:
+        pass
+
+    @property
+    def value(self) -> "Money":
+        pass
+
+    def get_holding(self, ticker: str) -> Optional["RealPortfolioElement"]:
         pass
 
 
@@ -249,12 +264,14 @@ class RealPortfolioElement(IdealPortfolioElement):
 
 class RealPortfolio(BaseModel):
     holdings: List[RealPortfolioElement]
-    provider: Optional[Any] = None
+    provider: Optional[ProviderProtocol] = None
     cash: None | Money = None
 
     # @property
     # def provider(self) -> Optional["BaseProvider" ]:
     #     return self._provider
+    class Config:
+        arbitrary_types_allowed = True
 
     @property
     def _index(self):
@@ -279,7 +296,10 @@ class RealPortfolio(BaseModel):
             existing.value += holding.value
             existing.units += holding.units
         if not existing:
-            self.holdings.append(holding)
+            self.holdings.append(RealPortfolioElement(
+                ticker=holding.ticker, weight=holding.weight,
+                units=holding.units, value=holding.value, unsettled=False
+            ))
         self._reweight_portfolio()
 
     def __add__(self, other):
@@ -292,20 +312,40 @@ class RealPortfolio(BaseModel):
             raise ValueError
         return self
 
+    def refresh(self):
+        if self.provider:
+            new = self.provider.get_holdings()
+            self.holdings = new.holdings
+            self.cash = new.cash
+            self._reweight_portfolio()
+        else:
+            raise ValueError("Cannot refresh real portfolio with no provider")
+
 
 class CompositePortfolio:
+    '''Provides a view on children portfolios, to enable planning
+    across multiple providers'''
     def __init__(self, portfolios: List[RealPortfolio]):
         self.portfolios = portfolios
-        self.internal_base = RealPortfolio(holdings=[])
-        for item in self.portfolios:
-            self.internal_base += item
+        self._internal_base = RealPortfolio(holdings=[])
+        self.rebuild_cache()
 
     @property
     def cash(self) -> Money:
         return Money(
             value=sum([item.cash for item in self.portfolios if item.cash is not None])
         )
+    
+    def rebuild_cache(self):
+        new = RealPortfolio(holdings=[])
+        for item in self.portfolios:
+            new += item
+        self._internal_base = new
 
+    @property
+    def internal_base(self):
+        return self._internal_base
+    
     @property
     def value(self) -> Money:
         return self.internal_base.value
@@ -316,6 +356,12 @@ class CompositePortfolio:
 
     def get_holding(self, ticker: str) -> RealPortfolioElement | None:
         return self.internal_base.get_holding(ticker)
+
+    def get_provider_portfolio(self, provider: "Provider") -> RealPortfolio:
+        for port in self.portfolios:
+            if port.provider and port.provider.PROVIDER == provider:
+                return port
+        raise ValueError(f"Could not find provider {provider}")
 
 
 class OrderType(Enum):
@@ -334,6 +380,14 @@ class OrderPlan(BaseModel):
     to_buy: List[OrderElement]
     to_sell: List[OrderElement]
 
+    @property
+    def tickers(self):
+        output = set()
+        for x in self.to_buy:
+            output.add(x.ticker)
+        for y in self.to_sell:
+            output.add(y.ticker)
+        return output
 
 class LoginResponseStatus(Enum):
     MFA_REQUIRED = 1
@@ -345,3 +399,5 @@ class LoginResponseStatus(Enum):
 class LoginResponse:
     status: LoginResponseStatus
     data: dict = field(default_factory=dict)
+
+
