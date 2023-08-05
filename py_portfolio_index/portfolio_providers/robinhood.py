@@ -148,7 +148,7 @@ class RobinhoodProvider(BaseProvider):
             return Decimal(quotes[0]["ask_price"])
 
     def _buy_instrument(
-        self, symbol: str, qty: float, value: Optional[Decimal] = None
+        self, symbol: str, qty: float, value: Optional[Money] = None
     ) -> dict:
         """Custom function to enable evolution with the robinhood API"""
         from robin_stocks.robinhood.stocks import (
@@ -166,6 +166,8 @@ class RobinhoodProvider(BaseProvider):
         price = round_price(
             next(iter(get_latest_price(symbol, "ask_price", False)), 0.00)
         )
+        if value:
+            qty = float(value / price)
         payload = {
             "account": load_account_profile(account_number=None, info="url"),
             "instrument": get_instruments_by_symbols(symbol, info="url")[0],
@@ -188,7 +190,7 @@ class RobinhoodProvider(BaseProvider):
         return data
 
     def buy_instrument(
-        self, ticker: str, qty: Decimal, value: Optional[Decimal] = None
+        self, ticker: str, qty: Decimal, value: Optional[Money] = None
     ):
         float_qty = float(qty)
         output = self._buy_instrument(ticker, float_qty, value)

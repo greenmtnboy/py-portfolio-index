@@ -148,18 +148,19 @@ class BaseProvider(object):
         )
 
     def handle_order_element(self, element: OrderElement, dry_run: bool = False):
+        raw_price = self.get_instrument_price(element.ticker)
+
+        if not raw_price:
+            raise ValueError(
+                f"No price found for this instrument: {element.ticker}"
+            )
+        price: Money = Money(value=raw_price)
         if element.qty:
             units = Decimal(element.qty)
-            raw_price = self.get_instrument_price(element.ticker)
-            value = units * raw_price
+            value = Money(value=units*price.decimal)
 
         elif element.value:
             raw_price = self.get_instrument_price(element.ticker)
-            if not raw_price:
-                raise ValueError(
-                    f"No price found for this instrument: {element.ticker}"
-                )
-            price: Money = Money(value=raw_price)
             Logger.info(f"got price of {price} for {element.ticker}")
             units = round_up_to_place(
                 (element.value / price).decimal, self.MAX_ORDER_DECIMALS
