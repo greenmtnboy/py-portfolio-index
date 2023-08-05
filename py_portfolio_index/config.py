@@ -14,6 +14,7 @@ def get_providers() -> List[Provider]:
         from alpaca.trading.client import TradingClient  # noqa: F401
 
         providers.append(Provider.ALPACA)
+        providers.append(Provider.ALPACA_PAPER)
     except ImportError:
         pass
     try:

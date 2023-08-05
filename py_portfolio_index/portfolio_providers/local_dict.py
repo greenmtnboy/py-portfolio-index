@@ -46,12 +46,17 @@ class LocalDictProvider(BaseProvider):
             return nvalue
         return value
 
-    def buy_instrument(self, ticker: str, qty: Decimal):
+    def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
         price = self.get_instrument_price(ticker)
         if not price:
             raise ValueError("No available price for this instrument")
+        if value:
+            qty = value / price
+            value_delta = value
+        else:
+            value_delta = Money(value=qty * price)
         self._portfolio += RealPortfolioElement(
-            ticker=ticker, units=qty, value=Money(value=qty * price)
+            ticker=ticker, units=qty, value=value_delta
         )
 
     def get_holdings(self):

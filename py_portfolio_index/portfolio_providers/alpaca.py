@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Optional
 from datetime import date, datetime, timezone, timedelta
 from functools import lru_cache
-
+from py_portfolio_index.models import Money
 from os import environ
 
 
@@ -70,10 +70,10 @@ class AlpacaProviderLegacy(BaseProvider):
                     end=end.isoformat(),
                 )
                 # take the first day after target day
-                return Decimal(raw[0].h)
+                return Decimal(raw[0].h)    
             return Decimal(raw.ap)
 
-    def buy_instrument(self, ticker: str, qty: Decimal):
+    def buy_instrument(self, ticker: str, qty: Decimal, value:Optional[Money] =None):
         qty_float = float(qty)
         self.api.submit_order(
             symbol=ticker,

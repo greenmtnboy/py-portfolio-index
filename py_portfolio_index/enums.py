@@ -5,6 +5,7 @@ class Provider(str, Enum):
     ALPACA = "alpaca"
     ALPACA_PAPER = "alpaca_paper"
     ROBINHOOD = "robinhood"
+    DUMMY = "dummy"
 
 
 class PurchaseStrategy(IntEnum):

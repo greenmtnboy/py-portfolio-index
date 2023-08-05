@@ -1,14 +1,37 @@
 from datetime import date
-from typing import List, Optional, Union, TYPE_CHECKING
+from typing import List, Optional, Union, TYPE_CHECKING, Collection, runtime_checkable
 from pydantic import BaseModel, Field, validator
-from py_portfolio_index.enums import Currency
+from py_portfolio_index.enums import Currency, Provider
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.exceptions import PriceFetchError
 from decimal import Decimal
 from enum import Enum
+from typing import Protocol
+from dataclasses import dataclass, field
 
 if TYPE_CHECKING:
     from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
+
+
+@runtime_checkable
+class ProviderProtocol(Protocol):
+    PROVIDER: Provider = Provider.DUMMY
+
+    def handle_order_element(self, element: "OrderElement") -> bool:
+        pass
+
+
+class PortfolioProtocol(Protocol):
+    @property
+    def holdings(self) -> Collection["IdealPortfolioElement"]:
+        pass
+
+    @property
+    def value(self) -> "Money":
+        pass
+
+    def get_holding(self, ticker: str) -> Optional["RealPortfolioElement"]:
+        pass
 
 
 class Money(BaseModel):
@@ -125,6 +148,7 @@ class IdealPortfolio(BaseModel):
         scaling_factor = Decimal(1) / weights
         for item in self.holdings:
             item.weight = item.weight * scaling_factor
+        self.holdings = sorted(self.holdings, key=lambda x: x.weight, reverse=True)
 
     def exclude(self, exclusion_list: List[str]):
         reweighted = []
@@ -180,14 +204,17 @@ class IdealPortfolio(BaseModel):
         output = {}
         imaginary_base = Decimal(1_000_000)
         values = {}
+        valid_assets = [
+            item for item in self.holdings if item.ticker in provider.valid_assets
+        ]
         if provider.SUPPORTS_BATCH_HISTORY:
-            tickers = [item.ticker for item in self.holdings]
+            tickers = [item.ticker for item in valid_assets]
             historic_prices = provider.get_instrument_prices(tickers, self.source_date)
             today_prices = provider.get_instrument_prices(tickers, None)
         else:
             historic_prices = {}
             today_prices = {}
-            for item in self.holdings:
+            for item in valid_assets:
                 try:
                     historic_prices[item.ticker] = provider.get_instrument_price(
                         item.ticker, self.source_date
@@ -213,7 +240,10 @@ class IdealPortfolio(BaseModel):
 
         for item in self.holdings:
             new_weight = values[item.ticker] / today_value
-            ratio = round(((new_weight - item.weight) / item.weight) * 100, 2)
+            if item.weight > 0:
+                ratio = round(((new_weight - item.weight) / item.weight) * 100, 2)
+            else:
+                ratio = Decimal(0.0)
             output[item.ticker] = ratio
             item.weight = new_weight
         self._reweight_portfolio()
@@ -232,15 +262,22 @@ class RealPortfolioElement(IdealPortfolioElement):
         return Money.parse(v)
 
 
-class RealPortfolio(IdealPortfolio):
-    holdings: List[RealPortfolioElement]  # type: ignore
+class RealPortfolio(BaseModel):
+    holdings: List[RealPortfolioElement]
+    provider: Optional[ProviderProtocol] = None
     cash: None | Money = None
+
+    # @property
+    # def provider(self) -> Optional["BaseProvider" ]:
+    #     return self._provider
+    class Config:
+        arbitrary_types_allowed = True
 
     @property
     def _index(self):
         return {val.ticker: val for val in self.holdings}
 
-    def get_holding(self, ticker: str):
+    def get_holding(self, ticker: str) -> RealPortfolioElement | None:
         return self._index.get(ticker)
 
     @property
@@ -251,7 +288,7 @@ class RealPortfolio(IdealPortfolio):
     def _reweight_portfolio(self):
         value = self.value
         for item in self.holdings:
-            item.weight = Decimal(item.value / value.value)
+            item.weight = Decimal(item.value.value / value.value)
 
     def add_holding(self, holding: RealPortfolioElement):
         existing = self._index.get(holding.ticker)
@@ -259,7 +296,15 @@ class RealPortfolio(IdealPortfolio):
             existing.value += holding.value
             existing.units += holding.units
         if not existing:
-            self.holdings.append(holding)
+            self.holdings.append(
+                RealPortfolioElement(
+                    ticker=holding.ticker,
+                    weight=holding.weight,
+                    units=holding.units,
+                    value=holding.value,
+                    unsettled=False,
+                )
+            )
         self._reweight_portfolio()
 
     def __add__(self, other):
@@ -271,6 +316,58 @@ class RealPortfolio(IdealPortfolio):
         else:
             raise ValueError
         return self
+
+    def refresh(self):
+        if self.provider:
+            new = self.provider.get_holdings()
+            self.holdings = new.holdings
+            self.cash = new.cash
+            self._reweight_portfolio()
+        else:
+            raise ValueError("Cannot refresh real portfolio with no provider")
+
+
+class CompositePortfolio:
+    """Provides a view on children portfolios, to enable planning
+    across multiple providers"""
+
+    def __init__(self, portfolios: List[RealPortfolio]):
+        self.portfolios = portfolios
+        self._internal_base = RealPortfolio(holdings=[])
+        self.rebuild_cache()
+
+    @property
+    def cash(self) -> Money:
+        return Money(
+            value=sum([item.cash for item in self.portfolios if item.cash is not None])
+        )
+
+    def rebuild_cache(self):
+        new = RealPortfolio(holdings=[])
+        for item in self.portfolios:
+            new += item
+        self._internal_base = new
+
+    @property
+    def internal_base(self):
+        return self._internal_base
+
+    @property
+    def value(self) -> Money:
+        return self.internal_base.value
+
+    @property
+    def holdings(self) -> List[RealPortfolioElement]:
+        return self.internal_base.holdings
+
+    def get_holding(self, ticker: str) -> RealPortfolioElement | None:
+        return self.internal_base.get_holding(ticker)
+
+    def get_provider_portfolio(self, provider: "Provider") -> RealPortfolio:
+        for port in self.portfolios:
+            if port.provider and port.provider.PROVIDER == provider:
+                return port
+        raise ValueError(f"Could not find provider {provider}")
 
 
 class OrderType(Enum):
@@ -288,3 +385,24 @@ class OrderElement(BaseModel):
 class OrderPlan(BaseModel):
     to_buy: List[OrderElement]
     to_sell: List[OrderElement]
+
+    @property
+    def tickers(self):
+        output = set()
+        for x in self.to_buy:
+            output.add(x.ticker)
+        for y in self.to_sell:
+            output.add(y.ticker)
+        return output
+
+
+class LoginResponseStatus(Enum):
+    MFA_REQUIRED = 1
+    CHALLENGE_REQUIRED = 2
+    SUCCESS = 3
+
+
+@dataclass
+class LoginResponse:
+    status: LoginResponseStatus
+    data: dict = field(default_factory=dict)
