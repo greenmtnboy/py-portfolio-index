@@ -12,10 +12,10 @@ from dataclasses import dataclass, field
 if TYPE_CHECKING:
     from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
 
+
 @runtime_checkable
 class ProviderProtocol(Protocol):
-    PROVIDER:Provider = Provider.DUMMY
-
+    PROVIDER: Provider = Provider.DUMMY
 
     def handle_order_element(self, element: "OrderElement") -> bool:
         pass
@@ -296,10 +296,15 @@ class RealPortfolio(BaseModel):
             existing.value += holding.value
             existing.units += holding.units
         if not existing:
-            self.holdings.append(RealPortfolioElement(
-                ticker=holding.ticker, weight=holding.weight,
-                units=holding.units, value=holding.value, unsettled=False
-            ))
+            self.holdings.append(
+                RealPortfolioElement(
+                    ticker=holding.ticker,
+                    weight=holding.weight,
+                    units=holding.units,
+                    value=holding.value,
+                    unsettled=False,
+                )
+            )
         self._reweight_portfolio()
 
     def __add__(self, other):
@@ -323,8 +328,9 @@ class RealPortfolio(BaseModel):
 
 
 class CompositePortfolio:
-    '''Provides a view on children portfolios, to enable planning
-    across multiple providers'''
+    """Provides a view on children portfolios, to enable planning
+    across multiple providers"""
+
     def __init__(self, portfolios: List[RealPortfolio]):
         self.portfolios = portfolios
         self._internal_base = RealPortfolio(holdings=[])
@@ -335,7 +341,7 @@ class CompositePortfolio:
         return Money(
             value=sum([item.cash for item in self.portfolios if item.cash is not None])
         )
-    
+
     def rebuild_cache(self):
         new = RealPortfolio(holdings=[])
         for item in self.portfolios:
@@ -345,7 +351,7 @@ class CompositePortfolio:
     @property
     def internal_base(self):
         return self._internal_base
-    
+
     @property
     def value(self) -> Money:
         return self.internal_base.value
@@ -389,6 +395,7 @@ class OrderPlan(BaseModel):
             output.add(y.ticker)
         return output
 
+
 class LoginResponseStatus(Enum):
     MFA_REQUIRED = 1
     CHALLENGE_REQUIRED = 2
@@ -399,5 +406,3 @@ class LoginResponseStatus(Enum):
 class LoginResponse:
     status: LoginResponseStatus
     data: dict = field(default_factory=dict)
-
-

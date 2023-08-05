@@ -208,16 +208,21 @@ class AlpacaProvider(BaseProvider):
             # take the first day after target day
             return Decimal(raw[ticker][0].high)
 
-    def buy_instrument(self, ticker: str, qty: Decimal, value:Optional[Decimal]=None):
+    def buy_instrument(
+        self, ticker: str, qty: Decimal, value: Optional[Money] = None
+    ):
         from alpaca.trading.requests import MarketOrderRequest
         from alpaca.trading.enums import OrderSide, TimeInForce
         from alpaca.common.exceptions import APIError
+
         if value:
-            qty = None
+            order_qty = None
+        else:
+            order_qty = qty
         market_order_data = MarketOrderRequest(
             symbol=ticker,
             notional=float(value) if value else None,
-            qty=float(qty) if qty else None,
+            qty=float(order_qty) if order_qty else None,
             side=OrderSide.BUY,
             time_in_force=TimeInForce.DAY,
         )

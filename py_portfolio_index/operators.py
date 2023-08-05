@@ -14,7 +14,6 @@ from py_portfolio_index.models import (
     OrderType,
     PortfolioProtocol,
     CompositePortfolio,
-    RealPortfolio
 )
 from .models import IdealPortfolio
 
@@ -122,13 +121,13 @@ def generate_composite_order_plan(
     # rounding_strategy=RoundingStrategy.CLOSEST,
     target_size: Optional[Money | float | int] = None,
     min_order_value: Money = MIN_ORDER_MONEY,
-    safety_threshold:Decimal = Decimal(.95)
-)->Mapping[Provider, OrderPlan]:
+    safety_threshold: Decimal = Decimal(0.95),
+) -> Mapping[Provider, OrderPlan]:
     providers = [x.provider for x in composite.portfolios if x.provider]
     processed = set()
     # check each of our p
     output = {}
-    skip_tickers:set[str] = set()   
+    skip_tickers: set[str] = set()
     while providers:
         provider = providers.pop()
         processed.add(provider.PROVIDER)
@@ -136,7 +135,7 @@ def generate_composite_order_plan(
         # build the plan across the _entire_ composite portfolio
 
         # if we don't know how much cash we have, skip
-        print(f'doing provider {provider} with {port.cash}')
+        print(f"doing provider {provider} with {port.cash}")
         if not port.cash:
             continue
         purchase_plan = generate_order_plan(
@@ -145,15 +144,16 @@ def generate_composite_order_plan(
             buy_order=purchase_order_maps[provider.PROVIDER],
             # rounding_strategy=RoundingStrategy.CLOSEST,
             target_size=target_size,
-            purchase_power=port.cash*safety_threshold,
+            purchase_power=port.cash * safety_threshold,
             min_order_value=min_order_value,
-            skip_tickers=skip_tickers
+            skip_tickers=skip_tickers,
         )
         port.refresh()
         for ticker in purchase_plan.tickers:
             skip_tickers.add(ticker)
         output[provider.PROVIDER] = purchase_plan
     return output
+
 
 def generate_order_plan(
     real: PortfolioProtocol,

@@ -47,7 +47,9 @@ class BaseProvider(object):
         except Exception as e:
             raise PriceFetchError(e)
 
-    def buy_instrument(self, ticker: str, qty: Decimal, value:Optional[Decimal] = None) -> bool:
+    def buy_instrument(
+        self, ticker: str, qty: Decimal, value: Optional[Money] = None
+    ) -> bool:
         raise NotImplementedError
 
     def get_unsettled_instruments(self) -> Set[str]:
@@ -148,6 +150,8 @@ class BaseProvider(object):
     def handle_order_element(self, element: OrderElement, dry_run: bool = False):
         if element.qty:
             units = Decimal(element.qty)
+            raw_price = self.get_instrument_price(element.ticker)
+            value = units * raw_price
 
         elif element.value:
             raw_price = self.get_instrument_price(element.ticker)
@@ -158,8 +162,9 @@ class BaseProvider(object):
             price: Money = Money(value=raw_price)
             Logger.info(f"got price of {price} for {element.ticker}")
             units = round_up_to_place(
-                (element.value / price).value, self.MAX_ORDER_DECIMALS
+                (element.value / price).decimal, self.MAX_ORDER_DECIMALS
             )
+            value = element.value
         else:
             raise ValueError("Order element must have qty or value")
         if not dry_run:
