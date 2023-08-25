@@ -287,6 +287,8 @@ class RealPortfolio(BaseModel):
 
     def _reweight_portfolio(self):
         value = self.value
+        if value.decimal.is_zero():
+            return
         for item in self.holdings:
             item.weight = Decimal(item.value.value / value.value)
 

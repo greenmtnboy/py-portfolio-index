@@ -70,10 +70,10 @@ class AlpacaProviderLegacy(BaseProvider):
                     end=end.isoformat(),
                 )
                 # take the first day after target day
-                return Decimal(raw[0].h)    
+                return Decimal(raw[0].h)
             return Decimal(raw.ap)
 
-    def buy_instrument(self, ticker: str, qty: Decimal, value:Optional[Money] =None):
+    def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
         qty_float = float(qty)
         self.api.submit_order(
             symbol=ticker,

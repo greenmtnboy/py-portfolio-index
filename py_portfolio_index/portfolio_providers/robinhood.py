@@ -167,7 +167,7 @@ class RobinhoodProvider(BaseProvider):
             next(iter(get_latest_price(symbol, "ask_price", False)), 0.00)
         )
         if value:
-            qty = float(value / price)
+            qty = round(float(value.decimal) / price, 2)
         payload = {
             "account": load_account_profile(account_number=None, info="url"),
             "instrument": get_instruments_by_symbols(symbol, info="url")[0],
@@ -189,9 +189,7 @@ class RobinhoodProvider(BaseProvider):
 
         return data
 
-    def buy_instrument(
-        self, ticker: str, qty: Decimal, value: Optional[Money] = None
-    ):
+    def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
         float_qty = float(qty)
         output = self._buy_instrument(ticker, float_qty, value)
         msg = output.get("detail")
