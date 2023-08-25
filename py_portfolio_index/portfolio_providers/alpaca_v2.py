@@ -245,7 +245,7 @@ class AlpacaProvider(BaseProvider):
         )
         return sum([Decimal(o.notional) for o in open_orders])
 
-    def get_unsettled_instruments(self) -> Set[str]:
+    def get_unsettled_instruments(self):
         from alpaca.trading.requests import GetOrdersRequest, QueryOrderStatus
 
         open_orders = self.trading_client.get_orders(
