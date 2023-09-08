@@ -21399,13 +21399,13 @@ RAW = """TradeDate,Index Ticker,Index Name,Ticker,Company,Weight
 06/30/2023,CLESGBR,CRSP ISS Large ESG Industry Balanced Remainder,RKT,"ROCKET COMPANIES INC",0.000094625373"""
 
 
-
 if __name__ == "__main__":
-    import json
     from pathlib import Path
     import csv
-    rows = RAW.split('\n')
+
+    rows = RAW.split("\n")
     from io import StringIO
+
     csv_buffer = StringIO(RAW)
 
     # Read the CSV data from the in-memory buffer using the csv.reader
@@ -21413,22 +21413,28 @@ if __name__ == "__main__":
     # skip header
     next(csv_reader)
     from collections import defaultdict
-    indexes:dict[str, list]= defaultdict(list)
+
+    indexes: dict[str, list] = defaultdict(list)
     for row in csv_reader:
         index = row[2]
-        indexes[row[2]].append(f'{row[-3]},{row[-1]}')
+        indexes[row[2]].append(f"{row[-3]},{row[-1]}")
     for key, values in indexes.items():
-        if key.startswith('crsp'):
+        if key.startswith("crsp"):
             continue
-        label = key.replace(' ', "_").replace("/", "_").lower()
-        target = Path(__file__).parent.parent / 'py_portfolio_index' / 'bin' /  'indexes' / f'{label}_2023_q3.csv'
+        label = key.replace(" ", "_").replace("/", "_").lower()
+        target = (
+            Path(__file__).parent.parent
+            / "py_portfolio_index"
+            / "bin"
+            / "indexes"
+            / f"{label}_2023_q3.csv"
+        )
         first_row = True
-        with open(target, 'w') as f:
+        with open(target, "w") as f:
             for row in values:
                 if first_row:
                     f.write(row)
                     first_row = False
                 else:
-                    f.write('\n')
+                    f.write("\n")
                     f.write(row)
-    

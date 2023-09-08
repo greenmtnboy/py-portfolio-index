@@ -6,14 +6,14 @@ from datetime import date
 from py_portfolio_index.common import print_money, print_per, round_up_to_place
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import RoundingStrategy, Provider
-from py_portfolio_index.exceptions import PriceFetchError
+from py_portfolio_index.exceptions import PriceFetchError, OrderError
 from py_portfolio_index.models import Money, OrderPlan, OrderElement
 from functools import lru_cache
 from py_portfolio_index.models import RealPortfolio
 
 
 class BaseProvider(object):
-    PROVIDER = Provider.DUMMY
+    PROVIDER: Provider = Provider.DUMMY
     MIN_ORDER_VALUE = Money(value=1)
     MAX_ORDER_DECIMALS = 2
     SUPPORTS_BATCH_HISTORY = 0
@@ -26,6 +26,9 @@ class BaseProvider(object):
         raise NotImplementedError
 
     def get_holdings(self) -> RealPortfolio:
+        raise NotImplementedError
+
+    def get_profit_or_loss(self) -> Money:
         raise NotImplementedError
 
     def get_instrument_prices(
@@ -151,13 +154,11 @@ class BaseProvider(object):
         raw_price = self.get_instrument_price(element.ticker)
 
         if not raw_price:
-            raise ValueError(
-                f"No price found for this instrument: {element.ticker}"
-            )
+            raise OrderError(f"No price found for this instrument: {element.ticker}")
         price: Money = Money(value=raw_price)
         if element.qty:
             units = Decimal(element.qty)
-            value = Money(value=units*price.decimal)
+            value = Money(value=units * price.decimal)
 
         elif element.value:
             raw_price = self.get_instrument_price(element.ticker)
@@ -167,7 +168,7 @@ class BaseProvider(object):
             )
             value = element.value
         else:
-            raise ValueError("Order element must have qty or value")
+            raise OrderError("Order element must have qty or value")
         if not dry_run:
             self.buy_instrument(element.ticker, units, value)
             Logger.info(f"Bought {units} of {element.ticker}")

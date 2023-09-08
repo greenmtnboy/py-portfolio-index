@@ -10,7 +10,7 @@ from decimal import Decimal
         (Decimal("2.71828"), 3, Decimal("2.719")),
         (Decimal("123.456"), 1, Decimal("123.5")),
         (Decimal("0.123"), 0, Decimal("1")),
-    ]
+    ],
 )
 def test_round_up_to_place(input, places, expected):
     result = round_up_to_place(input, places)

@@ -1,11 +1,12 @@
 from dataclasses import dataclass
-from typing import Optional, Dict, Union, Mapping
+from typing import Optional, Dict, Union, Mapping, List
 from decimal import Decimal
 from math import floor, ceil
 
 from py_portfolio_index.common import print_per
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import PurchaseStrategy, RoundingStrategy
+from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
 from py_portfolio_index.models import (
     Money,
     Provider,
@@ -119,36 +120,54 @@ def generate_composite_order_plan(
     ideal: IdealPortfolio,
     purchase_order_maps: Mapping[Provider, PurchaseStrategy],
     # rounding_strategy=RoundingStrategy.CLOSEST,
+    purchase_power: Optional[Money | float | int] = None,
     target_size: Optional[Money | float | int] = None,
     min_order_value: Money = MIN_ORDER_MONEY,
     safety_threshold: Decimal = Decimal(0.95),
 ) -> Mapping[Provider, OrderPlan]:
-    providers = [x.provider for x in composite.portfolios if x.provider]
+    provider_map = {x.provider: x for x in composite.portfolios if x.provider}
+    providers: List[BaseProvider] = list(provider_map.keys())  # type: ignore
     processed = set()
     # check each of our p
     output = {}
     skip_tickers: set[str] = set()
+    purchase_power_money = Money(value=purchase_power) if purchase_power else None
+    for provider in providers:
+        skip_tickers = skip_tickers.union(provider.get_unsettled_instruments())
     while providers:
         provider = providers.pop()
+        if purchase_power_money and purchase_power_money < Money(value=0):
+            Logger.info("No dollars left to purchase")
+            continue
+        Logger.info(f"Beginning plan for {provider}")
         processed.add(provider.PROVIDER)
-        port = composite.get_provider_portfolio(provider=provider.PROVIDER)
+        port = provider_map[provider]
         # build the plan across the _entire_ composite portfolio
 
         # if we don't know how much cash we have, skip
         print(f"doing provider {provider} with {port.cash}")
         if not port.cash:
             continue
+
+        local_max_spend = port.cash * safety_threshold
+        if purchase_power_money:
+            local_purchase_power = min(
+                purchase_power_money * safety_threshold, local_max_spend
+            )
+            purchase_power_money = purchase_power_money - local_purchase_power
+        else:
+            local_purchase_power = port.cash * safety_threshold
+
         purchase_plan = generate_order_plan(
             ideal=ideal,
             real=composite,
             buy_order=purchase_order_maps[provider.PROVIDER],
             # rounding_strategy=RoundingStrategy.CLOSEST,
             target_size=target_size,
-            purchase_power=port.cash * safety_threshold,
+            purchase_power=local_purchase_power,
             min_order_value=min_order_value,
             skip_tickers=skip_tickers,
         )
-        port.refresh()
         for ticker in purchase_plan.tickers:
             skip_tickers.add(ticker)
         output[provider.PROVIDER] = purchase_plan
@@ -280,7 +299,7 @@ def generate_order_plan(
             )
             purchase_power = purchase_power - buy_target
 
-        Logger.info(
+        Logger.debug(
             f"{diff_text} {key}, {print_per(diffvalue.model)} target vs {print_per(diffvalue.comparison)} actual. Should be {target_value * diffvalue.model}, is {diffvalue.actual}"
         )
 

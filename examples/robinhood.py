@@ -1,7 +1,6 @@
 from py_portfolio_index import (
     INDEXES,
     STOCK_LISTS,
-    Logger,
     RobinhoodProvider,
     PurchaseStrategy,
     compare_portfolios,

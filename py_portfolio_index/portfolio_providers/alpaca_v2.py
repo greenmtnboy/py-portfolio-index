@@ -9,6 +9,8 @@ from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.enums import Provider
 from os import environ
 
+MAX_OPEN_ORDER_SIZE = 500
+
 
 def filter_prices_response(
     ticker: str, response, earliest: bool = True
@@ -29,6 +31,9 @@ class AlpacaProvider(BaseProvider):
     SUPPORTS_BATCH_HISTORY = 50
     PROVIDER = Provider.ALPACA
 
+    API_KEY_VARIABLE = "ALPACA_API_KEY"
+    API_SECRET_VARIABLE = "ALPACA_API_SECRET"
+
     def __init__(
         self,
         key_id: str | None = None,
@@ -39,14 +44,14 @@ class AlpacaProvider(BaseProvider):
         from alpaca.data.historical import StockHistoricalDataClient
 
         if not key_id:
-            key_id = environ.get("ALPACA_API_KEY", None)
+            key_id = environ.get(self.API_KEY_VARIABLE, None)
         if not secret_key:
-            secret_key = environ.get("ALPACA_API_SECRET", None)
+            secret_key = environ.get(self.API_SECRET_VARIABLE, None)
         if not (key_id and secret_key):
             raise ConfigurationError(
-                "Must provide key_id and secret_key or set environment variables ALPACA_API_KEY and ALPACA_API_SECRET "
+                f"Must provide key_id and secret_key or set environment variables {self.API_KEY_VARIABLE} and {self.API_SECRET_VARIABLE}"
             )
-        self.trading_client = TradingClient(
+        self.trading_client: TradingClient = TradingClient(
             api_key=key_id, secret_key=secret_key, paper=paper
         )
         self.historical_client = StockHistoricalDataClient(
@@ -208,9 +213,7 @@ class AlpacaProvider(BaseProvider):
             # take the first day after target day
             return Decimal(raw[ticker][0].high)
 
-    def buy_instrument(
-        self, ticker: str, qty: Decimal, value: Optional[Money] = None
-    ):
+    def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
         from alpaca.trading.requests import MarketOrderRequest
         from alpaca.trading.enums import OrderSide, TimeInForce
         from alpaca.common.exceptions import APIError
@@ -221,7 +224,7 @@ class AlpacaProvider(BaseProvider):
             order_qty = qty
         market_order_data = MarketOrderRequest(
             symbol=ticker,
-            notional=float(value) if value else None,
+            notional=round(float(value), 2) if value else None,
             qty=float(order_qty) if order_qty else None,
             side=OrderSide.BUY,
             time_in_force=TimeInForce.DAY,
@@ -236,20 +239,51 @@ class AlpacaProvider(BaseProvider):
             raise OrderError(message=f"Failed to buy {ticker} {qty} {e}: {message}")
         return True
 
+    def _get_unsettled_cash(self):
+        from alpaca.trading.requests import GetOrdersRequest, QueryOrderStatus
+
+        open_orders = self.trading_client.get_orders(
+            filter=GetOrdersRequest(
+                status=QueryOrderStatus.OPEN, limit=MAX_OPEN_ORDER_SIZE
+            )
+        )
+        if len(open_orders) == MAX_OPEN_ORDER_SIZE:
+            raise ValueError(
+                "Returned max number of open orders - cannot continue safely"
+            )
+        return sum([Decimal(o.notional) for o in open_orders])
+
     def get_unsettled_instruments(self):
         from alpaca.trading.requests import GetOrdersRequest, QueryOrderStatus
 
         open_orders = self.trading_client.get_orders(
-            filter=GetOrdersRequest(status=QueryOrderStatus.OPEN)
+            filter=GetOrdersRequest(
+                status=QueryOrderStatus.OPEN, limit=MAX_OPEN_ORDER_SIZE
+            )
         )
+        if len(open_orders) == MAX_OPEN_ORDER_SIZE:
+            raise ValueError(
+                "Returned max number of open orders - cannot continue safely"
+            )
         return set([o.symbol for o in open_orders])
 
     def get_holdings(self):
         from decimal import Decimal
+        from alpaca.common.exceptions import APIError
 
-        my_stocks = self.trading_client.get_all_positions()
-        account = self.trading_client.get_account()
-        unsettled = self.get_unsettled_instruments()
+        try:
+            my_stocks = self.trading_client.get_all_positions()
+            account = self.trading_client.get_account()
+            unsettled = self.get_unsettled_instruments()
+            unsettled_cash = self._get_unsettled_cash()
+        except APIError as e:
+            import json
+
+            error = json.loads(e._error)
+            message = error.get("message", None)
+            if message == "forbidden":
+                raise ConfigurationError("Account credentials invalid")
+            raise e
         unsettled_elements = [
             RealPortfolioElement(
                 ticker=ticker,
@@ -260,10 +294,13 @@ class AlpacaProvider(BaseProvider):
             )
             for ticker in unsettled
         ]
+
+        cash = Money(value=Decimal(account.cash) - unsettled_cash)
+
         if not my_stocks:
             return RealPortfolio(
                 holdings=unsettled_elements,
-                cash=Money(value=account.cash),
+                cash=cash,
                 provider=self,
             )
         total_value = sum([Decimal(item.market_value) for item in my_stocks])
@@ -284,13 +321,18 @@ class AlpacaProvider(BaseProvider):
             if item.ticker not in [x.ticker for x in out]
         ]
         out.extend(extra_unsettled)
-        return RealPortfolio(
-            holdings=out, cash=Money(value=account.cash), provider=self
-        )
+        return RealPortfolio(holdings=out, cash=cash, provider=self)
+
+    def get_profit_or_loss(self) -> Money:
+        my_stocks = self.trading_client.get_all_positions()
+        _total_pl = sum([Decimal(value=o.unrealized_pl) for o in my_stocks])  # type: ignore
+        return Money(value=_total_pl)
 
 
 class PaperAlpacaProvider(AlpacaProvider):
     PROVIDER = Provider.ALPACA_PAPER
+    API_KEY_VARIABLE = "ALPACA_PAPER_API_KEY"
+    API_SECRET_VARIABLE = "ALPACA_PAPER_API_SECRET"
 
     def __init__(
         self,
