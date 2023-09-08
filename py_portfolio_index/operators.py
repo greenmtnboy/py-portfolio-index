@@ -14,8 +14,6 @@ from py_portfolio_index.models import (
     OrderPlan,
     OrderType,
     PortfolioProtocol,
-    ProviderProtocol,
-    RealPortfolio,
     CompositePortfolio,
 )
 from .models import IdealPortfolio

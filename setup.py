@@ -37,16 +37,17 @@ setuptools.setup(
             "",
             "examples",
             "local_examples",
-            ".vscode"
-
+            ".vscode",
         ]
     ),
     package_data={
         "": ["*.jinja", "py.typed", "*.csv"],
     },
     install_requires=install_requires,
-    extras_require={"alpaca": ["alpaca-py"],
-                        "robinhood": ["robin-stocks"],},
+    extras_require={
+        "alpaca": ["alpaca-py"],
+        "robinhood": ["robin-stocks"],
+    },
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",

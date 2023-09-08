@@ -11,6 +11,6 @@ def test_indexes():
 
 def test_lists():
     for key in STOCK_LISTS.keys:
-        x = STOCK_LISTS[key]
+        STOCK_LISTS[key]
 
     print(STOCK_LISTS.json())

@@ -1,7 +1,7 @@
-#https://www.slickcharts.com/sp500
+# https://www.slickcharts.com/sp500
 from pathlib import Path
 
-RAW = '''# 	Company 	Symbol 	Weight 	      Price 	Chg 	% Chg
+RAW = """# 	Company 	Symbol 	Weight 	      Price 	Chg 	% Chg
 1 	Apple Inc 	AAPL 	7.427244 	  185.20 	0.28 	(0.15%)
 2 	Microsoft Corp 	MSFT 	6.914768 	  338.13 	-4.20 	(-1.23%)
 3 	Amazon.com Inc 	AMZN 	3.043082 	  125.81 	0.32 	(0.25%)
@@ -504,26 +504,32 @@ RAW = '''# 	Company 	Symbol 	Weight 	      Price 	Chg 	% Chg
 501 	Advance Auto Parts Inc 	AAP 	0.011313 	  68.16 	-1.06 	(-1.53%)
 502 	Lincoln National Corp 	LNC 	0.010192 	  24.33 	-0.04 	(-0.17%)
 503 	Newell Brands Inc 	NWL 	0.008666 	  8.29 	-0.23 	(-2.64%)
-504 	News Corp Class B 	NWS 	0.00654 	  19.35 	-0.46 	(-2.30%)'''
+504 	News Corp Class B 	NWS 	0.00654 	  19.35 	-0.46 	(-2.30%)"""
 
 
 if __name__ == "__main__":
-    rows = RAW.split('\n')
+    rows = RAW.split("\n")
 
     final = {}
     for row in rows[1:]:
-        components = row.split('\t')
+        components = row.split("\t")
         print(components)
         final[components[2]] = components[3]
 
     for key, value in final.items():
         print(key)
         print(value)
-    target = Path(__file__).parent.parent / 'py_portfolio_index' / 'bin' /  'indexes' / 'sp500_2023_q3.csv'
+    target = (
+        Path(__file__).parent.parent
+        / "py_portfolio_index"
+        / "bin"
+        / "indexes"
+        / "sp500_2023_q3.csv"
+    )
 
-    with open(target, 'w') as f:
+    with open(target, "w") as f:
         for key, value in final.items():
-            f.write(f'{key.strip()},{value.strip()}\n')
-    
+            f.write(f"{key.strip()},{value.strip()}\n")
+
 
 ## 	Company 	Symbol 	Weight 	      Price 	Chg 	% Chg
