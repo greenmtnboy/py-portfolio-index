@@ -13,7 +13,7 @@ from py_portfolio_index.models import RealPortfolio
 
 
 class BaseProvider(object):
-    PROVIDER = Provider.DUMMY
+    PROVIDER: Provider = Provider.DUMMY
     MIN_ORDER_VALUE = Money(value=1)
     MAX_ORDER_DECIMALS = 2
     SUPPORTS_BATCH_HISTORY = 0
@@ -26,6 +26,9 @@ class BaseProvider(object):
         raise NotImplementedError
 
     def get_holdings(self) -> RealPortfolio:
+        raise NotImplementedError
+
+    def get_profit_or_loss(self) -> Money:
         raise NotImplementedError
 
     def get_instrument_prices(

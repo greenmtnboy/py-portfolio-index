@@ -1,5 +1,13 @@
 from datetime import date
-from typing import List, Optional, Union, TYPE_CHECKING, Collection, runtime_checkable
+from typing import (
+    List,
+    Optional,
+    Set,
+    Union,
+    TYPE_CHECKING,
+    Collection,
+    runtime_checkable,
+)
 from pydantic import BaseModel, Field, validator
 from py_portfolio_index.enums import Currency, Provider
 from py_portfolio_index.constants import Logger
@@ -18,6 +26,9 @@ class ProviderProtocol(Protocol):
     PROVIDER: Provider = Provider.DUMMY
 
     def handle_order_element(self, element: "OrderElement") -> bool:
+        pass
+
+    def get_unsettled_instruments(self) -> Set[str]:
         pass
 
 
@@ -334,7 +345,7 @@ class CompositePortfolio:
     across multiple providers"""
 
     def __init__(self, portfolios: List[RealPortfolio]):
-        self.portfolios = portfolios
+        self.portfolios: List[RealPortfolio] = portfolios
         self._internal_base = RealPortfolio(holdings=[])
         self.rebuild_cache()
 

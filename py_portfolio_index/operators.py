@@ -1,11 +1,12 @@
 from dataclasses import dataclass
-from typing import Optional, Dict, Union, Mapping
+from typing import Optional, Dict, Union, Mapping, List
 from decimal import Decimal
 from math import floor, ceil
 
 from py_portfolio_index.common import print_per
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import PurchaseStrategy, RoundingStrategy
+from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
 from py_portfolio_index.models import (
     Money,
     Provider,
@@ -13,6 +14,8 @@ from py_portfolio_index.models import (
     OrderPlan,
     OrderType,
     PortfolioProtocol,
+    ProviderProtocol,
+    RealPortfolio,
     CompositePortfolio,
 )
 from .models import IdealPortfolio
@@ -125,12 +128,14 @@ def generate_composite_order_plan(
     safety_threshold: Decimal = Decimal(0.95),
 ) -> Mapping[Provider, OrderPlan]:
     provider_map = {x.provider: x for x in composite.portfolios if x.provider}
-    providers = list(provider_map.keys())
+    providers: List[BaseProvider] = list(provider_map.keys())  # type: ignore
     processed = set()
     # check each of our p
     output = {}
     skip_tickers: set[str] = set()
     purchase_power_money = Money(value=purchase_power) if purchase_power else None
+    for provider in providers:
+        skip_tickers = skip_tickers.union(provider.get_unsettled_instruments())
     while providers:
         provider = providers.pop()
         if purchase_power_money and purchase_power_money < Money(value=0):

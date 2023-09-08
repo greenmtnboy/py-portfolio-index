@@ -139,13 +139,13 @@ class RobinhoodProvider(BaseProvider):
         else:
             local = self._local_latest_price_cache.get(ticker)
             if local:
-                print(f"got {ticker} from cache")
                 return local
-            print(f"fetching {ticker} from cache")
             quotes = self._provider.get_quotes([ticker])
             if not quotes[0]:
                 return None
-            return Decimal(quotes[0]["ask_price"])
+            rval = Decimal(quotes[0]["ask_price"])
+            self._local_latest_price_cache[ticker] = rval
+            return rval
 
     def _buy_instrument(
         self, symbol: str, qty: float, value: Optional[Money] = None
@@ -339,3 +339,19 @@ class RobinhoodProvider(BaseProvider):
         for fbatch in batches:
             prices = {**prices, **fbatch}
         return prices
+
+    def get_profit_or_loss(self) -> Money:
+        my_stocks = self._provider.get_open_stock_positions()
+        pls = []
+        for x in my_stocks:
+            historical_value = Decimal(x["average_buy_price"]) * Decimal(x["quantity"])
+            ticker = self._get_local_instrument_symbol(x["instrument"])
+            try:
+                current_price = self.get_instrument_price(ticker) or Decimal(0.0)
+            except PriceFetchError:
+                current_price = Decimal(0.0)
+            current_value = current_price * Decimal(x["quantity"])
+            pl = current_value - historical_value
+            pls.append(pl)
+        _total_pl = sum(pls)  # type: ignore
+        return Money(value=_total_pl)

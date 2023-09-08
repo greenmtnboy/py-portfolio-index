@@ -9,6 +9,8 @@ from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.enums import Provider
 from os import environ
 
+MAX_OPEN_ORDER_SIZE = 500
+
 
 def filter_prices_response(
     ticker: str, response, earliest: bool = True
@@ -241,16 +243,28 @@ class AlpacaProvider(BaseProvider):
         from alpaca.trading.requests import GetOrdersRequest, QueryOrderStatus
 
         open_orders = self.trading_client.get_orders(
-            filter=GetOrdersRequest(status=QueryOrderStatus.OPEN)
+            filter=GetOrdersRequest(
+                status=QueryOrderStatus.OPEN, limit=MAX_OPEN_ORDER_SIZE
+            )
         )
+        if len(open_orders) == MAX_OPEN_ORDER_SIZE:
+            raise ValueError(
+                "Returned max number of open orders - cannot continue safely"
+            )
         return sum([Decimal(o.notional) for o in open_orders])
 
     def get_unsettled_instruments(self):
         from alpaca.trading.requests import GetOrdersRequest, QueryOrderStatus
 
         open_orders = self.trading_client.get_orders(
-            filter=GetOrdersRequest(status=QueryOrderStatus.OPEN)
+            filter=GetOrdersRequest(
+                status=QueryOrderStatus.OPEN, limit=MAX_OPEN_ORDER_SIZE
+            )
         )
+        if len(open_orders) == MAX_OPEN_ORDER_SIZE:
+            raise ValueError(
+                "Returned max number of open orders - cannot continue safely"
+            )
         return set([o.symbol for o in open_orders])
 
     def get_holdings(self):
@@ -308,6 +322,11 @@ class AlpacaProvider(BaseProvider):
         ]
         out.extend(extra_unsettled)
         return RealPortfolio(holdings=out, cash=cash, provider=self)
+
+    def get_profit_or_loss(self) -> Money:
+        my_stocks = self.trading_client.get_all_positions()
+        _total_pl = sum([Decimal(value=o.unrealized_pl) for o in my_stocks])  # type: ignore
+        return Money(value=_total_pl)
 
 
 class PaperAlpacaProvider(AlpacaProvider):
