@@ -41,7 +41,7 @@ setuptools.setup(
         ]
     ),
     package_data={
-        "": ["*.jinja", "py.typed", "*.csv"],
+        "": ["*.jinja", "py.typed", "*.csv", "*.json"],
     },
     install_requires=install_requires,
     extras_require={

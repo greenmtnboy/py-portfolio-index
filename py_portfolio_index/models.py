@@ -394,6 +394,28 @@ class OrderElement(BaseModel):
     value: Money | None
     qty: int | None
 
+    def __add__(self, other):
+        if not isinstance(other, OrderElement):
+            raise ValueError(f"Cannot add {type(other)} to OrderElement")
+        if self.ticker != other.ticker:
+            raise ValueError("Cannot add different tickers")
+        if self.order_type != other.order_type:
+            raise ValueError("Cannot add different order types")
+        if self.value and other.value:
+            return OrderElement(
+                ticker=self.ticker,
+                order_type=self.order_type,
+                value=self.value + other.value,
+            )
+        elif self.qty and other.qty:
+            return OrderElement(
+                ticker=self.ticker,
+                order_type=self.order_type,
+                qty=self.qty + other.qty,
+            )
+        else:
+            raise ValueError("Cannot add value and qty based orders")
+
 
 class OrderPlan(BaseModel):
     to_buy: List[OrderElement]
@@ -407,6 +429,32 @@ class OrderPlan(BaseModel):
         for y in self.to_sell:
             output.add(y.ticker)
         return output
+
+    def __add__(self, other: "OrderPlan"):
+        if other == 0:
+            return self
+        if not isinstance(other, OrderPlan):
+            raise ValueError(f"Cannot add {type(other)} to OrderPlan")
+        for x in other.to_buy:
+            found = False
+            for y in self.to_buy:
+                if x.ticker == y.ticker:
+                    x = x + y
+                    found = True
+                    break
+            if not found:
+                self.to_buy.append(x)
+
+        for sx in other.to_sell:
+            found = False
+            for sy in self.to_sell:
+                if sx.ticker == sy.ticker:
+                    sx = sx + sy
+                    found = True
+                    break
+            if not found:
+                self.to_sell.append(sx)
+        return self
 
 
 class LoginResponseStatus(Enum):
