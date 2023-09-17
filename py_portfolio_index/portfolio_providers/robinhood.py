@@ -278,7 +278,7 @@ class RobinhoodProvider(BaseProvider):
                     "exchange": match["exchange"],
                     "market": match["market"],
                     "country": match["country"],
-                    "tradable": bool(match["tradable"])
+                    "tradable": bool(match["tradable"]),
                 }
         return {}
 

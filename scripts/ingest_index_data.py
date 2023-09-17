@@ -5,13 +5,16 @@ import requests
 from datetime import datetime
 from os import environ
 from typing import TYPE_CHECKING
-
+import re
+from time import sleep
 
 if TYPE_CHECKING:
     from finnhub import Client
 
 
-def validate_ticker(ticker: str, finnhub_client: "Client", info_cache: dict[str, bool]):
+def validate_ticker(
+    ticker: str, finnhub_client: "Client", info_cache: dict[str, bool], attempt: int = 0
+):
     """Use purely to see if a stock exists; do not persist any data"""
     if info_cache.get(ticker, False) is True:
         return True
@@ -24,9 +27,30 @@ def validate_ticker(ticker: str, finnhub_client: "Client", info_cache: dict[str,
         info_cache[ticker] = False
         return False
     except Exception as e:
+        if "API limit reached. Please try again later. " in str(e):
+            if attempt > 5:
+                raise e
+            sleep(30 * 1.1**attempt)
+            return validate_ticker(ticker, finnhub_client, info_cache, attempt + 1)
         print(f"Failed to validate {ticker} with error {e}")
         info_cache[ticker] = False
         return False
+
+
+def update_init_file():
+    init_target = Path(__file__).parent.parent / "py_portfolio_index" / "__init__.py"
+
+    with open(init_target, "r") as f:
+        contents = f.read()
+    from packaging import version
+
+    find = re.search(r"__version__ = \"(?P<version>.*)\"", contents)
+    version_string = find.group("version")
+    parsed = version.parse(find.group("version"))
+    # parsed.minor +=1
+    nversion = f"{parsed.major}.{parsed.minor}.{parsed.micro+1}"
+    with open(init_target, "w") as f:
+        f.write(contents.replace(version_string, nversion))
 
 
 if __name__ == "__main__":
@@ -92,3 +116,5 @@ if __name__ == "__main__":
         for x in list:
             f.write(x)
             f.write("\n")
+
+    update_init_file()
