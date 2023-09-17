@@ -20,3 +20,14 @@ jobs:
                 pip install wheel
                 pip install -r requirements.txt
                 pip install -r requirements-test.txt
+            - name: Execute script
+              run: |
+                python scripts/ingest_index_data.py
+            - name: Commit changes
+              uses: EndBug/add-and-commit@v9
+              with:
+                author_name: Ethan Dickinson
+                author_email: ethan.dickinson@gmail.com
+                message: 'Automatic update of package stock info'
+                add: '*.csv'
+                new_branch: auto_update-${{ steps.date.outputs.date }}
