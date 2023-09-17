@@ -3,8 +3,6 @@ import csv
 from io import StringIO
 import requests
 from datetime import datetime
-from os import environ
-from typing import TYPE_CHECKING
 import re
 from time import sleep
 from py_portfolio_index import AlpacaProvider
@@ -19,7 +17,7 @@ def validate_ticker(
     if info_cache.get(ticker, None) is False:
         return False
     try:
-        info =provider.get_stock_info(ticker)
+        provider.get_stock_info(ticker)
         info_cache[ticker] = True
         return True
 
@@ -51,7 +49,7 @@ def update_init_file():
 
 
 if __name__ == "__main__":
-    provider= AlpacaProvider()
+    provider = AlpacaProvider()
     info_cache: dict[str, bool] = {}
 
     data = requests.get("""https://www.crsp.org/files/CRSP_Constituents.csv""")
