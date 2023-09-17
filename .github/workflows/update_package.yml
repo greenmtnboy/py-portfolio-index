@@ -21,7 +21,7 @@ jobs:
                 python -m pip install --upgrade pip
                 pip install wheel
                 pip install -r requirements.txt
-                pip install -r requirements-test.txt
+                pip install -r requirements-update.txt
             - name: Execute script
               run: |
                 python scripts/ingest_index_data.py

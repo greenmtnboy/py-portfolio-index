@@ -153,6 +153,9 @@ class IdealPortfolio(BaseModel):
     holdings: List[IdealPortfolioElement]
     source_date: Optional[date] = Field(default_factory=date.today)
 
+    def contains(self, ticker: str) -> bool:
+        return ticker in [item.ticker for item in self.holdings]
+
     def _reweight_portfolio(self):
         weights: Decimal = sum([item.weight for item in self.holdings])
 
@@ -467,3 +470,18 @@ class LoginResponseStatus(Enum):
 class LoginResponse:
     status: LoginResponseStatus
     data: dict = field(default_factory=dict)
+
+
+class StockInfo(BaseModel):
+    ticker: str
+    name: str | None = None
+    country: str | None = None
+    currency: str | None = None
+    exchange: str | None = None
+    industry: str | None = None
+    sector: str | None = None
+    location: str | None = None
+    cusip: str | None = None
+    tradable: bool | None = None
+    tags: List[str] = Field(default_factory=list)
+    indexes: List[str] = Field(default_factory=list)

@@ -3,11 +3,11 @@ from typing import Dict, Union, Optional, Set, List
 from decimal import Decimal
 from datetime import date
 
-from py_portfolio_index.common import print_money, print_per, round_up_to_place
+from py_portfolio_index.common import print_money, print_per, round_up_to_place, get_basic_stock_info
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import RoundingStrategy, Provider
 from py_portfolio_index.exceptions import PriceFetchError, OrderError
-from py_portfolio_index.models import Money, OrderPlan, OrderElement
+from py_portfolio_index.models import Money, OrderPlan, OrderElement, StockInfo
 from functools import lru_cache
 from py_portfolio_index.models import RealPortfolio
 
@@ -17,6 +17,9 @@ class BaseProvider(object):
     MIN_ORDER_VALUE = Money(value=1)
     MAX_ORDER_DECIMALS = 2
     SUPPORTS_BATCH_HISTORY = 0
+
+    def __init__(self)->None:
+        self.stock_info_cache: Dict[str, StockInfo] = {}
 
     @property
     def valid_assets(self) -> Set[str]:
@@ -174,7 +177,23 @@ class BaseProvider(object):
             Logger.info(f"Bought {units} of {element.ticker}")
         else:
             Logger.info(f"Would have bought {units} of {element.ticker}")
+    
+    def _get_stock_info(self, ticker: str) -> dict:
+        raise NotImplementedError
 
+    def get_stock_info(self, ticker: str) -> StockInfo:
+        cached = self.stock_info_cache.get(ticker, None)
+        if not cached:
+            dynamic = self._get_stock_info(ticker)
+            basic = get_basic_stock_info(ticker, fail_on_missing = False)
+            if basic:
+                raw_data = basic.dict()
+            else:
+                raw_data = {}
+            final = StockInfo(**{**raw_data, **dynamic})
+            self.stock_info_cache[ticker] = final
+            return final
+        return cached
     def purchase_order_plan(
         self,
         plan: OrderPlan,

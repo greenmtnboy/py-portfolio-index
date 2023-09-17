@@ -1,11 +1,16 @@
-from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
+from py_portfolio_index.models import (
+    RealPortfolio,
+    RealPortfolioElement,
+    Money,
+    StockInfo,
+)
 from py_portfolio_index.exceptions import ConfigurationError, OrderError
 from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
 from decimal import Decimal
 from typing import Optional, Dict, List, Set
 from datetime import date, datetime, timezone, timedelta
 from functools import lru_cache
-from py_portfolio_index.common import divide_into_batches
+from py_portfolio_index.common import divide_into_batches, get_basic_stock_info
 from py_portfolio_index.enums import Provider
 from os import environ
 
@@ -139,6 +144,17 @@ class AlpacaProvider(BaseProvider):
                 ticker: filter_prices_response(ticker, raw, earliest=False)
                 for ticker in tickers
             }
+
+    def _get_stock_info(self, ticker: str) -> dict:
+        from alpaca.trading.client import  Asset
+        info = self.trading_client.get_asset(ticker)
+        if not isinstance(info, Asset):
+            return {}
+        return {
+            "name": info.name,
+            "exchange": info.exchange,
+            "tradable": bool(info.tradable)
+        }
 
     def get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
