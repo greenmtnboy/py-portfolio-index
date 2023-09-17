@@ -23,6 +23,8 @@ jobs:
                 pip install -r requirements.txt
                 pip install -r requirements-update.txt
             - name: Execute script
+              env: 
+                FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
               run: |
                 python scripts/ingest_index_data.py
             - name: Commit changes
