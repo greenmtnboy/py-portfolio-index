@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Union, Mapping, List
 from decimal import Decimal
 from math import floor, ceil
+from collections import defaultdict
 
 from py_portfolio_index.common import print_per
 from py_portfolio_index.constants import Logger
@@ -115,10 +116,27 @@ def round_with_strategy(to_buy_currency, rounding_strategy: RoundingStrategy) ->
     return to_buy_units
 
 
+def generate_auto_target_size(
+    real: CompositePortfolio,
+    ideal: IdealPortfolio,
+) -> Money:
+    cash = Money(value=0)
+    for input in real.portfolios:
+        cash += input.cash
+    in_portfolio_value = Money(value=0)
+    for value in ideal.holdings:
+        comparison = real.get_holding(value.ticker)
+        if not comparison:
+            continue
+        else:
+            in_portfolio_value += comparison.value
+    return in_portfolio_value + cash
+
+
 def generate_composite_order_plan(
     composite: CompositePortfolio,
     ideal: IdealPortfolio,
-    purchase_order_maps: Mapping[Provider, PurchaseStrategy],
+    purchase_order_maps: Mapping[Provider, PurchaseStrategy] | PurchaseStrategy,
     # rounding_strategy=RoundingStrategy.CLOSEST,
     purchase_power: Optional[Money | float | int] = None,
     target_size: Optional[Money | float | int] = None,
@@ -127,13 +145,20 @@ def generate_composite_order_plan(
 ) -> Mapping[Provider, OrderPlan]:
     provider_map = {x.provider: x for x in composite.portfolios if x.provider}
     providers: List[BaseProvider] = list(provider_map.keys())  # type: ignore
+
+    if isinstance(purchase_order_maps, PurchaseStrategy):
+        purchase_order_maps = {x.PROVIDER: purchase_order_maps for x in providers}
     processed = set()
     # check each of our p
-    output = {}
+    output: defaultdict[Provider, OrderPlan] = defaultdict(
+        lambda: OrderPlan(to_buy=[], to_sell=[])
+    )
     skip_tickers: set[str] = set()
-    purchase_power_money = Money(value=purchase_power) if purchase_power else None
     for provider in providers:
         skip_tickers = skip_tickers.union(provider.get_unsettled_instruments())
+
+    purchase_power_money = Money(value=purchase_power) if purchase_power else None
+
     while providers:
         provider = providers.pop()
         if purchase_power_money and purchase_power_money < Money(value=0):
@@ -170,7 +195,7 @@ def generate_composite_order_plan(
         )
         for ticker in purchase_plan.tickers:
             skip_tickers.add(ticker)
-        output[provider.PROVIDER] = purchase_plan
+        output[provider.PROVIDER] += purchase_plan
     return output
 
 

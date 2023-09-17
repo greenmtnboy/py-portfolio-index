@@ -269,6 +269,19 @@ class RobinhoodProvider(BaseProvider):
                 return self._get_local_instrument_symbol(instrument, True)
             raise e
 
+    def _get_stock_info(self, ticker: str) -> dict:
+        matches = self._provider.find_instrument_data(ticker)
+        for match in matches:
+            if match["symbol"] == ticker:
+                return {
+                    "name": match["simple_name"],
+                    "exchange": match["exchange"],
+                    "market": match["market"],
+                    "country": match["country"],
+                    "tradable": bool(match["tradable"]),
+                }
+        return {}
+
     def get_holdings(self):
         accounts_data = self._provider.load_account_profile()
         my_stocks = self._provider.get_open_stock_positions()

@@ -1,4 +1,8 @@
-from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
+from py_portfolio_index.models import (
+    RealPortfolio,
+    RealPortfolioElement,
+    Money,
+)
 from py_portfolio_index.exceptions import ConfigurationError, OrderError
 from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
 from decimal import Decimal
@@ -139,6 +143,18 @@ class AlpacaProvider(BaseProvider):
                 ticker: filter_prices_response(ticker, raw, earliest=False)
                 for ticker in tickers
             }
+
+    def _get_stock_info(self, ticker: str) -> dict:
+        from alpaca.trading.client import Asset
+
+        info = self.trading_client.get_asset(ticker)
+        if not isinstance(info, Asset):
+            return {}
+        return {
+            "name": info.name,
+            "exchange": info.exchange,
+            "tradable": bool(info.tradable),
+        }
 
     def get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None

@@ -1,6 +1,6 @@
 from decimal import Decimal
 from typing import Union, Any
-from py_portfolio_index.models import Money
+from py_portfolio_index.models import Money, StockInfo
 from math import ceil, pow
 
 
@@ -37,3 +37,15 @@ def divide_into_batches(lst: list, batch_size: int = 50) -> list[list[Any]]:
         batch = lst[i : i + batch_size]
         batches.append(batch)
     return batches
+
+
+def get_basic_stock_info(ticker: str, fail_on_missing: bool = True) -> StockInfo:
+    """Cached generic ticker info.
+    Prefer the per-provider fetch methods where possible."""
+    from py_portfolio_index.bin import STOCK_INFO
+
+    if ticker in STOCK_INFO:
+        return STOCK_INFO[ticker]
+    if fail_on_missing:
+        raise ValueError(f"Ticker {ticker} not found")
+    return StockInfo(ticker=ticker)

@@ -17,3 +17,14 @@ The [semiconductor](semiconductor.csv) list includes ticekrs in stocks related t
 ### Vice
 The [vice](vice.csv) list includes tickers in stocks related to vice. 
 
+### Fake Meat
+The [fake meat](fake_meat.csv) list includes tickers in stocks related to artifical meat products.
+
+### Coal
+The [coal](coal.csv) list includes tickers in stocks related to coal.
+
+### Space
+The [space](space.csv) list includes tickers in stocks related to space.
+
+### Non-Ethical Conduct
+The [non-ethical conduct](non_ethical_conduct.csv) list includes tickers in stocks related to non-ethical conduct. Read more about the effects of non-ethical conduct on prices [here](https://link.springer.com/article/10.1007/BF00411817).

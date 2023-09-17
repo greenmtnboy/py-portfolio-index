@@ -1,0 +1,37 @@
+name: Update package stock info
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  # push:
+  #   branches: [qol_improvements]
+jobs:
+    run:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                python-version: ["3.11"]
+        steps:
+            - uses: actions/checkout@v3
+            - name: Set up Python ${{ matrix.python-version }}
+              uses: actions/setup-python@v2
+              with:
+                python-version: ${{ matrix.python-version }}
+            - name: Install dependencies
+              run: |
+                python -m pip install --upgrade pip
+                pip install wheel
+                pip install -r requirements.txt
+                pip install -r requirements-update.txt
+            - name: Execute script
+              env: 
+                FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+              run: |
+                python scripts/ingest_index_data.py
+            - name: Commit changes
+              uses: EndBug/add-and-commit@v9
+              with:
+                author_name: Ethan Dickinson
+                author_email: ethan.dickinson@gmail.com
+                message: 'Automatic update of package stock info'
+                add: '*.csv'
+                new_branch: auto_update-${{ steps.date.outputs.date }}

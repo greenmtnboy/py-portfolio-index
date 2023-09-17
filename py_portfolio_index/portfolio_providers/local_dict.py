@@ -1,11 +1,12 @@
 import random
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Set
 from datetime import date
 from py_portfolio_index.models import (
     RealPortfolio,
     RealPortfolioElement,
 )
 from py_portfolio_index.models import Money
+from py_portfolio_index.enums import Provider
 from decimal import Decimal
 from .base_portfolio import BaseProvider
 
@@ -27,15 +28,18 @@ class RandGen:
 
 
 class LocalDictProvider(BaseProvider):
+    PROVIDER = Provider.LOCAL_DICT
+
     def __init__(
         self,
         holdings: List[RealPortfolioElement],
         price_dict: Optional[Dict[str, Decimal]] = None,
         default_price_gen=RandGen,
+        cash: Money = Money(value=10000),
     ):
         BaseProvider.__init__(self)
         self._price_dict = price_dict or {}
-        self._portfolio = RealPortfolio(holdings=holdings)
+        self._portfolio = RealPortfolio(holdings=holdings, provider=self, cash=cash)
         self.default_price_gen = default_price_gen()
 
     def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None):
@@ -58,6 +62,10 @@ class LocalDictProvider(BaseProvider):
         self._portfolio += RealPortfolioElement(
             ticker=ticker, units=qty, value=value_delta
         )
+
+    def get_unsettled_instruments(self) -> Set[str]:
+        # we settle right away
+        return set()
 
     def get_holdings(self):
         return self._portfolio
