@@ -1,9 +1,9 @@
 name: Update package stock info
 on:
   schedule:
-    - cron: "0 0 * * *"
-  push:
-    branches: [qol_improvements]
+    - cron: "0 0 2 * *"
+  # push:
+  #   branches: [qol_improvements]
 jobs:
     run:
         runs-on: ubuntu-latest
