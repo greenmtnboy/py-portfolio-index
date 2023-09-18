@@ -3,19 +3,14 @@ import csv
 from io import StringIO
 import requests
 from datetime import datetime
-from os import environ
-from typing import TYPE_CHECKING
 import re
 from time import sleep
-
-if TYPE_CHECKING:
-    from finnhub import Client
-
-RETRIABLE_ERRORS = ["Connection aborted", "API limit reached. Please try again later."]
+from py_portfolio_index import PaperAlpacaProvider
+import json
 
 
 def validate_ticker(
-    ticker: str, finnhub_client: "Client", info_cache: dict[str, bool], attempt: int = 0
+    ticker: str, provider, info_cache: dict[str, bool], attempt: int = 0
 ):
     """Use purely to see if a stock exists; do not persist any data"""
     if info_cache.get(ticker, False) is True:
@@ -23,19 +18,16 @@ def validate_ticker(
     if info_cache.get(ticker, None) is False:
         return False
     try:
-        lookup = finnhub_client.symbol_lookup(ticker)
-        for x in lookup["result"]:
-            if x["symbol"] == ticker:
-                info_cache[ticker] = True
-                return True
-        info_cache[ticker] = False
-        return False
+        provider.get_stock_info(ticker)
+        info_cache[ticker] = True
+        return True
+
     except Exception as e:
-        if any(x in str(e) for x in RETRIABLE_ERRORS):
+        if "API limit reached. Please try again later. " in str(e):
             if attempt > 5:
                 raise e
             sleep(30 * 1.1**attempt)
-            return validate_ticker(ticker, finnhub_client, info_cache, attempt + 1)
+            return validate_ticker(ticker, provider, info_cache, attempt + 1)
         print(f"Failed to validate {ticker} with error {e}")
         info_cache[ticker] = False
         return False
@@ -58,12 +50,7 @@ def update_init_file():
 
 
 if __name__ == "__main__":
-    import finnhub
-
-    # Setup client
-    # use this purely to validate if a ticker has had it's name changed
-    # do not persist/reuse any information from this clinet
-    finnhub_client = finnhub.Client(api_key=environ["FINNHUB_API_KEY"])
+    provider = PaperAlpacaProvider()
     info_cache: dict[str, bool] = {}
 
     data = requests.get("""https://www.crsp.org/files/CRSP_Constituents.csv""")
@@ -82,10 +69,10 @@ if __name__ == "__main__":
             dateval = datetime.strptime(row[0], r"%m/%d/%Y").date()
         index = row[2]
         ticker = row[-3]
-        if not validate_ticker(ticker, finnhub_client, info_cache=info_cache):
+        if not validate_ticker(ticker, provider, info_cache=info_cache):
             print("failed to validate", ticker)
             continue
-        indexes[row[2]].append(f"{ticker},{row[-1]}")
+        indexes[row[2]].append({"ticker": f"{ticker}", "weight": row[-1]})
     assert dateval is not None, "dateval must be set at this point"
     quarter = (dateval.month - 1) // 3 + 1
     for key, values in indexes.items():
@@ -97,17 +84,12 @@ if __name__ == "__main__":
             / "py_portfolio_index"
             / "bin"
             / "indexes"
-            / f"{label}.csv"
+            / f"{label}.json"
         )
         first_row = True
+        final = {"name": key, "as_of": dateval.isoformat(), "components": values}
         with open(target, "w") as f:
-            for nrow in values:
-                if first_row:
-                    f.write(nrow)
-                    first_row = False
-                else:
-                    f.write("\n")
-                    f.write(nrow)
+            f.write(json.dumps(final, indent=2))
 
     target = (
         Path(__file__).parent.parent

@@ -4,6 +4,7 @@ from datetime import date
 from decimal import Decimal
 from pydantic import BaseModel, Field
 from pathlib import Path
+import json
 
 from py_portfolio_index.models import IdealPortfolioElement, IdealPortfolio
 
@@ -26,23 +27,31 @@ def parse_date_from_name(input: str) -> date | None:
 
 
 class IndexInventory(BaseModel):
-    keys: Set[str] = Field(exclude=True)
+    csv_keys: Set[str] = Field(exclude=True)
+    json_keys: Set[str] = Field(exclude=True)
     base: Path = Field(exclude=True)
     loaded: dict[str, IdealPortfolio] = Field(default_factory=dict)
+
+    @property
+    def keys(self) -> Set[str]:
+        return self.csv_keys.union(self.json_keys)
 
     @classmethod
     def from_path(cls, path):
         path = Path(path)
         if path.is_file():
             path = path.parent
-        keys = []
+        json_keys = set()
+        csv_keys = set()
         for f in path.iterdir():
             try:
                 if f.suffix == ".csv":
-                    keys.append(f.stem)
+                    csv_keys.add(f.stem)
+                if f.suffix == ".json":
+                    json_keys.add(f.stem)
             except FileNotFoundError:
                 pass
-        return IndexInventory(keys=keys, base=path)
+        return IndexInventory(json_keys=json_keys, csv_keys=csv_keys, base=path)
 
     def __getitem__(self, item: str) -> IdealPortfolio:
         if item in self.keys:
@@ -56,12 +65,29 @@ class IndexInventory(BaseModel):
 
     def get_values(self, item: str) -> IdealPortfolio:
         out = []
-        with open(self.base / f"{item}.csv") as f:
-            contents = f.read()
-            for row in contents.split("\n"):
-                ticker, weight = row.split(",", 1)
-                out.append(IdealPortfolioElement(ticker=ticker, weight=Decimal(weight)))
-        start_date = parse_date_from_name(item)
+        start_date = None
+        if item in self.json_keys:
+            with open(self.base / f"{item}.json") as f:
+                parsed = json.loads(f.read())
+                start_date = date.fromisoformat(parsed["as_of"])
+                for row in parsed["components"]:
+                    out.append(
+                        IdealPortfolioElement(
+                            ticker=row["ticker"], weight=Decimal(row["weight"])
+                        )
+                    )
+        elif item in self.csv_keys:
+            with open(self.base / f"{item}.csv") as f:
+                contents = f.read()
+                for row in contents.split("\n"):
+                    ticker, weight = row.split(",", 1)
+                    start_date = parse_date_from_name(item)
+                    out.append(
+                        IdealPortfolioElement(ticker=ticker, weight=Decimal(weight))
+                    )
+        else:
+            raise ValueError("No matching file {}".format(item))
+
         if start_date:
             return IdealPortfolio(holdings=out, source_date=start_date)
         return IdealPortfolio(holdings=out)

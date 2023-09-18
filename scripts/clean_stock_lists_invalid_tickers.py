@@ -2,17 +2,21 @@ from py_portfolio_index.bin import INDEXES, STOCK_LISTS, VALID_STOCKS
 from py_portfolio_index import AlpacaProvider
 from alpaca.common.exceptions import APIError
 from pathlib import Path
+import json
 
 
 def remove_ticker_from_index(index, ticker):
     root = Path(__file__).parent.parent / "py_portfolio_index" / "bin" / "indexes"
-    target = root / f"{index}.csv"
+    target = root / f"{index}.json"
     with open(target, "r") as f:
-        lines = f.read().split("\n")
+        content = json.loads(f.read())
 
-    final = [line for line in lines if line.split(",")[0] != ticker and line.strip()]
+    final_components = [
+        line for line in content["components"] if line["ticker"] != ticker
+    ]
+    content["components"] = final_components
     with open(target, "w") as f:
-        f.write("\n".join(final))
+        f.write(json.dumps(content, indent=2))
 
 
 def remove_ticker_from_list(index, ticker):
