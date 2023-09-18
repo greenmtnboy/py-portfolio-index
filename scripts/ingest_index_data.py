@@ -72,7 +72,7 @@ if __name__ == "__main__":
         if not validate_ticker(ticker, provider, info_cache=info_cache):
             print("failed to validate", ticker)
             continue
-        indexes[row[2]].append({"ticker": f"{ticker}", "weight":row[-1]})
+        indexes[row[2]].append({"ticker": f"{ticker}", "weight": row[-1]})
     assert dateval is not None, "dateval must be set at this point"
     quarter = (dateval.month - 1) // 3 + 1
     for key, values in indexes.items():
@@ -87,11 +87,7 @@ if __name__ == "__main__":
             / f"{label}.json"
         )
         first_row = True
-        final = {
-            "name": key,
-            "as_of": dateval.isoformat(),
-            "components": values
-        }
+        final = {"name": key, "as_of": dateval.isoformat(), "components": values}
         with open(target, "w") as f:
             f.write(json.dumps(final, indent=2))
 

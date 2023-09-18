@@ -24,7 +24,8 @@ jobs:
                 pip install -r requirements-update.txt
             - name: Execute script
               env: 
-                FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+                ALPACA_PAPER_API_KEY: ${{ secrets.ALPACA_PAPER_API_KEY}}
+                ALPACA_PAPER_API_SECRET: ${{ secrets.ALPACA_PAPER_API_SECRET}}
               run: |
                 python scripts/ingest_index_data.py
             - name: Commit changes
