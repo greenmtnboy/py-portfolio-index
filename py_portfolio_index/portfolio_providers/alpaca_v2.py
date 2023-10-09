@@ -38,6 +38,8 @@ class AlpacaProvider(BaseProvider):
     API_KEY_VARIABLE = "ALPACA_API_KEY"
     API_SECRET_VARIABLE = "ALPACA_API_SECRET"
 
+    LEGACY_BASE = "https://api.alpaca.markets"
+
     def __init__(
         self,
         key_id: str | None = None,
@@ -67,6 +69,12 @@ class AlpacaProvider(BaseProvider):
         # )
         BaseProvider.__init__(self)
         self._valid_assets: Set[str] = set()
+        # for non supported APIs
+        self._legacy_headers = {
+            "content-type": "application/json",
+            "Apca-Api-Key-Id": key_id,
+            "Apca-Api-Secret-Key": secret_key,
+        }
 
     @property
     def valid_assets(self) -> Set[str]:
@@ -342,13 +350,39 @@ class AlpacaProvider(BaseProvider):
     def get_profit_or_loss(self) -> Money:
         my_stocks = self.trading_client.get_all_positions()
         _total_pl = sum([Decimal(value=o.unrealized_pl) for o in my_stocks])  # type: ignore
-        return Money(value=_total_pl)
+        return Money(value=_total_pl) + self._get_dividends()
+
+    def _get_dividends(self):
+        import requests
+        import json
+
+        api_call = "/v2/account/activities/DIV"
+        headers = self._legacy_headers
+        params = {
+            "page_size": "100",
+        }
+        has_data = True
+        all_data = []
+        while has_data:
+            response = requests.get(
+                self.LEGACY_BASE + api_call, params=params, headers=headers
+            )
+            response = json.loads(response.text)
+            all_data += response
+
+            if len(response) == 0:
+                has_data = False
+            else:
+                params["page_token"] = response[-1]["id"]
+        return Money(value=sum([Decimal(x["net_amount"]) for x in all_data]))
 
 
 class PaperAlpacaProvider(AlpacaProvider):
     PROVIDER = Provider.ALPACA_PAPER
     API_KEY_VARIABLE = "ALPACA_PAPER_API_KEY"
     API_SECRET_VARIABLE = "ALPACA_PAPER_API_SECRET"
+
+    LEGACY_BASE = "https://paper-api.alpaca.markets"
 
     def __init__(
         self,
