@@ -224,3 +224,6 @@ class BaseProvider(object):
 
     def refresh(self):
         pass
+
+    def _get_dividends(self) -> Money:
+        raise NotImplementedError
