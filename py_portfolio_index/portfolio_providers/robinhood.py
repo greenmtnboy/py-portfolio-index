@@ -367,4 +367,7 @@ class RobinhoodProvider(BaseProvider):
             pl = current_value - historical_value
             pls.append(pl)
         _total_pl = sum(pls)  # type: ignore
-        return Money(value=_total_pl)
+        return Money(value=_total_pl) + self._get_dividends()
+
+    def _get_dividends(self) -> Money:
+        return Money(value=self._provider.get_total_dividends())
