@@ -353,7 +353,7 @@ class RobinhoodProvider(BaseProvider):
             prices = {**prices, **fbatch}
         return prices
 
-    def get_profit_or_loss(self) -> Money:
+    def get_profit_or_loss(self, include_dividends: bool = True) -> Money:
         my_stocks = self._provider.get_open_stock_positions()
         pls = []
         for x in my_stocks:
@@ -367,6 +367,8 @@ class RobinhoodProvider(BaseProvider):
             pl = current_value - historical_value
             pls.append(pl)
         _total_pl = sum(pls)  # type: ignore
+        if not include_dividends:
+            return Money(value=_total_pl)
         return Money(value=_total_pl) + self._get_dividends()
 
     def _get_dividends(self) -> Money:
