@@ -347,10 +347,12 @@ class AlpacaProvider(BaseProvider):
         out.extend(extra_unsettled)
         return RealPortfolio(holdings=out, cash=cash, provider=self)
 
-    def get_profit_or_loss(self) -> Money:
+    def get_profit_or_loss(self, include_dividends: bool = True) -> Money:
         my_stocks = self.trading_client.get_all_positions()
         _total_pl = sum([Decimal(value=o.unrealized_pl) for o in my_stocks])  # type: ignore
-        return Money(value=_total_pl) + self._get_dividends()
+        if include_dividends:
+            return Money(value=_total_pl) + self._get_dividends()
+        return Money(value=_total_pl)
 
     def _get_dividends(self):
         import requests
