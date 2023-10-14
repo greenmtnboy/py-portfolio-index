@@ -36,7 +36,7 @@ class BaseProvider(object):
     def get_holdings(self) -> RealPortfolio:
         raise NotImplementedError
 
-    def get_profit_or_loss(self, include_dividends: bool = False) -> Money:
+    def get_profit_or_loss(self, include_dividends: bool = True) -> Money:
         raise NotImplementedError
 
     def get_instrument_prices(
