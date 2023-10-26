@@ -2,8 +2,8 @@ name: Update package stock info
 on:
   schedule:
     - cron: "0 0 * * 1"
-  # push:
-  #   branches: [qol_improvements]
+  push:
+    branches: [wf_test]
 jobs:
     run:
         runs-on: ubuntu-latest
@@ -35,4 +35,6 @@ jobs:
                 author_email: ethan.dickinson@gmail.com
                 message: 'Automatic update of package stock info'
                 add: '*.csv'
+                fetch: true
+                push: true
                 new_branch: auto_update-${{ steps.date.outputs.date }}
