@@ -52,8 +52,25 @@ def update_init_file():
 if __name__ == "__main__":
     provider = PaperAlpacaProvider()
     info_cache: dict[str, bool] = {}
+    today = datetime.today().date()
+    found = False
 
-    data = requests.get("""https://www.crsp.org/files/CRSP_Constituents.csv""")
+    for year in (today.year, today.year - 1):
+        for month in reversed(range(1, today.month)):
+            smonth = str(month).zfill(2)
+            address = f"""https://www.crsp.org/wp-content/uploads/{year}/{smonth}/Returns-and-Constituents-CRSP-Constituents.csv"""
+            print('attempting')
+            print(address)
+            data = requests.get(
+                address,
+                allow_redirects=False,
+            )
+            # we got the valid csv
+            if data.text.startswith("TradeDate"):
+                found = True
+                break
+        if found:
+            break
     csv_buffer = csv_buffer = StringIO(data.text)
 
     # Read the CSV data from the in-memory buffer using the csv.reader
