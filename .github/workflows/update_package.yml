@@ -26,7 +26,7 @@ jobs:
             - name: Get current date
               id: date
               run: |
-                echo "{date}={$(date +'%Y-%m-%d')}" >> $GITHUB_ENV
+                echo "date=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
             - name: Execute script
               env: 
                 ALPACA_PAPER_API_KEY: ${{ secrets.ALPACA_PAPER_API_KEY}}
@@ -42,9 +42,9 @@ jobs:
                 add: '-u'
                 fetch: true
                 push: true
-                new_branch: auto_update-${{ env.date }}
+                new_branch: auto_update-${{ steps.date.outputs.date }}
             - name: Create Pull Request
               uses: peter-evans/create-pull-request@v5
               with:
                 base: main
-                branch: auto_update-${{ env.date }}
+                branch: auto_update-${{ steps.date.outputs.date }}
