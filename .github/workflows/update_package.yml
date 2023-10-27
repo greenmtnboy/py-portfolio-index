@@ -44,7 +44,5 @@ jobs:
                 push: true
                 new_branch: auto_update-${{ steps.date.outputs.date }}
             - name: Create Pull Request
-              uses: peter-evans/create-pull-request@v5
-              with:
-                base: main
-                branch: auto_update-${{ steps.date.outputs.date }}
+              run: |
+                gh pr create --title "Automatic update of package stock info" --body "Automatic update of package stock info" --base wf_test --head auto_update-${{ steps.date.outputs.date }}
