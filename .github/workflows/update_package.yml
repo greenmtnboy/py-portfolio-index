@@ -25,12 +25,18 @@ jobs:
               id: date
               run: |
                 echo "date=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
-            - name: Execute script
+            - name: Execute index-ingest
               env: 
                 ALPACA_PAPER_API_KEY: ${{ secrets.ALPACA_PAPER_API_KEY}}
                 ALPACA_PAPER_API_SECRET: ${{ secrets.ALPACA_PAPER_API_SECRET}}
               run: |
                 python scripts/ingest_index_data.py
+            - name: Execute index-ingest
+              env: 
+                ALPACA_PAPER_API_KEY: ${{ secrets.ALPACA_PAPER_API_KEY}}
+                ALPACA_PAPER_API_SECRET: ${{ secrets.ALPACA_PAPER_API_SECRET}}
+              run: |
+                python scripts/clean_stock_lists_invalid_tickers.py
             - name: Commit changes
               uses: EndBug/add-and-commit@v9
               with:

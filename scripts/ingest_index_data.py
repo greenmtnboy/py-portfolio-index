@@ -10,7 +10,10 @@ import json
 
 
 def validate_ticker(
-    ticker: str, provider:PaperAlpacaProvider, info_cache: dict[str, bool], attempt: int = 0
+    ticker: str,
+    provider: PaperAlpacaProvider,
+    info_cache: dict[str, bool],
+    attempt: int = 0,
 ):
     """Use purely to see if a stock exists; do not persist any data"""
     if info_cache.get(ticker, False) is True:
@@ -54,14 +57,12 @@ if __name__ == "__main__":
     info_cache: dict[str, bool] = {}
     today = datetime.today().date()
     found = False
-    update_init_file()
-    exit(0)
     start = datetime.now()
     for year in (today.year, today.year - 1):
         for month in reversed(range(1, today.month)):
             smonth = str(month).zfill(2)
             address = f"""https://www.crsp.org/wp-content/uploads/{year}/{smonth}/Returns-and-Constituents-CRSP-Constituents.csv"""
-            print('attempting')
+            print("attempting")
             print(address)
             data = requests.get(
                 address,
@@ -93,9 +94,9 @@ if __name__ == "__main__":
             print("failed to validate", ticker)
             continue
         indexes[row[2]].append({"ticker": f"{ticker}", "weight": row[-1]})
-        processed +=1
-        if processed %100 ==0:
-            print('Have processed', processed , 'in', datetime.now()-start)
+        processed += 1
+        if processed % 100 == 0:
+            print("Have processed", processed, "in", datetime.now() - start)
     assert dateval is not None, "dateval must be set at this point"
     quarter = (dateval.month - 1) // 3 + 1
     for key, values in indexes.items():
@@ -126,4 +127,4 @@ if __name__ == "__main__":
             f.write(x)
             f.write("\n")
 
-   
+    update_init_file()
