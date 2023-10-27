@@ -34,7 +34,7 @@ jobs:
                 author_name: Ethan Dickinson
                 author_email: ethan.dickinson@gmail.com
                 message: 'Automatic update of package stock info'
-                add: '-a'
+                add: '-u'
                 fetch: false
                 push: true
                 new_branch: auto_update-${{ steps.date.outputs.date }}
