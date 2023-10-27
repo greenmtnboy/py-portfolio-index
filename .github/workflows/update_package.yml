@@ -2,8 +2,6 @@ name: Update package stock info
 on:
   schedule:
     - cron: "0 0 * * 1"
-  # push:
-  #   branches: [qol_improvements]
 jobs:
     run:
         runs-on: ubuntu-latest
@@ -11,6 +9,7 @@ jobs:
             matrix:
                 python-version: ["3.11"]
         steps:
+          
             - uses: actions/checkout@v3
             - name: Set up Python ${{ matrix.python-version }}
               uses: actions/setup-python@v2
@@ -22,17 +21,34 @@ jobs:
                 pip install wheel
                 pip install -r requirements.txt
                 pip install -r requirements-update.txt
-            - name: Execute script
+            - name: Get current date
+              id: date
+              run: |
+                echo "date=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+            - name: Execute index-ingest
               env: 
                 ALPACA_PAPER_API_KEY: ${{ secrets.ALPACA_PAPER_API_KEY}}
                 ALPACA_PAPER_API_SECRET: ${{ secrets.ALPACA_PAPER_API_SECRET}}
               run: |
                 python scripts/ingest_index_data.py
+            - name: Execute index-ingest
+              env: 
+                ALPACA_PAPER_API_KEY: ${{ secrets.ALPACA_PAPER_API_KEY}}
+                ALPACA_PAPER_API_SECRET: ${{ secrets.ALPACA_PAPER_API_SECRET}}
+              run: |
+                python scripts/clean_stock_lists_invalid_tickers.py
             - name: Commit changes
               uses: EndBug/add-and-commit@v9
               with:
                 author_name: Ethan Dickinson
                 author_email: ethan.dickinson@gmail.com
                 message: 'Automatic update of package stock info'
-                add: '*.csv'
+                add: '-u'
+                fetch: true
+                push: true
                 new_branch: auto_update-${{ steps.date.outputs.date }}
+            - name: Create Pull Request
+              run: |
+                gh pr create --title "Automatic update of package stock info" --body "Automatic update of package stock info" --base wf_test --head auto_update-${{ steps.date.outputs.date }}
+              env:
+                GH_TOKEN: ${{ github.token }}

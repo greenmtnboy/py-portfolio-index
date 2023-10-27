@@ -1,5 +1,5 @@
 from py_portfolio_index.bin import INDEXES, STOCK_LISTS, VALID_STOCKS
-from py_portfolio_index import AlpacaProvider
+from py_portfolio_index import PaperAlpacaProvider
 from alpaca.common.exceptions import APIError
 from pathlib import Path
 import json
@@ -31,7 +31,7 @@ def remove_ticker_from_list(index, ticker):
 
 
 if __name__ == "__main__":
-    local = AlpacaProvider()
+    local = PaperAlpacaProvider()
     CONFIRMED = set()
 
     for key in INDEXES.keys:

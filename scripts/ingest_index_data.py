@@ -10,7 +10,10 @@ import json
 
 
 def validate_ticker(
-    ticker: str, provider, info_cache: dict[str, bool], attempt: int = 0
+    ticker: str,
+    provider: PaperAlpacaProvider,
+    info_cache: dict[str, bool],
+    attempt: int = 0,
 ):
     """Use purely to see if a stock exists; do not persist any data"""
     if info_cache.get(ticker, False) is True:
@@ -35,7 +38,7 @@ def validate_ticker(
 
 def update_init_file():
     init_target = Path(__file__).parent.parent / "py_portfolio_index" / "__init__.py"
-
+    print("Updating init file")
     with open(init_target, "r") as f:
         contents = f.read()
     from packaging import version
@@ -52,8 +55,25 @@ def update_init_file():
 if __name__ == "__main__":
     provider = PaperAlpacaProvider()
     info_cache: dict[str, bool] = {}
-
-    data = requests.get("""https://www.crsp.org/files/CRSP_Constituents.csv""")
+    today = datetime.today().date()
+    found = False
+    start = datetime.now()
+    for year in (today.year, today.year - 1):
+        for month in reversed(range(1, today.month)):
+            smonth = str(month).zfill(2)
+            address = f"""https://www.crsp.org/wp-content/uploads/{year}/{smonth}/Returns-and-Constituents-CRSP-Constituents.csv"""
+            print("attempting")
+            print(address)
+            data = requests.get(
+                address,
+                allow_redirects=False,
+            )
+            # we got the valid csv
+            if data.text.startswith("TradeDate"):
+                found = True
+                break
+        if found:
+            break
     csv_buffer = csv_buffer = StringIO(data.text)
 
     # Read the CSV data from the in-memory buffer using the csv.reader
@@ -64,6 +84,7 @@ if __name__ == "__main__":
 
     indexes: dict[str, list] = defaultdict(list)
     dateval = None
+    processed = 0
     for row in csv_reader:
         if not dateval:
             dateval = datetime.strptime(row[0], r"%m/%d/%Y").date()
@@ -73,6 +94,9 @@ if __name__ == "__main__":
             print("failed to validate", ticker)
             continue
         indexes[row[2]].append({"ticker": f"{ticker}", "weight": row[-1]})
+        processed += 1
+        if processed % 100 == 0:
+            print("Have processed", processed, "in", datetime.now() - start)
     assert dateval is not None, "dateval must be set at this point"
     quarter = (dateval.month - 1) // 3 + 1
     for key, values in indexes.items():
