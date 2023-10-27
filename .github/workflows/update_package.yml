@@ -11,6 +11,7 @@ jobs:
             matrix:
                 python-version: ["3.11"]
         steps:
+          
             - uses: actions/checkout@v3
             - name: Set up Python ${{ matrix.python-version }}
               uses: actions/setup-python@v2
@@ -22,6 +23,10 @@ jobs:
                 pip install wheel
                 pip install -r requirements.txt
                 pip install -r requirements-update.txt
+            - name: Get current date
+              id: date
+              run: |
+                echo "{date}={$(date +'%Y-%m-%d')}" >> $GITHUB_STATE
             - name: Execute script
               env: 
                 ALPACA_PAPER_API_KEY: ${{ secrets.ALPACA_PAPER_API_KEY}}
@@ -35,6 +40,10 @@ jobs:
                 author_email: ethan.dickinson@gmail.com
                 message: 'Automatic update of package stock info'
                 add: '-u'
-                fetch: false
+                fetch: true
                 push: true
-                new_branch: auto_update-${{ steps.date.outputs.date }}
+                new_branch: auto_update-${{ env.date }}
+            - name: Create Pull Request
+              uses: peter-evans/create-pull-request@v5
+              with:
+                base: auto_update-${{ env.date }}
