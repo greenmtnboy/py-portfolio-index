@@ -46,3 +46,5 @@ jobs:
             - name: Create Pull Request
               run: |
                 gh pr create --title "Automatic update of package stock info" --body "Automatic update of package stock info" --base wf_test --head auto_update-${{ steps.date.outputs.date }}
+              env:
+                GH_TOKEN: ${{ github.token }}
