@@ -16,7 +16,7 @@ from py_portfolio_index.config import get_providers
 
 AVAILABLE_PROVIDERS = get_providers()
 
-__version__ = "0.0.17"
+__version__ = "0.0.18"
 
 __all__ = [
     "INDEXES",

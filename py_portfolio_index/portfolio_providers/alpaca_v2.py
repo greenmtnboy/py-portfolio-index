@@ -4,14 +4,19 @@ from py_portfolio_index.models import (
     Money,
 )
 from py_portfolio_index.exceptions import ConfigurationError, OrderError
-from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
+from py_portfolio_index.portfolio_providers.base_portfolio import (
+    BaseProvider,
+    CachedValue,
+    CacheKey,
+)
 from decimal import Decimal
-from typing import Optional, Dict, List, Set
+from typing import Optional, Dict, List, Set, DefaultDict
 from datetime import date, datetime, timezone, timedelta
 from functools import lru_cache
 from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.enums import Provider
 from os import environ
+from py_portfolio_index.portfolio_providers.common import PriceCache
 
 MAX_OPEN_ORDER_SIZE = 500
 
@@ -39,6 +44,8 @@ class AlpacaProvider(BaseProvider):
     API_SECRET_VARIABLE = "ALPACA_API_SECRET"
 
     LEGACY_BASE = "https://api.alpaca.markets"
+
+    CACHE: dict[str, CachedValue] = {}
 
     def __init__(
         self,
@@ -75,6 +82,9 @@ class AlpacaProvider(BaseProvider):
             "Apca-Api-Key-Id": key_id,
             "Apca-Api-Secret-Key": secret_key,
         }
+        self._price_cache: PriceCache = PriceCache(
+            fetcher=self._get_instrument_prices_wrapper
+        )
 
     @property
     def valid_assets(self) -> Set[str]:
@@ -164,7 +174,10 @@ class AlpacaProvider(BaseProvider):
             "tradable": bool(info.tradable),
         }
 
-    def get_instrument_prices(
+    def get_instrument_prices(self, tickers: List[str], at_day: Optional[date] = None):
+        return self._price_cache.get_prices(tickers=tickers, date=at_day)
+
+    def _get_instrument_prices_wrapper(
         self, tickers: List[str], at_day: Optional[date] = None
     ) -> Dict[str, Optional[Decimal]]:
         batches = divide_into_batches(list(tickers), self.SUPPORTS_BATCH_HISTORY)
@@ -266,10 +279,13 @@ class AlpacaProvider(BaseProvider):
     def _get_unsettled_cash(self):
         from alpaca.trading.requests import GetOrdersRequest, QueryOrderStatus
 
-        open_orders = self.trading_client.get_orders(
-            filter=GetOrdersRequest(
-                status=QueryOrderStatus.OPEN, limit=MAX_OPEN_ORDER_SIZE
-            )
+        open_orders = self._get_cached_value(
+            CacheKey.OPEN_ORDERS,
+            callable=lambda: self.trading_client.get_orders(
+                filter=GetOrdersRequest(
+                    status=QueryOrderStatus.OPEN, limit=MAX_OPEN_ORDER_SIZE
+                )
+            ),
         )
         if len(open_orders) == MAX_OPEN_ORDER_SIZE:
             raise ValueError(
@@ -280,10 +296,13 @@ class AlpacaProvider(BaseProvider):
     def get_unsettled_instruments(self):
         from alpaca.trading.requests import GetOrdersRequest, QueryOrderStatus
 
-        open_orders = self.trading_client.get_orders(
-            filter=GetOrdersRequest(
-                status=QueryOrderStatus.OPEN, limit=MAX_OPEN_ORDER_SIZE
-            )
+        open_orders = self._get_cached_value(
+            CacheKey.OPEN_ORDERS,
+            callable=lambda: self.trading_client.get_orders(
+                filter=GetOrdersRequest(
+                    status=QueryOrderStatus.OPEN, limit=MAX_OPEN_ORDER_SIZE
+                )
+            ),
         )
         if len(open_orders) == MAX_OPEN_ORDER_SIZE:
             raise ValueError(
@@ -296,9 +315,15 @@ class AlpacaProvider(BaseProvider):
         from alpaca.common.exceptions import APIError
 
         try:
-            my_stocks = self.trading_client.get_all_positions()
-            account = self.trading_client.get_account()
-            unsettled = self.get_unsettled_instruments()
+            my_stocks = self._get_cached_value(
+                CacheKey.POSITIONS, callable=self.trading_client.get_all_positions
+            )
+            account = self._get_cached_value(
+                CacheKey.ACCOUNT, callable=self.trading_client.get_account
+            )
+            unsettled = self._get_cached_value(
+                CacheKey.UNSETTLED, callable=self.get_unsettled_instruments
+            )
             unsettled_cash = self._get_unsettled_cash()
         except APIError as e:
             import json
@@ -347,36 +372,56 @@ class AlpacaProvider(BaseProvider):
         out.extend(extra_unsettled)
         return RealPortfolio(holdings=out, cash=cash, provider=self)
 
+    def get_per_ticker_profit_or_loss(
+        self, include_dividends: bool = True
+    ) -> Dict[str, Money]:
+        my_stocks = self._get_cached_value(
+            CacheKey.POSITIONS, callable=self.trading_client.get_all_positions
+        )
+        output = {o.symbol: Money(value=Decimal(value=o.unrealized_pl)) for o in my_stocks}  # type: ignore
+        # if include_dividends:
+        #     return Money(value=_total_pl) + self._get_dividends()
+        # return Money(value=_total_pl)
+        return output
+
     def get_profit_or_loss(self, include_dividends: bool = True) -> Money:
-        my_stocks = self.trading_client.get_all_positions()
+        my_stocks = self._get_cached_value(
+            CacheKey.POSITIONS, callable=self.trading_client.get_all_positions
+        )
         _total_pl = sum([Decimal(value=o.unrealized_pl) for o in my_stocks])  # type: ignore
         if include_dividends:
-            return Money(value=_total_pl) + self._get_dividends()
+            return Money(value=_total_pl) + sum(self._get_dividends().values())
         return Money(value=_total_pl)
 
-    def _get_dividends(self):
+    def _get_dividends(self) -> DefaultDict[str, Money]:
         import requests
         import json
+        from collections import defaultdict
+
+        output: DefaultDict[str, Money] = defaultdict(lambda: Money(value=Decimal(0)))
 
         api_call = "/v2/account/activities/DIV"
         headers = self._legacy_headers
         params = {
             "page_size": "100",
         }
-        has_data = True
         all_data = []
+        has_data = True
         while has_data:
-            response = requests.get(
+            raw_response = requests.get(
                 self.LEGACY_BASE + api_call, params=params, headers=headers
             )
-            response = json.loads(response.text)
+            response = json.loads(raw_response.text)
             all_data += response
 
             if len(response) == 0:
                 has_data = False
             else:
                 params["page_token"] = response[-1]["id"]
-        return Money(value=sum([Decimal(x["net_amount"]) for x in all_data]))
+        for z in all_data:
+            output[z["symbol"]] += Money(value=Decimal(z["net_amount"]))
+
+        return output
 
 
 class PaperAlpacaProvider(AlpacaProvider):
