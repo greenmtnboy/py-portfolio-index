@@ -10,7 +10,6 @@ from datetime import date as datetype
 
 
 class PriceCache(object):
-
     def __init__(self, fetcher):
         self.fetcher = fetcher
         self.store = defaultdict(dict)

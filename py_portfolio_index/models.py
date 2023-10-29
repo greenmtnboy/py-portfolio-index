@@ -306,7 +306,7 @@ class RealPortfolio(BaseModel):
         for item in self.holdings:
             item.weight = Decimal(item.value.value / value.value)
 
-    def add_holding(self, holding: RealPortfolioElement, reweight:bool = True):
+    def add_holding(self, holding: RealPortfolioElement, reweight: bool = True):
         existing = self._index.get(holding.ticker)
         if existing:
             existing.value += holding.value
