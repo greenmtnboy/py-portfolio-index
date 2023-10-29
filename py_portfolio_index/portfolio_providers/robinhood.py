@@ -178,13 +178,13 @@ class RobinhoodProvider(BaseProvider):
         account = self._get_cached_value(
             CacheKey.MISC,
             value="account_id",
-            callable=lambda: load_account_profile(account_number=None, info="id")[0],
+            callable=lambda: load_account_profile(account_number=None, info="url"),
         )
         sym_to_i = self._get_cached_value(
             CacheKey.MISC,
             value="symbol_to_instrument",
             callable=lambda: {
-                row["symbol"]: row["instrument"] for row in self._local_instrument_cache
+                row["symbol"]: row["url"] for row in self._local_instrument_cache
             },
         )
         payload = {
@@ -230,8 +230,11 @@ class RobinhoodProvider(BaseProvider):
             sleep(FRACTIONAL_SLEEP)
             output = self.buy_instrument(ticker=ticker, qty=qty)
         if not output.get("id"):
-            Logger.error(msg)
-            raise ValueError(msg)
+            if msg:
+                Logger.error(msg)
+                raise ValueError(msg)
+            Logger.error(output)
+            raise ValueError(output)
         return True
 
     def get_unsettled_instruments(self) -> set[str]:
