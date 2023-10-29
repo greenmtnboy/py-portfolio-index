@@ -1,5 +1,5 @@
 from math import floor, ceil
-from typing import Dict, Union, Optional, Set, List
+from typing import Dict, Union, Optional, Set, List, Callable, Any, DefaultDict
 from decimal import Decimal
 from datetime import date
 
@@ -15,6 +15,25 @@ from py_portfolio_index.exceptions import PriceFetchError, OrderError
 from py_portfolio_index.models import Money, OrderPlan, OrderElement, StockInfo
 from functools import lru_cache
 from py_portfolio_index.models import RealPortfolio
+from dataclasses import dataclass, field
+from enum import Enum
+from datetime import datetime
+
+
+@dataclass
+class CachedValue:
+    value: Any
+    fetcher: Callable
+    set: datetime = field(default_factory=datetime.now)
+
+
+class CacheKey(Enum):
+    POSITIONS = 0
+    DIVIDENDS = 1
+    UNSETTLED = 2
+    ACCOUNT = 3
+    OPEN_ORDERS = 4
+    MISC = 5
 
 
 class BaseProvider(object):
@@ -22,6 +41,33 @@ class BaseProvider(object):
     MIN_ORDER_VALUE = Money(value=1)
     MAX_ORDER_DECIMALS = 2
     SUPPORTS_BATCH_HISTORY = 0
+    CACHE: dict[str, CachedValue] = {}
+
+    def clear_cache(self):
+        for value in self.CACHE.values():
+            value.value = None
+
+    def _get_cached_value(
+        self,
+        key: CacheKey,
+        value: Optional[Any] = None,
+        max_age_seconds: int = 60 * 60,
+        callable: Optional[Callable] = None,
+    ) -> Any:
+        if value:
+            skey = f"{key}_{value}"
+        else:
+            skey = f"{key}"
+        if skey in self.CACHE:
+            cached = self.CACHE[skey]
+        elif callable:
+            cached = CachedValue(value=None, fetcher=callable)
+        if cached.value:
+            age = datetime.now() - cached.set
+            if age.seconds < max_age_seconds:
+                return cached.value
+        cached.value = cached.fetcher()
+        return cached.value
 
     def __init__(self) -> None:
         self.stock_info_cache: Dict[str, StockInfo] = {}
@@ -225,5 +271,5 @@ class BaseProvider(object):
     def refresh(self):
         pass
 
-    def _get_dividends(self) -> Money:
+    def _get_dividends(self) -> DefaultDict[str, Money]:
         raise NotImplementedError

@@ -8,11 +8,22 @@ To do that, it provides tools for constructing and managing portfolios that are 
 portfolios can be efficiently converted into actual portfolios by API, using commission free platforms like Robinhood or Alpaca. Since constructing an index analogue typically requires many small stock purchases, a
 commission free platform is important to minimizing overhead. For small investment sizes, the ability of the platform to support fractional shares is critical to being able to accurately map to the index.
 
+## Indexes
+
+py-portfolio-index contains a default set of indexes, which can be access via the INDEXES dictionary: `from py_portfolio_index import INDEXES`. These indexes are based on the common industry index cuts such as 
+Large Cap or real-estate and are updated quarterly.
+
+## Lists/Themes
+
+py-portfolio-index also contains a default list of stock lists, which can be access via the STOCK_LISTS dictionary: `from py_portfolio_index import STOCK_LISTS`. These lists are thematic groupings, such as by industry (space)
+or by other criteria (vice). Lists can be applied to modify indexes or reweight them to create customized
+portfolios. 
+
 #### Install
 
-The package supports Python 3.7 plus.
+The package supports Python 3.9 plus.
 
-`pip install py-portfolio-index` [Not yet!]
+`pip install py-portfolio-index`
 
 #### Considerations
 
