@@ -59,6 +59,19 @@ def nearest_multi_value(
     return None
 
 
+class InstrumentDict(dict):
+    def __init__(self, refresher, *args):
+        super().__init__(*args)
+        self.refresher = refresher
+
+    def __missing__(self, key):
+        mapping = self.refresher()
+        self.update(mapping)
+        if key in self:
+            return self[key]
+        raise ValueError(f"Could not find instrument {key} after refresh")
+
+
 class RobinhoodProvider(BaseProvider):
     """Provider for interacting with stocks held in
     Robinhood.
@@ -280,7 +293,12 @@ class RobinhoodProvider(BaseProvider):
         return self._local_instrument_cache
 
     def _process_cache_to_dict(self):
-        return {row["url"]: row["symbol"] for row in self._local_instrument_cache}
+        return InstrumentDict(
+            lambda: {
+                row["url"]: row["symbol"] for row in self._refresh_local_instruments()
+            },
+            {row["url"]: row["symbol"] for row in self._local_instrument_cache},
+        )
 
     def _get_local_instrument_symbol(
         self, instrument: str, refreshed: bool = False

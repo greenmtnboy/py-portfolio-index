@@ -16,3 +16,10 @@ def test_provider_methods():
         provider.get_unsettled_instruments()
 
         provider.get_stock_info(real_ticker)
+
+
+# def test_stock_reweighting():
+#     provider = PaperAlpacaProvider()
+
+#     portfolio = IdealPortfolio(source_date="2021-01-01")
+#     por
