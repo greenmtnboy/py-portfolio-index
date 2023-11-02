@@ -17,7 +17,7 @@ from py_portfolio_index.models import IdealPortfolio
 
 AVAILABLE_PROVIDERS = get_providers()
 
-__version__ = "0.0.18"
+__version__ = "0.0.19"
 
 __all__ = [
     "INDEXES",
@@ -32,5 +32,5 @@ __all__ = [
     "RobinhoodProvider",
     "PurchaseStrategy",
     "RoundingStrategy",
-    "IdealPortfolio"
+    "IdealPortfolio",
 ]

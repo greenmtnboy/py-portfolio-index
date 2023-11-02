@@ -1,5 +1,5 @@
-from py_portfolio_index import PaperAlpacaProvider, IdealPortfolio
-from py_portfolio_index.operators import reweight_portfolio
+from py_portfolio_index import PaperAlpacaProvider
+
 
 def test_provider_methods():
     providers = [PaperAlpacaProvider()]
@@ -18,8 +18,8 @@ def test_provider_methods():
         provider.get_stock_info(real_ticker)
 
 
-def test_stock_reweighting():
-    provider = PaperAlpacaProvider()
-    
-    portfolio = IdealPortfolio(source_date = '2021-01-01')
-    por
+# def test_stock_reweighting():
+#     provider = PaperAlpacaProvider()
+
+#     portfolio = IdealPortfolio(source_date="2021-01-01")
+#     por

@@ -20,7 +20,6 @@ from py_portfolio_index.portfolio_providers.helpers.robinhood import (
 from py_portfolio_index.enums import Provider
 from functools import lru_cache
 from os import environ
-from collections import UserDict
 
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
@@ -66,7 +65,6 @@ class InstrumentDict(dict):
         self.refresher = refresher
 
     def __missing__(self, key):
-        print(f'Refreshing for missing key {key}')
         mapping = self.refresher()
         self.update(mapping)
         if key in self:

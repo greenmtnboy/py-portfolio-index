@@ -157,7 +157,7 @@ class IdealPortfolio(BaseModel):
         """Ensure component weights go to 100"""
         self._reweight_portfolio()
 
-    def add_stock(self, ticker:str, weight:Decimal, rebalance:bool=True):
+    def add_stock(self, ticker: str, weight: Decimal, rebalance: bool = True):
         new = IdealPortfolioElement(ticker=ticker, weight=weight)
         if any([item.ticker == ticker for item in self.holdings]):
             raise ValueError(f"Stock {ticker} already in portfolio")
