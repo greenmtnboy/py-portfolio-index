@@ -20,6 +20,7 @@ from py_portfolio_index.portfolio_providers.helpers.robinhood import (
 from py_portfolio_index.enums import Provider
 from functools import lru_cache
 from os import environ
+from collections import UserDict
 
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
@@ -57,6 +58,20 @@ def nearest_multi_value(
         value = closest.get("last_trade_price", closest.get("high_price", None))
         return Decimal(value)
     return None
+
+
+class InstrumentDict(dict):
+    def __init__(self, refresher, *args):
+        super().__init__(*args)
+        self.refresher = refresher
+
+    def __missing__(self, key):
+        print(f'Refreshing for missing key {key}')
+        mapping = self.refresher()
+        self.update(mapping)
+        if key in self:
+            return self[key]
+        raise ValueError(f"Could not find instrument {key} after refresh")
 
 
 class RobinhoodProvider(BaseProvider):
@@ -280,7 +295,12 @@ class RobinhoodProvider(BaseProvider):
         return self._local_instrument_cache
 
     def _process_cache_to_dict(self):
-        return {row["url"]: row["symbol"] for row in self._local_instrument_cache}
+        return InstrumentDict(
+            lambda: {
+                row["url"]: row["symbol"] for row in self._refresh_local_instruments()
+            },
+            {row["url"]: row["symbol"] for row in self._local_instrument_cache},
+        )
 
     def _get_local_instrument_symbol(
         self, instrument: str, refreshed: bool = False

@@ -153,6 +153,19 @@ class IdealPortfolio(BaseModel):
     holdings: List[IdealPortfolioElement]
     source_date: Optional[date] = Field(default_factory=date.today)
 
+    def normalize(self):
+        """Ensure component weights go to 100"""
+        self._reweight_portfolio()
+
+    def add_stock(self, ticker:str, weight:Decimal, rebalance:bool=True):
+        new = IdealPortfolioElement(ticker=ticker, weight=weight)
+        if any([item.ticker == ticker for item in self.holdings]):
+            raise ValueError(f"Stock {ticker} already in portfolio")
+        self.holdings.append(new)
+        if rebalance:
+            self._reweight_portfolio()
+        return self
+
     def contains(self, ticker: str) -> bool:
         return ticker in [item.ticker for item in self.holdings]
 

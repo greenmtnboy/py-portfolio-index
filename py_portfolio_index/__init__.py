@@ -13,6 +13,7 @@ from py_portfolio_index.portfolio_providers.alpaca_v2 import (
     PaperAlpacaProvider,
 )
 from py_portfolio_index.config import get_providers
+from py_portfolio_index.models import IdealPortfolio
 
 AVAILABLE_PROVIDERS = get_providers()
 
@@ -31,4 +32,5 @@ __all__ = [
     "RobinhoodProvider",
     "PurchaseStrategy",
     "RoundingStrategy",
+    "IdealPortfolio"
 ]
