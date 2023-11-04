@@ -32,7 +32,7 @@ def remove_ticker_from_list(index, ticker):
 
 if __name__ == "__main__":
     local = PaperAlpacaProvider()
-    CONFIRMED = set()
+    CONFIRMED_INVALID = set()
 
     for key in INDEXES.keys:
         for member in INDEXES[key].holdings:
@@ -40,12 +40,13 @@ if __name__ == "__main__":
                 continue
             if member.ticker not in VALID_STOCKS:
                 try:
-                    if member.ticker in CONFIRMED:
+                    if member.ticker in CONFIRMED_INVALID:
                         raise APIError("fake error")
                     test = local.get_stock_info(member.ticker)
+                    local.get_instrument_price(member.ticker)
                 except APIError as e:
                     print(e)
-                    CONFIRMED.add(member.ticker)
+                    CONFIRMED_INVALID.add(member.ticker)
                     # print(test)
                     print(f"Index {key} has invalid ticker {member.ticker}")
                     remove_ticker_from_index(key, member.ticker)
@@ -56,12 +57,12 @@ if __name__ == "__main__":
                 continue
             if item not in VALID_STOCKS:
                 try:
-                    if item in CONFIRMED:
+                    if item in CONFIRMED_INVALID:
                         raise APIError("fake error")
                     test = local.get_stock_info(item)
                 except APIError as e:
                     print(e)
-                    CONFIRMED.add(item)
+                    CONFIRMED_INVALID.add(item)
                     # print(test)
                     print(f"List {key} has invalid ticker {item}")
                     remove_ticker_from_list(key, item)

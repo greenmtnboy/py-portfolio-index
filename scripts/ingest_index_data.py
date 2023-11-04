@@ -22,6 +22,7 @@ def validate_ticker(
         return False
     try:
         provider.get_stock_info(ticker)
+        provider.get_instrument_price(ticker)
         info_cache[ticker] = True
         return True
 
