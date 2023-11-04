@@ -232,16 +232,15 @@ class RobinhoodProvider(BaseProvider):
                 t = int(found)
             else:
                 t = 30
-
             Logger.info(f"RH error: was throttled! Sleeping {t}")
             sleep(t)
-            output = self.buy_instrument(ticker=ticker, qty=qty)
+            return self.buy_instrument(ticker=ticker, qty=qty)
         elif msg and "Too many requests for fractional orders" in msg:
             Logger.info(
                 f"RH error: was throttled on fractional orders! Sleeping {FRACTIONAL_SLEEP}"
             )
             sleep(FRACTIONAL_SLEEP)
-            output = self.buy_instrument(ticker=ticker, qty=qty)
+            return self.buy_instrument(ticker=ticker, qty=qty)
         if not output.get("id"):
             if msg:
                 Logger.error(msg)
