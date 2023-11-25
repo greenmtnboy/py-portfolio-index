@@ -10,6 +10,10 @@ def test_provider_methods():
     for provider in providers:
         provider.get_holdings()
         real_ticker = "MSFT"
+        p1 = provider.get_instrument_price(real_ticker)
+        p2 = provider.get_instrument_prices([real_ticker])
+        assert p1 == p2[real_ticker]
+
         p1 = provider.get_instrument_price(real_ticker, at_day=test_date)
         p2 = provider.get_instrument_prices([real_ticker], at_day=test_date)
         assert p1 == p2[real_ticker]
