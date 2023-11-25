@@ -12,7 +12,6 @@ from py_portfolio_index.portfolio_providers.base_portfolio import (
 from decimal import Decimal
 from typing import Optional, Dict, List, Set, DefaultDict
 from datetime import date, datetime, timezone, timedelta
-from functools import lru_cache
 from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.enums import Provider
 from os import environ
@@ -186,69 +185,10 @@ class AlpacaProvider(BaseProvider):
             final = {**final, **self._get_instrument_prices(batch, at_day=at_day)}
         return final
 
-    @lru_cache(maxsize=None)
     def _get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
     ) -> Optional[Decimal]:
-        from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
-        from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
-        from alpaca.common.exceptions import APIError
-
-        if at_day:
-            start = datetime(at_day.year, at_day.month, at_day.day, tzinfo=timezone.utc)
-            end = start + timedelta(days=7)
-            # end = datetime(at_day.year, at_day.month, at_day.day+7, hour=23, tzinfo=timezone.utc)
-            raw = self.historical_client.get_stock_bars(
-                StockBarsRequest(
-                    symbol_or_symbols=ticker,
-                    start=start,
-                    end=end,
-                    timeframe=TimeFrame(amount=1, unit=TimeFrameUnit.Day),
-                    limit=100,
-                    adjustment=None,
-                    feed=None,
-                )
-                # [ticker],
-                # timeframe=TimeFrame(amount=1, unit=TimeFrameUnit.Day),
-                # start=start.isoformat(),
-                # end=end.isoformat(),
-            )
-            # take the first day after target day
-            return Decimal(raw[ticker][0].high)
-        else:
-            try:
-                raw = self.historical_client.get_stock_latest_quote(
-                    StockLatestQuoteRequest(symbol_or_symbols=ticker, feed=None)
-                )
-                # if we don't have a value for the current day
-                # expand out
-                # this is required on weekends
-                if raw[ticker].ask_price:
-                    return Decimal(raw[ticker].ask_price)
-            # if we didn't get something on this call, we can keep trying
-            except APIError:
-                pass
-            default = datetime.now(tz=timezone.utc) - timedelta(hours=1)
-            start = default - timedelta(days=7)
-            end = default
-            try:
-                raw = self.historical_client.get_stock_bars(
-                    StockBarsRequest(
-                        symbol_or_symbols=ticker,
-                        start=start,
-                        end=end,
-                        timeframe=TimeFrame(amount=1, unit=TimeFrameUnit.Day),
-                        feed=None,
-                        adjustment=None,
-                        limit=1000,
-                    )
-                )
-            except AttributeError:
-                return None
-            except APIError:
-                return None
-            # take the first day after target day
-            return Decimal(raw[ticker][0].high)
+        return self._price_cache.get_prices(tickers=[ticker], date=at_day)[ticker]
 
     def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
         from alpaca.trading.requests import MarketOrderRequest
