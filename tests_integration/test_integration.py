@@ -1,6 +1,7 @@
 from py_portfolio_index import PaperAlpacaProvider
 from datetime import date
 
+
 def test_provider_methods():
     providers = [PaperAlpacaProvider()]
     # if "robinhood" in AVAILABLE_PROVIDERS:
