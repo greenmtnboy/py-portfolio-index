@@ -38,17 +38,20 @@ if __name__ == "__main__":
         for member in INDEXES[key].holdings:
             if not member.ticker.strip():
                 continue
-            if member.ticker not in VALID_STOCKS:
-                try:
-                    if member.ticker in CONFIRMED:
-                        raise APIError("fake error")
-                    test = local.get_stock_info(member.ticker)
-                except APIError as e:
-                    print(e)
-                    CONFIRMED.add(member.ticker)
-                    # print(test)
-                    print(f"Index {key} has invalid ticker {member.ticker}")
-                    remove_ticker_from_index(key, member.ticker)
+            # if member.ticker not in VALID_STOCKS:
+            # not all valid stocks are tradable
+            try:
+                if member.ticker in CONFIRMED:
+                    raise APIError("fake error")
+                test = local.get_stock_info(member.ticker)
+                if not test.tradable:
+                    raise APIError("not purchaseable")
+            except APIError as e:
+                print(e)
+                CONFIRMED.add(member.ticker)
+                # print(test)
+                print(f"Index {key} has invalid ticker {member.ticker}")
+                remove_ticker_from_index(key, member.ticker)
 
     for key in STOCK_LISTS.keys:
         for item in STOCK_LISTS[key]:
@@ -59,6 +62,8 @@ if __name__ == "__main__":
                     if item in CONFIRMED:
                         raise APIError("fake error")
                     test = local.get_stock_info(item)
+                    if not test.tradable:
+                        raise APIError("not purchaseable")
                 except APIError as e:
                     print(e)
                     CONFIRMED.add(item)
