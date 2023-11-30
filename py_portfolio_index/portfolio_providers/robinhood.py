@@ -289,9 +289,9 @@ class RobinhoodProvider(BaseProvider):
         if not output.get("id"):
             if msg:
                 Logger.error(msg)
-                return False
+                raise ValueError(msg)
             Logger.error(output)
-            return False
+            raise ValueError(output)
         return True
 
     def get_unsettled_instruments(self) -> set[str]:
