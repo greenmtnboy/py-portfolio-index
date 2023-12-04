@@ -2,6 +2,8 @@ name: Update package stock info
 on:
   schedule:
     - cron: "0 0 * * 1"
+    push:
+      branches: [test-update]
 jobs:
     run:
         runs-on: ubuntu-latest
@@ -31,11 +33,6 @@ jobs:
                 ALPACA_PAPER_API_SECRET: ${{ secrets.ALPACA_PAPER_API_SECRET}}
               run: |
                 python scripts/ingest_index_data.py
-            - name: Execute index-ingest
-              env: 
-                ALPACA_PAPER_API_KEY: ${{ secrets.ALPACA_PAPER_API_KEY}}
-                ALPACA_PAPER_API_SECRET: ${{ secrets.ALPACA_PAPER_API_SECRET}}
-              run: |
                 python scripts/clean_stock_lists_invalid_tickers.py
             - name: Commit changes
               uses: EndBug/add-and-commit@v9
@@ -44,7 +41,7 @@ jobs:
                 author_email: ethan.dickinson@gmail.com
                 message: 'Automatic update of package stock info'
                 add: '-u'
-                fetch: true
+                fetch: false
                 push: true
                 new_branch: auto_update-${{ steps.date.outputs.date }}
             - name: Create Pull Request
