@@ -41,7 +41,7 @@ jobs:
                 author_email: ethan.dickinson@gmail.com
                 message: 'Automatic update of package stock info'
                 add: '-u'
-                fetch: false
+                fetch: true
                 push: true
                 new_branch: auto_update-${{ steps.date.outputs.date }}
             - name: Create Pull Request
