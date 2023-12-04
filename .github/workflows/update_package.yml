@@ -2,8 +2,8 @@ name: Update package stock info
 on:
   schedule:
     - cron: "0 0 * * 1"
-    push:
-      branches: [test-update]
+  push:
+    branches: [test-update]
 jobs:
     run:
         runs-on: ubuntu-latest
