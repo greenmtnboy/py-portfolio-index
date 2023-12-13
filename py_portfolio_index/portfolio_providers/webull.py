@@ -83,7 +83,7 @@ class WebullProvider(BaseProvider):
     TRADE_TOKEN_ENV = "WEBULL_TRADE_TOKEN"
     DEVICE_ID_ENV = "WEBULL_TRADE_DEVICE_ID"  
 
-    def get_provider():
+    def _get_provider(self):
         from webull import webull # for paper trading, import 'paper_webull'
         return webull
 
@@ -95,7 +95,7 @@ class WebullProvider(BaseProvider):
         device_id: str | None = None,
         skip_cache: bool = False,
     ):
-        webull = self.get_provider()
+        webull = self._get_provider()
         if not username:
             username = environ.get(self.USERNAME_ENV, None)
         if not password:
@@ -302,6 +302,6 @@ class WebullPaperProvider(WebullProvider):
     DEVICE_ID_ENV = "WEBULL_PAPER_TRADE_DEVICE_ID"  
 
 
-    def get_provider():
+    def _get_provider(self):
         from webull import paper_webull
         return paper_webull
