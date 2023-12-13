@@ -81,7 +81,7 @@ class WebullProvider(BaseProvider):
     PASSWORD_ENV = "WEBULL_PASSWORD"
     USERNAME_ENV =  "WEBULL_USERNAME"
     TRADE_TOKEN_ENV = "WEBULL_TRADE_TOKEN"
-    DEVICE_ID_ENV = "WEBULL_TRADE_DEVICE_ID"  
+    DEVICE_ID_ENV = "WEBULL_DEVICE_ID"  
 
     def _get_provider(self):
         from webull import webull # for paper trading, import 'paper_webull'
@@ -101,17 +101,18 @@ class WebullProvider(BaseProvider):
         if not password:
             password = environ.get(self.PASSWORD_ENV, None)
         if not trade_token:
-            password = environ.get(self.TRADE_TOKEN_ENV, None)
+            trade_token = environ.get(self.TRADE_TOKEN_ENV, None)
         if not device_id:
-            password = environ.get(self.DEVICE_ID_ENV, None)
+            device_id = environ.get(self.DEVICE_ID_ENV, None)
         if not (username and password and trade_token and device_id):
             raise ConfigurationError(
-                "Must provide username, password, trade_token, and device_Id arguments or set environment variables WEBULL_USERNAME, WEBULL_PASSWORD, WEBULL_TRADE_TOKEN, and WEBULL_DEVICE_ID "
+                "Must provide ALL OF username, password, trade_token, and device_id arguments or set environment variables WEBULL_USERNAME, WEBULL_PASSWORD, WEBULL_TRADE_TOKEN, and WEBULL_DEVICE_ID "
             )
         self._provider = webull()
         self._provider._did=device_id
         BaseProvider.__init__(self)
         self._provider.login(username=username, password=password)
+        # self._provider.refresh_login()
         self._provider.get_trade_token(trade_token)
         account_info:dict = self._provider.get_account()
         if account_info.get('success') is False:
@@ -299,7 +300,7 @@ class WebullPaperProvider(WebullProvider):
     PASSWORD_ENV = "WEBULL_PAPER_PASSWORD"
     USERNAME_ENV =  "WEBULL_PAPER_USERNAME"
     TRADE_TOKEN_ENV = "WEBULL_PAPER_TRADE_TOKEN"
-    DEVICE_ID_ENV = "WEBULL_PAPER_TRADE_DEVICE_ID"  
+    DEVICE_ID_ENV = "WEBULL_PAPER_DEVICE_ID"  
 
 
     def _get_provider(self):
