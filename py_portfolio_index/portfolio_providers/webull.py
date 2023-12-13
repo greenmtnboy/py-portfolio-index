@@ -109,10 +109,12 @@ class WebullProvider(BaseProvider):
                 "Must provide ALL OF username, password, trade_token, and device_id arguments or set environment variables WEBULL_USERNAME, WEBULL_PASSWORD, WEBULL_TRADE_TOKEN, and WEBULL_DEVICE_ID "
             )
         self._provider = webull()
+        # we must set both of these to have a valid login
         self._provider._did=device_id
+        self._provider._headers['did'] = device_id
         BaseProvider.__init__(self)
         self._provider.login(username=username, password=password)
-        # self._provider.refresh_login()
+        
         self._provider.get_trade_token(trade_token)
         account_info:dict = self._provider.get_account()
         if account_info.get('success') is False:
