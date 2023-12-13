@@ -82,6 +82,11 @@ class WebullProvider(BaseProvider):
     PROVIDER = Provider.WEBULL
     SUPPORTS_BATCH_HISTORY = 70
 
+
+    def get_provider():
+        from webull import webull # for paper trading, import 'paper_webull'
+        return webull
+
     def __init__(
         self,
         username: str | None = None,
@@ -90,7 +95,7 @@ class WebullProvider(BaseProvider):
         device_id: str | None = None,
         skip_cache: bool = False,
     ):
-        from webull import webull # for paper trading, import 'paper_webull'
+        webull = self.get_provider()
         if not username:
             username = environ.get(WEBULL_USERNAME_ENV, None)
         if not password:
@@ -288,3 +293,12 @@ class WebullProvider(BaseProvider):
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
         pass
+
+
+class WebullPaperProvider(WebullProvider):
+    PROVIDER = Provider.WEBULL_PAPER
+
+
+    def get_provider():
+        from webull import paper_webull
+        return paper_webull
