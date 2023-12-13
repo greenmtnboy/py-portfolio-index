@@ -21,10 +21,7 @@ from pytz import UTC
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
 
-WEBULL_PASSWORD_ENV = "WEBULL_PASSWORD"
-WEBULL_USERNAME_ENV =  "WEBULL_USERNAME"
-WEBULL_TRADE_TOKEN_ENV = "WEBULL_TRADE_TOKEN"
-WEBULL_DEVICE_ID_ENV = "WEBULL_TRADE_DEVICE_ID"  
+
 
 
 def nearest_value(all_historicals, pivot) -> Optional[dict]:
@@ -80,8 +77,11 @@ class WebullProvider(BaseProvider):
     """
 
     PROVIDER = Provider.WEBULL
-    SUPPORTS_BATCH_HISTORY = 70
-
+    SUPPORTS_BATCH_HISTORY = 0
+    PASSWORD_ENV = "WEBULL_PASSWORD"
+    USERNAME_ENV =  "WEBULL_USERNAME"
+    TRADE_TOKEN_ENV = "WEBULL_TRADE_TOKEN"
+    DEVICE_ID_ENV = "WEBULL_TRADE_DEVICE_ID"  
 
     def get_provider():
         from webull import webull # for paper trading, import 'paper_webull'
@@ -97,13 +97,13 @@ class WebullProvider(BaseProvider):
     ):
         webull = self.get_provider()
         if not username:
-            username = environ.get(WEBULL_USERNAME_ENV, None)
+            username = environ.get(self.USERNAME_ENV, None)
         if not password:
-            password = environ.get(WEBULL_PASSWORD_ENV, None)
+            password = environ.get(self.PASSWORD_ENV, None)
         if not trade_token:
-            password = environ.get(WEBULL_TRADE_TOKEN_ENV, None)
+            password = environ.get(self.TRADE_TOKEN_ENV, None)
         if not device_id:
-            password = environ.get(WEBULL_DEVICE_ID_ENV, None)
+            password = environ.get(self.DEVICE_ID_ENV, None)
         if not (username and password and trade_token and device_id):
             raise ConfigurationError(
                 "Must provide username, password, trade_token, and device_Id arguments or set environment variables WEBULL_USERNAME, WEBULL_PASSWORD, WEBULL_TRADE_TOKEN, and WEBULL_DEVICE_ID "
@@ -215,7 +215,6 @@ class WebullProvider(BaseProvider):
         pre = {}
         symbols = []
         for row in my_stocks:
-            print(row)
             local = {}
             local["units"] = row["position"]
             # instrument_data = self._provider.get_instrument_by_url(row["instrument"])
@@ -297,6 +296,10 @@ class WebullProvider(BaseProvider):
 
 class WebullPaperProvider(WebullProvider):
     PROVIDER = Provider.WEBULL_PAPER
+    PASSWORD_ENV = "WEBULL_PAPER_PASSWORD"
+    USERNAME_ENV =  "WEBULL_PAPER_USERNAME"
+    TRADE_TOKEN_ENV = "WEBULL_PAPER_TRADE_TOKEN"
+    DEVICE_ID_ENV = "WEBULL_PAPER_TRADE_DEVICE_ID"  
 
 
     def get_provider():
