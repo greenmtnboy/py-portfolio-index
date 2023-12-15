@@ -63,7 +63,7 @@ if __name__ == "__main__":
                         raise APIError("fake error")
                     test = local.get_stock_info(item)
                     if not test.tradable:
-                        raise APIError("not purchaseable")
+                        raise APIError(f"{item} not purchaseable")
                 except APIError as e:
                     print(e)
                     CONFIRMED.add(item)
