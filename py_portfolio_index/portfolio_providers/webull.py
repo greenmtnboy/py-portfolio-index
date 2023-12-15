@@ -245,7 +245,6 @@ class WebullProvider(BaseProvider):
             local["unsettled"] = s in unsettled
             final.append(local)
         out = [RealPortfolioElement(**row) for row in final]
-        print(accounts_data)
         cash = Decimal(accounts_data["cashBalance"])
         return RealPortfolio(holdings=out, cash=Money(value=cash), provider=self)
 
