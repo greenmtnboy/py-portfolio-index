@@ -293,6 +293,7 @@ class RealPortfolio(BaseModel):
     holdings: List[RealPortfolioElement]
     provider: Optional[ProviderProtocol] = None
     cash: None | Money = None
+    profit_and_loss: None | Money = None
 
     # @property
     # def provider(self) -> Optional["BaseProvider" ]:

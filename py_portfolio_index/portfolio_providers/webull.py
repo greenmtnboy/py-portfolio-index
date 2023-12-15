@@ -280,13 +280,7 @@ class WebullProvider(BaseProvider):
         )
         pls: List[Money] = []
         for x in my_stocks:
-            historical_value = Decimal(x["average_buy_price"]) * Decimal(x["quantity"])
-            try:
-                current_price = self.get_instrument_price(x) or Decimal(0.0)
-            except PriceFetchError:
-                current_price = Decimal(0.0)
-            current_value = current_price * Decimal(x["quantity"])
-            pl = Money(value=current_value - historical_value)
+            pl = Money(value=Decimal(x['unrealizedProfitLoss']))
             pls.append(pl)
         _total_pl = sum(pls)  # type: ignore
         if not include_dividends:
@@ -294,7 +288,10 @@ class WebullProvider(BaseProvider):
         return Money(value=_total_pl) + sum(self._get_dividends().values())
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
-        pass
+        dividends = self._provider.get_dividends()
+        print(dividends)
+        out: DefaultDict[str, Money] = DefaultDict(lambda: Money(value=0))
+        return out
 
 
 class WebullPaperProvider(WebullProvider):
