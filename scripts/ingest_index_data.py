@@ -21,7 +21,10 @@ def validate_ticker(
     if info_cache.get(ticker, None) is False:
         return False
     try:
-        provider.get_stock_info(ticker)
+        info = provider.get_stock_info(ticker)
+        if not info.purchasable:
+            info_cache[ticker] = False
+            return False
         info_cache[ticker] = True
         return True
 
