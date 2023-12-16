@@ -5,7 +5,7 @@
  For example, a user could construct a portfolio that matches the composition of the S&P 500, but excludes oil companies and overweights semiconductor companies.
 
 To do that, it provides tools for constructing and managing portfolios that are modeled off indexes. These ideal
-portfolios can be efficiently converted into actual portfolios by API, using commission free platforms like Robinhood or Alpaca. Since constructing an index analogue typically requires many small stock purchases, a
+portfolios can be efficiently converted into actual portfolios by API, using commission free platforms like Robinhood, Alpaca, or Webull. Since constructing an index analogue typically requires many small stock purchases, a
 commission free platform is important to minimizing overhead. For small investment sizes, the ability of the platform to support fractional shares is critical to being able to accurately map to the index.
 
 ## Indexes
@@ -32,13 +32,13 @@ portfolio balance may not have updated to reflect your last order.
 
 Also remember that the stock markets are not always open!
 
+
 #### Basic Example
 
 This example shows a basic example using the Alpaca API in paper trading mode.
 
 It constructs an ideal portfolio based on the composition of the Vanguard ESG index fund in Q4 2020, then uses the
 Alpaca API to construct a matching portfolio based on an initial investment of 10000 dollars.
-
 
 
 ```python
@@ -60,8 +60,7 @@ TARGET_PORTFOLIO_SIZE = 10000
 provider = AlpacaProvider()
 
 # get an example index 
-# this one is the vanguard ESG index for Q4 202
-ideal_portfolio = INDEXES['esgv_2020_q4']
+ideal_portfolio = INDEXES['small_cap']
 
 # exclude all stocks from the oil, vice, and cruise lists
 ideal_portfolio.exclude(STOCK_LISTS['oil']).exclude(STOCK_LISTS['vice']).exclude(STOCK_LISTS['cruises'])
@@ -85,23 +84,23 @@ for item in planned_orders.to_buy:
 provider.purchase_order_plan(plan = planned_orders, fractional_shares=False, skip_errored_stocks=False)
 ```
 
+[!TIP]
+You can set environment variables to avoid having to pass in your credentials each time. THese are specified per provider. For Alpaca, you can set ALPACA_API_KEY and ALPACA_API_SECRET.
+
+
 ### Robinhood
 
-Robinhood has a less reliable API, but it is also commission free and supports fractional shares.
+Robinhood is also commission free and supports fractional shares.
 
 
 ```python
-from py_portfolio_index.bin import INDEXES, STOCK_LISTS
-from py_portfolio_index.enums import PurchaseStrategy
-from py_portfolio_index.operators import compare_portfolios
-from py_portfolio_index.portfolio_providers.robinhood import RobinhoodProvider
-from py_portfolio_index.constants import Logger
+from py_portfolio_index import RobinhoodProvider, PurchaseStrategy, compare_portfolios, Logger,  INDEXES, STOCK_LISTS
 
 from logging import INFO, StreamHandler
 Logger.addHandler(StreamHandler())
 Logger.setLevel(INFO)
 
-ideal_port = INDEXES['esgv_2020_q4']
+ideal_port = INDEXES['small_cap']
 
 # create a stock list
 STOCK_LISTS.add_list('manual_override', ['MDLZ'])
@@ -129,6 +128,19 @@ for item in planned_orders.to_buy:
 
 # purchase the buy list
 provider.purchase_order_plan(plan = planned_orders, fractional_shares=False, skip_errored_stocks=False)
+
+```
+
+### Webull
+
+Webull support is experimental. Follow similar patterns to the above examples, but use the WebullProvider.
+
+This currently uses [this unoffical API package](https://github.com/tedchou12/webull), and requires you 
+to follow device-id authorization path from their docs. 
+
+```python
+
+from py_portfolio_index import WebullProvider
 
 ```
 
