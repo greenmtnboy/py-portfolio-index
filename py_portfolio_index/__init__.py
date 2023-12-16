@@ -11,7 +11,10 @@ from py_portfolio_index.portfolio_providers.alpaca_v2 import (
     AlpacaProvider,
     PaperAlpacaProvider,
 )
-from py_portfolio_index.portfolio_providers.webull import WebullProvider, WebullPaperProvider
+from py_portfolio_index.portfolio_providers.webull import (
+    WebullProvider,
+    WebullPaperProvider,
+)
 from py_portfolio_index.config import get_providers
 from py_portfolio_index.models import IdealPortfolio
 
