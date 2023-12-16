@@ -25,8 +25,6 @@ FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
 
 
-
-
 def nearest_value(all_historicals, pivot) -> Optional[dict]:
     filtered = [z for z in all_historicals if z]
     if not filtered:
@@ -177,7 +175,7 @@ class RobinhoodProvider(BaseProvider):
             orders_url,
             # request_post,
             SESSION,
-            update_session
+            update_session,
         )
         from robin_stocks.robinhood.orders import (
             load_account_profile,
@@ -186,9 +184,9 @@ class RobinhoodProvider(BaseProvider):
         )
         from uuid import uuid4
 
-        
-        
-        def request_post(url, payload=None, timeout=16, json=False, jsonify_data=True, retry:int = 1):
+        def request_post(
+            url, payload=None, timeout=16, json=False, jsonify_data=True, retry: int = 1
+        ):
             """For a given url and payload, makes a post request and returns the response. Allows for responses other than 200.
 
             :param url: The url to send a post request to.
@@ -207,25 +205,41 @@ class RobinhoodProvider(BaseProvider):
             data = None
             res = None
             if json:
-                update_session('Content-Type', 'application/json')
+                update_session("Content-Type", "application/json")
                 res = SESSION.post(url, json=payload, timeout=timeout)
                 update_session(
-                    'Content-Type', 'application/x-www-form-urlencoded; charset=utf-8')
+                    "Content-Type", "application/x-www-form-urlencoded; charset=utf-8"
+                )
             else:
                 res = SESSION.post(url, data=payload, timeout=timeout)
 
             if res.status_code == 429:
-                sleep(5*retry)
-                return request_post(url, payload, timeout, json, jsonify_data, retry+1)
-            if res.status_code not in [200, 201, 202, 204, 301, 302, 303, 304, 307, 400, 401, 402, 403]:
+                sleep(5 * retry)
+                return request_post(
+                    url, payload, timeout, json, jsonify_data, retry + 1
+                )
+            if res.status_code not in [
+                200,
+                201,
+                202,
+                204,
+                301,
+                302,
+                303,
+                304,
+                307,
+                400,
+                401,
+                402,
+                403,
+            ]:
                 res.raise_for_status()
-        
+
             data = res.json()
             if jsonify_data:
-                return(data)
+                return data
             else:
-                return(res)
-
+                return res
 
         price = round_price(
             next(iter(get_latest_price(symbol, "ask_price", False)), 0.00)
@@ -263,7 +277,7 @@ class RobinhoodProvider(BaseProvider):
 
         url = orders_url()
         data = request_post(url, payload, json=True, jsonify_data=True)
-        
+
         return data or {}
 
     def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):

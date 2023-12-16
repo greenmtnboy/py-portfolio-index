@@ -23,4 +23,11 @@ def get_providers() -> List[Provider]:
         providers.append(Provider.ROBINHOOD)
     except ImportError:
         pass
+    try:
+        from webull import webull  # noqa: F401
+
+        providers.append(Provider.WEBULL)
+        providers.append(Provider.WEBULL_PAPER)
+    except ImportError:
+        pass
     return providers
