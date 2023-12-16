@@ -237,7 +237,7 @@ def generate_order_plan(
             actual=actual_value,
         )
         _diff = Decimal(value.weight) - percentage
-        diff += round(abs(_diff),4)
+        diff += round(abs(_diff), 4)
         if _diff == 0:
             continue
         elif _diff < 0:
@@ -275,7 +275,7 @@ def generate_order_plan(
 
     # first sell everything
     for key, diffvalue in diff_output.items():
-        if round(diffvalue.diff,4) == 0.0000:
+        if round(diffvalue.diff, 4) == 0.0000:
             continue
         elif diffvalue.diff < 0:
             diff_text = "Overweight"
@@ -300,7 +300,7 @@ def generate_order_plan(
     for key, diffvalue in diff_output.items():
         if purchase_power <= 0:
             break
-        elif round(diffvalue.diff,4) == 0.0000:
+        elif round(diffvalue.diff, 4) == 0.0000:
             continue
         elif diffvalue.diff > 0:
             diff_text = "Underweight"

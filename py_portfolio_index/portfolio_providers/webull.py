@@ -1,6 +1,4 @@
-import re
 from decimal import Decimal
-from time import sleep
 from datetime import date, datetime
 from typing import Optional, List, Dict, DefaultDict
 from py_portfolio_index.constants import Logger
@@ -11,8 +9,8 @@ from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
     CacheKey,
 )
-from py_portfolio_index.exceptions import PriceFetchError, ConfigurationError
-
+from py_portfolio_index.exceptions import ConfigurationError
+import uuid
 from py_portfolio_index.enums import Provider
 from functools import lru_cache
 from os import environ
@@ -20,8 +18,6 @@ from pytz import UTC
 
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
-
-
 
 
 def nearest_value(all_historicals, pivot) -> Optional[dict]:
@@ -79,12 +75,13 @@ class WebullProvider(BaseProvider):
     PROVIDER = Provider.WEBULL
     SUPPORTS_BATCH_HISTORY = 0
     PASSWORD_ENV = "WEBULL_PASSWORD"
-    USERNAME_ENV =  "WEBULL_USERNAME"
+    USERNAME_ENV = "WEBULL_USERNAME"
     TRADE_TOKEN_ENV = "WEBULL_TRADE_TOKEN"
-    DEVICE_ID_ENV = "WEBULL_DEVICE_ID"  
+    DEVICE_ID_ENV = "WEBULL_DEVICE_ID"
 
     def _get_provider(self):
-        from webull import webull # for paper trading, import 'paper_webull'
+        from webull import webull  # for paper trading, import 'paper_webull'
+
         return webull
 
     def __init__(
@@ -110,18 +107,17 @@ class WebullProvider(BaseProvider):
             )
         self._provider = webull()
         # we must set both of these to have a valid login
-        self._provider._did=device_id
-        self._provider._headers['did'] = device_id
+        self._provider._did = device_id
+        self._provider._headers["did"] = device_id
         BaseProvider.__init__(self)
         self._provider.login(username=username, password=password)
-        
+
         self._provider.get_trade_token(trade_token)
-        account_info:dict = self._provider.get_account()
-        if account_info.get('success') is False:
+        account_info: dict = self._provider.get_account()
+        if account_info.get("success") is False:
             raise ConfigurationError(f"Authentication is expired: {account_info}")
         self._local_latest_price_cache: Dict[str, Decimal] = {}
         self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
-
 
     @lru_cache(maxsize=None)
     def _get_instrument_price(
@@ -129,8 +125,16 @@ class WebullProvider(BaseProvider):
     ) -> Optional[Decimal]:
         if at_day:
             historicals = self._provider.get_bars(
-                stock=ticker, interval='d1', 
-                timeStamp=int(datetime(day=at_day.day, month=at_day.month, year=at_day.year, tzinfo=UTC,).timestamp())
+                stock=ticker,
+                interval="d1",
+                timeStamp=int(
+                    datetime(
+                        day=at_day.day,
+                        month=at_day.month,
+                        year=at_day.year,
+                        tzinfo=UTC,
+                    ).timestamp()
+                ),
             )
             return Decimal(value=list(historicals.itertuples())[0].vwap)
         else:
@@ -138,39 +142,101 @@ class WebullProvider(BaseProvider):
             if local:
                 return local
             quotes = self._provider.get_quote(ticker)
-            if not quotes[0]:
+            if not quotes["askList"]:
                 return None
-            rval = Decimal(quotes[0]["ask_price"])
+            rval = Decimal(quotes["askList"][0]["price"])
             self._local_latest_price_cache[ticker] = rval
             return rval
 
     def _buy_instrument(
         self, symbol: str, qty: float, value: Optional[Money] = None
     ) -> dict:
-        return self._provider.place_order(action="buy", price=value, stock=symbol, quant=qty, orderType="MKT", enforce="DAY")
+        from webull import webull
+        import requests
 
-    
+        def place_order(
+            provider: webull,
+            stock=None,
+            tId=None,
+            price=0,
+            action="BUY",
+            orderType="LMT",
+            enforce="GTC",
+            quant=0,
+            outsideRegularTradingHour=True,
+            stpPrice=None,
+            trial_value=0,
+            trial_type="DOLLAR",
+        ):
+            """
+            Place an order - redefined here to
+
+            price: float (LMT / STP LMT Only)
+            action: BUY / SELL / SHORT
+            ordertype : LMT / MKT / STP / STP LMT / STP TRAIL
+            timeinforce:  GTC / DAY / IOC
+            outsideRegularTradingHour: True / False
+            stpPrice: float (STP / STP LMT Only)
+            trial_value: float (STP TRIAL Only)
+            trial_type: DOLLAR / PERCENTAGE (STP TRIAL Only)
+            """
+            if tId is not None:
+                pass
+            elif stock is not None:
+                tId = provider.get_ticker(stock)
+            else:
+                raise ValueError("Must provide a stock symbol or a stock id")
+
+            headers = provider.build_req_headers(
+                include_trade_token=True, include_time=True
+            )
+            data = {
+                "action": action,
+                "comboType": "NORMAL",
+                "orderType": orderType,
+                "outsideRegularTradingHour": outsideRegularTradingHour,
+                "quantity": float(quant) if orderType == "MKT" else int(quant),
+                "serialId": str(uuid.uuid4()),
+                "tickerId": tId,
+                "timeInForce": enforce,
+            }
+
+            # Market orders do not support extended hours trading.
+            if orderType == "MKT":
+                data["outsideRegularTradingHour"] = False
+            elif orderType == "LMT":
+                data["lmtPrice"] = float(price)
+            elif orderType == "STP":
+                data["auxPrice"] = float(stpPrice)
+            elif orderType == "STP LMT":
+                data["lmtPrice"] = float(price)
+                data["auxPrice"] = float(stpPrice)
+            elif orderType == "STP TRAIL":
+                data["trailingStopStep"] = float(trial_value)
+                data["trailingType"] = str(trial_type)
+            response = requests.post(
+                provider._urls.place_orders(provider._account_id),
+                json=data,
+                headers=headers,
+                timeout=provider.timeout,
+            )
+            return response.json()
+
+        return place_order(
+            self._provider,
+            action="BUY",
+            price=None,
+            stock=symbol,
+            quant=qty,
+            orderType="MKT",
+            enforce="DAY",
+        )
+
     def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
         float_qty = float(qty)
         output = self._buy_instrument(ticker, float_qty, value)
-        msg = output.get("detail")
-        if msg and "throttled" in msg:
-            m = re.search("available in ([0-9]+) seconds", msg)
-            if m:
-                found = m.group(1)
-                t = int(found)
-            else:
-                t = 30
-            Logger.info(f"RH error: was throttled! Sleeping {t}")
-            sleep(t)
-            return self.buy_instrument(ticker=ticker, qty=qty)
-        elif msg and "Too many requests for fractional orders" in msg:
-            Logger.info(
-                f"RH error: was throttled on fractional orders! Sleeping {FRACTIONAL_SLEEP}"
-            )
-            sleep(FRACTIONAL_SLEEP)
-            return self.buy_instrument(ticker=ticker, qty=qty)
-        if not output.get("id"):
+        msg = output.get("msg")
+        if not output.get("success"):
             if msg:
                 Logger.error(msg)
                 raise ValueError(msg)
@@ -179,16 +245,12 @@ class WebullProvider(BaseProvider):
         return True
 
     def get_unsettled_instruments(self) -> set[str]:
-        
-
         """We need to efficiently bypass
         paginating all orders if possible
         so just check the account info for if there
         is any cash held for orders first"""
         orders = self._provider.get_current_orders()
         return set(item["symbol"] for item in orders)
-
-
 
     def _get_stock_info(self, ticker: str) -> dict:
         info = self._provider.get_ticker_info(ticker)
@@ -218,10 +280,10 @@ class WebullProvider(BaseProvider):
         pre = {}
         symbols = []
         for row in my_stocks:
-            local = {}
+            local: Dict[str, any] = {}
             local["units"] = row["position"]
             # instrument_data = self._provider.get_instrument_by_url(row["instrument"])
-            ticker = row["ticker"]['symbol']
+            ticker = row["ticker"]["symbol"]
             local["ticker"] = ticker
             symbols.append(ticker)
             local["value"] = 0
@@ -254,20 +316,29 @@ class WebullProvider(BaseProvider):
     def _get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
     ) -> Dict[str, Optional[Decimal]]:
-        ticker_list = tickers
-        batches = []
-        for batch in divide_into_batches(ticker_list, 1):
+        batches: List[Dict[str, Optional[Decimal]]] = []
+        for list_batch in divide_into_batches(tickers, 1):
             # TODO: determine if there is a bulk API
-            batch = batch[0]
+            batch: str = list_batch[0]
             if at_day:
                 historicals = self._provider.get_bars(
-                    stock=batch, interval='d1', 
-                    timeStamp=int(datetime(day=at_day.day, month=at_day.month, year=at_day.year, tzinfo=UTC,).timestamp())
+                    stock=batch,
+                    interval="d1",
+                    timeStamp=int(
+                        datetime(
+                            day=at_day.day,
+                            month=at_day.month,
+                            year=at_day.year,
+                            tzinfo=UTC,
+                        ).timestamp()
+                    ),
                 )
-                batches.append({batch:Decimal(value=list(historicals.itertuples())[0].vwap)})
+                batches.append(
+                    {batch: Decimal(value=list(historicals.itertuples())[0].vwap)}
+                )
             else:
                 results = self._provider.get_quote(batch)
-                batches.append({batch:results})
+                batches.append({batch: results})
         prices: Dict[str, Optional[Decimal]] = {}
         for fbatch in batches:
             prices = {**prices, **fbatch}
@@ -279,7 +350,7 @@ class WebullProvider(BaseProvider):
         )
         pls: List[Money] = []
         for x in my_stocks:
-            pl = Money(value=Decimal(x['unrealizedProfitLoss']))
+            pl = Money(value=Decimal(x["unrealizedProfitLoss"]))
             pls.append(pl)
         _total_pl = sum(pls)  # type: ignore
         if not include_dividends:
@@ -296,11 +367,11 @@ class WebullProvider(BaseProvider):
 class WebullPaperProvider(WebullProvider):
     PROVIDER = Provider.WEBULL_PAPER
     PASSWORD_ENV = "WEBULL_PAPER_PASSWORD"
-    USERNAME_ENV =  "WEBULL_PAPER_USERNAME"
+    USERNAME_ENV = "WEBULL_PAPER_USERNAME"
     TRADE_TOKEN_ENV = "WEBULL_PAPER_TRADE_TOKEN"
-    DEVICE_ID_ENV = "WEBULL_PAPER_DEVICE_ID"  
-
+    DEVICE_ID_ENV = "WEBULL_PAPER_DEVICE_ID"
 
     def _get_provider(self):
         from webull import paper_webull
+
         return paper_webull
