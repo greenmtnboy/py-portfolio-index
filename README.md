@@ -25,6 +25,12 @@ The package supports Python 3.9 plus.
 
 `pip install py-portfolio-index`
 
+Note that provider dependencies must be installed independently, for each provider you wish to use.
+
+- alpaca - `pip install alpaca-trade-api` or `pip install py-portfolio-index[alpaca]`
+- robinhood - `pip install robin_stocks` or `pip install py-portfolio-index[robinhood]`
+- webull - `pip install webull` or `pip install py-portfolio-index[webull]`
+
 #### Considerations
 
 Some providers may take some time to place an order. Keep this in mind when running repeated rebalances, as the
