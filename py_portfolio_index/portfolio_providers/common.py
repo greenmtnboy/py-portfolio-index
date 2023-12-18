@@ -15,8 +15,8 @@ class PriceCache(object):
         self.store = defaultdict(dict)
 
     def get_prices(self, tickers: List[str], date: datetype | None):
-        if not date:
-            date = datetype.today()
+        # if not date:
+        #     date = datetype.today()
         cached = self.store[date]
         found = {k: v for k, v in cached.items() if k in tickers}
         missing = [x for x in tickers if x not in cached]
