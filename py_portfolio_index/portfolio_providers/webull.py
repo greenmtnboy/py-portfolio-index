@@ -199,6 +199,8 @@ class WebullProvider(BaseProvider):
             tId = self._provider.get_ticker(symbol)
             self._local_instrument_cache[symbol] = tId
             self._save_local_instrument_cache()
+
+
         def place_order(
             provider: webull,
             tId=tId,
@@ -263,8 +265,7 @@ class WebullProvider(BaseProvider):
         return place_order(
             self._provider,
             action="BUY",
-            price=None,
-            stock=symbol,
+            price=value,
             quant=qty,
             orderType="MKT",
             enforce="DAY",
