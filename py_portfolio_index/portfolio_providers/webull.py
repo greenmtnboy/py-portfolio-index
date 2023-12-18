@@ -1,6 +1,6 @@
 from decimal import Decimal
 from datetime import date, datetime
-from typing import Optional, List, Dict, DefaultDict
+from typing import Optional, List, Dict, DefaultDict, Any
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
 from py_portfolio_index.common import divide_into_batches
@@ -120,7 +120,7 @@ class WebullProvider(BaseProvider):
             raise ConfigurationError(f"Authentication is expired: {account_info}")
         self._local_latest_price_cache: Dict[str, Decimal] = {}
         self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
-        self._local_instrument_cache: Dict = {}
+        self._local_instrument_cache: Dict[str,str] = {}
         if not skip_cache:
             self._load_local_instrument_cache()
 
@@ -194,11 +194,13 @@ class WebullProvider(BaseProvider):
 
         # we should always have this at this point, as we would have had
         # to check price
-        tId:str = self._local_instrument_cache.get(symbol)
-        if not tId:
+        rtId:Optional[str] = self._local_instrument_cache.get(symbol)
+        if not rtId:
             tId = self._provider.get_ticker(symbol)
             self._local_instrument_cache[symbol] = tId
             self._save_local_instrument_cache()
+        else:
+            tId = rtId
 
 
         def place_order(
@@ -324,7 +326,7 @@ class WebullProvider(BaseProvider):
         #         }
         return info
 
-    def get_holdings(self):
+    def get_holdings(self)->RealPortfolio:
         accounts_data = self._get_cached_value(
             CacheKey.ACCOUNT, callable=self._provider.get_portfolio
         )
@@ -338,7 +340,7 @@ class WebullProvider(BaseProvider):
         pre = {}
         symbols = []
         for row in my_stocks:
-            local: Dict[str, any] = {}
+            local: Dict[str, Any] = {}
             local["units"] = row["position"]
             # instrument_data = self._provider.get_instrument_by_url(row["instrument"])
             ticker = row["ticker"]["symbol"]
