@@ -194,7 +194,7 @@ class WebullProvider(BaseProvider):
 
         # we should always have this at this point, as we would have had
         # to check price
-        tId = self._local_instrument_cache.get(symbol)
+        tId:str = self._local_instrument_cache.get(symbol)
         if not tId:
             tId = self._provider.get_ticker(symbol)
             self._local_instrument_cache[symbol] = tId
