@@ -311,6 +311,8 @@ class RealPortfolio(BaseModel):
     @property
     def value(self) -> Money:
         values: List[Money] = [item.value for item in self.holdings]
+        if self.cash:
+            values += [self.cash]
         return Money(value=sum(values))
 
     def _reweight_portfolio(self):
