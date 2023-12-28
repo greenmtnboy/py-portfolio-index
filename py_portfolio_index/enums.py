@@ -9,6 +9,7 @@ class Provider(str, Enum):
     DUMMY = "dummy"
     WEBULL = "webull"
     WEBULL_PAPER = "webull_paper"
+    MOOMOO = "moomoo"
 
 
 class ProviderClass(Enum):

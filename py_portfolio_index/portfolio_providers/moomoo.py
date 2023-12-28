@@ -9,8 +9,7 @@ from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
     CacheKey,
 )
-from py_portfolio_index.exceptions import ConfigurationError
-from collections import defaultdict
+from py_portfolio_index.exceptions import ConfigurationError, PriceFetchError
 import uuid
 from py_portfolio_index.enums import Provider
 from functools import lru_cache
@@ -20,7 +19,7 @@ from pytz import UTC
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
 
-CACHE_PATH = "webull_tickers.json"
+CACHE_PATH = "moo_moo_tickers.json"
 
 
 def nearest_value(all_historicals, pivot) -> Optional[dict]:
@@ -70,61 +69,45 @@ class InstrumentDict(dict):
         raise ValueError(f"Could not find instrument {key} after refresh")
 
 
-class WebullProvider(BaseProvider):
+class MooMooProvider(BaseProvider):
     """Provider for interacting with stocks held in
-    Webull
+    MooMoo
     """
 
-    PROVIDER = Provider.WEBULL
+    PROVIDER = Provider.MOOMOO
     SUPPORTS_BATCH_HISTORY = 0
-    PASSWORD_ENV = "WEBULL_PASSWORD"
-    USERNAME_ENV = "WEBULL_USERNAME"
-    TRADE_TOKEN_ENV = "WEBULL_TRADE_TOKEN"
-    DEVICE_ID_ENV = "WEBULL_DEVICE_ID"
-
-    def _get_provider(self):
-        from webull import webull  # for paper trading, import 'paper_webull'
-
-        return webull
+    PASSWORD_ENV = "MOOMOO_PASSWORD"
+    USERNAME_ENV = "MOOMOO_USERNAME"
+    TRADE_TOKEN_ENV = "MOOMOO_TRADE_TOKEN"
+    DEVICE_ID_ENV = "MOOMOO_DEVICE_ID"
 
     def __init__(
         self,
-        username: str | None = None,
-        password: str | None = None,
-        trade_token: str | None = None,
-        device_id: str | None = None,
         skip_cache: bool = False,
     ):
-
-        if not username:
-            username = environ.get(self.USERNAME_ENV, None)
-        if not password:
-            password = environ.get(self.PASSWORD_ENV, None)
-        if not trade_token:
-            trade_token = environ.get(self.TRADE_TOKEN_ENV, None)
-        if not device_id:
-            device_id = environ.get(self.DEVICE_ID_ENV, None)
-        if not (username and password and trade_token and device_id):
-            raise ConfigurationError(
-                "Must provide ALL OF username, password, trade_token, and device_id arguments or set environment variables WEBULL_USERNAME, WEBULL_PASSWORD, WEBULL_TRADE_TOKEN, and WEBULL_DEVICE_ID "
-            )
-        webull = self._get_provider()
-        self._provider = webull()
-        # we must set both of these to have a valid login
-        self._provider._did = device_id
-        self._provider._headers["did"] = device_id
+        # if not username:
+        #     username = environ.get(self.USERNAME_ENV, None)
+        # if not password:
+        #     password = environ.get(self.PASSWORD_ENV, None)
+        # if not trade_token:
+        #     trade_token = environ.get(self.TRADE_TOKEN_ENV, None)
+        # if not device_id:
+        #     device_id = environ.get(self.DEVICE_ID_ENV, None)
+        # if not (username and password and trade_token and device_id):
+        #     raise ConfigurationError(
+        #         "Must provide ALL OF username, password, trade_token, and device_id arguments or set environment variables MOOMOO_USERNAME, MOOMOO_PASSWORD, MOOMOO_TRADE_TOKEN, and MOOMOO_DEVICE_ID "
+        #     )
+        from moomoo import OpenSecTradeContext, OpenQuoteContext, SecurityFirm, TrdMarket
+        self._trade_provider = OpenSecTradeContext(filter_trdmarket=TrdMarket.US, host='localhost', port=11111,security_firm=SecurityFirm.FUTUINC)
+        self._quote_provider = OpenQuoteContext(host='localhost', port=11111)
         BaseProvider.__init__(self)
-        self._provider.login(username=username, password=password)
-
-        self._provider.get_trade_token(trade_token)
-        account_info: dict = self._provider.get_account()
-        if account_info.get("success") is False:
-            raise ConfigurationError(f"Authentication is expired: {account_info}")
         self._local_latest_price_cache: Dict[str, Decimal] = {}
         self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
         self._local_instrument_cache: Dict[str,str] = {}
         if not skip_cache:
             self._load_local_instrument_cache()
+
+            
 
     def _load_local_instrument_cache(self):
         from platformdirs import user_cache_dir
@@ -157,36 +140,33 @@ class WebullProvider(BaseProvider):
         self, ticker: str, at_day: Optional[date] = None
     ) -> Optional[Decimal]:
         # TODO: determine if there is a bulk API
-        webull_id = self._local_instrument_cache.get(ticker)
-        if not webull_id:
-            # skip the call
-            webull_id = str(self._provider.get_ticker(ticker))
-            self._local_instrument_cache[ticker] = webull_id
-            self._save_local_instrument_cache()
+        from moomoo import RET_OK, SubType
+
         if at_day:
-            historicals = self._provider.get_bars(
-                tId=webull_id,
-                interval="d1",
-                timeStamp=int(
-                    datetime(
-                        day=at_day.day,
-                        month=at_day.month,
-                        year=at_day.year,
-                        tzinfo=UTC,
-                    ).timestamp()
-                ),
-            )
-            return Decimal(value=list(historicals.itertuples())[0].vwap)
+            raise ValueError
+            # historicals = self._provider.get_bars(
+            #     tId=webull_id,
+            #     interval="d1",
+            #     timeStamp=int(
+            #         datetime(
+            #             day=at_day.day,
+            #             month=at_day.month,
+            #             year=at_day.year,
+            #             tzinfo=UTC,
+            #         ).timestamp()
+            #     ),
+            # )
+            # return Decimal(value=list(historicals.itertuples())[0].vwap)
         else:
-            local = self._local_latest_price_cache.get(ticker)
-            if local:
-                return local
-            quotes: dict = self._provider.get_quote(tId=webull_id)
-            if not quotes.get("askList"):
-                return None
-            rval = Decimal(quotes["askList"][0]["price"])
-            self._local_latest_price_cache[ticker] = rval
-            return rval
+            ret_sub, err_message = self._quote_provider.subscribe(['US.'+ticker], [SubType.QUOTE], subscribe_push=False)
+            # Subscribe to the K line type first. After the subscription is successful, moomoo OpenD will continue to receive pushes from the server, False means that there is no need to push to the script temporarily
+            if ret_sub == RET_OK: # Subscription successful
+                ret, data = self._quote_provider.get_stock_quote(['US.'+ticker]) # Get real-time data of subscription stock quotes
+                if ret == RET_OK:
+                    return list(data.itertuples())[0]
+            else:
+                print('subscription failed', err_message)
+            raise PriceFetchError("Could not get price")
 
     def _buy_instrument(
         self, symbol: str, qty: Optional[float], value: Optional[Money] = None
@@ -285,18 +265,22 @@ class WebullProvider(BaseProvider):
 
                 orders = [int(int_part), round(remainder_part, 4)]
             else:
-                orders = [float_qty]        
-            orders_kwargs_list = [{'qty':order, 'value':None} for order in orders]
+                orders = [float_qty]
+            for order in orders:
+                output = self._buy_instrument(ticker, qty=order, value=None)
+                msg = output.get("msg")
+                if not output.get("success"):
+                    if msg:
+                        Logger.error(msg)
+                        raise ValueError(msg)
+                    Logger.error(output)
+                    raise ValueError(output)
         else:
-            orders_kwargs_list = [{'qty':None, 'value':value}]
-        for order_kwargs in orders_kwargs_list:
-            output = self._buy_instrument(ticker, **order_kwargs)
+            output = self._buy_instrument(ticker, qty=None, value=value)
             msg = output.get("msg")
             if not output.get("success"):
                 if msg:
                     Logger.error(msg)
-                    if 'Your session has expired' in str(msg):
-                        raise ConfigurationError(msg)
                     raise ValueError(msg)
                 Logger.error(output)
                 raise ValueError(output)
@@ -307,8 +291,13 @@ class WebullProvider(BaseProvider):
         paginating all orders if possible
         so just check the account info for if there
         is any cash held for orders first"""
-        orders = self._provider.get_current_orders()
-        return set(item["symbol"] for item in orders)
+        from moomoo import RET_OK
+        ret, data = self._trade_provider.order_list_query()
+        if ret == RET_OK:
+            pass
+        else:
+            raise ConfigurationError("Could not get order list")
+        return set(item.symbol for item in data.itertuples())
 
     def _get_stock_info(self, ticker: str) -> dict:
         info = self._provider.get_ticker_info(ticker)
@@ -323,13 +312,30 @@ class WebullProvider(BaseProvider):
         #             "tradable": bool(match["tradable"]),
         #         }
         return info
+    
+    def _get_portfolio(self):
+        from moomoo import RET_OK
+        ret, data = self._trade_provider.accinfo_query()
+        if ret == RET_OK:
+            return list(data.itertuples())[0]
+        
+        raise ConfigurationError("Could not get portfolio")
+    
+    def _get_positions(self):
+        from moomoo import RET_OK
+        ret, data = self._trade_provider.position_list_query()
+        if ret == RET_OK:
+            return data.itertuples()
+        
+        raise ConfigurationError("Could not get positions")
+
 
     def get_holdings(self)->RealPortfolio:
         accounts_data = self._get_cached_value(
-            CacheKey.ACCOUNT, callable=self._provider.get_portfolio
+            CacheKey.ACCOUNT, callable=self._get_portfolio
         )
         my_stocks = self._get_cached_value(
-            CacheKey.POSITIONS, callable=self._provider.get_positions
+            CacheKey.POSITIONS, callable=self._get_positions
         )
         unsettled = self._get_cached_value(
             CacheKey.UNSETTLED, callable=self.get_unsettled_instruments
@@ -365,7 +371,7 @@ class WebullProvider(BaseProvider):
             local["unsettled"] = s in unsettled
             final.append(local)
         out = [RealPortfolioElement(**row) for row in final]
-        cash = Decimal(accounts_data["cashBalance"])
+        cash = Decimal(accounts_data.net_cash_power)
         return RealPortfolio(holdings=out, cash=Money(value=cash), provider=self)
 
     def get_instrument_prices(self, tickers: List[str], at_day: Optional[date] = None):
@@ -378,35 +384,9 @@ class WebullProvider(BaseProvider):
         for list_batch in divide_into_batches(tickers, 1):
             # TODO: determine if there is a bulk API
             ticker: str = list_batch[0]
-            webull_id = self._local_instrument_cache.get(ticker)
-            if not webull_id:
-                # skip the call
-                webull_id = str(self._provider.get_ticker(ticker))
-                self._local_instrument_cache[ticker] = webull_id
-                self._save_local_instrument_cache()
-            if at_day:
-                historicals = self._provider.get_bars(
-                    stock=ticker,
-                    interval="d1",
-                    timeStamp=int(
-                        datetime(
-                            day=at_day.day,
-                            month=at_day.month,
-                            year=at_day.year,
-                            tzinfo=UTC,
-                        ).timestamp()
-                    ),
-                )
-                batches.append(
-                    {ticker: Decimal(value=list(historicals.itertuples())[0].vwap)}
-                )
-            else:
-                quotes = self._provider.get_quote(tId=webull_id)
-                if not quotes.get("askList"):
-                    rval = None
-                else:
-                    rval = Decimal(quotes["askList"][0]["price"])
-                batches.append({ticker: rval})
+            # webull_id = self._local_instrument_cache.get(ticker)
+            rval = self._get_instrument_price(ticker, at_day=at_day)
+            batches.append({ticker: rval})
         prices: Dict[str, Optional[Decimal]] = {}
         for fbatch in batches:
             prices = {**prices, **fbatch}
@@ -426,25 +406,19 @@ class WebullProvider(BaseProvider):
         return Money(value=_total_pl) + sum(self._get_dividends().values())
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
-        dividends:dict = self._provider.get_dividends()
-        dlist = dividends.get('dividendList', [])
-        base = []
-        for item in dlist:
-            base.append({'value':Money(value=Decimal(item['dividendAmount'])), 'ticker':item['tickerTuple']['symbol']})
-        final = defaultdict(lambda: Money(value=0))
-        for item in base:
-            final[item['ticker']] += item['value']
-        return final
+        # dividends = self._provider.get_dividends()
+        out: DefaultDict[str, Money] = DefaultDict(lambda: Money(value=0))
+        return out
 
 
-class WebullPaperProvider(WebullProvider):
-    PROVIDER = Provider.WEBULL_PAPER
-    PASSWORD_ENV = "WEBULL_PAPER_PASSWORD"
-    USERNAME_ENV = "WEBULL_PAPER_USERNAME"
-    TRADE_TOKEN_ENV = "WEBULL_PAPER_TRADE_TOKEN"
-    DEVICE_ID_ENV = "WEBULL_PAPER_DEVICE_ID"
+# class MooMooPaperProvider(MooMooProvider):
+#     PROVIDER = Provider.MOOMOO_PAPER
+#     PASSWORD_ENV = "MOOMOO_PAPER_PASSWORD"
+#     USERNAME_ENV = "MOOMOO_PAPER_USERNAME"
+#     TRADE_TOKEN_ENV = "MOOMOO_PAPER_TRADE_TOKEN"
+#     DEVICE_ID_ENV = "MOOMOO_PAPER_DEVICE_ID"
 
-    def _get_provider(self):
-        from webull import paper_webull
+#     def _get_provider(self):
+#         from webull import paper_webull
 
-        return paper_webull
+#         return paper_webull
