@@ -282,11 +282,13 @@ class WebullProvider(BaseProvider):
                 orders = [int(int_part), round(remainder_part, 4)]
             else:
                 orders = [float_qty]
-            orders_kwargs_list = [{"qty": order, "value": None} for order in orders]
+            orders_kwargs_list: List[Dict[str, float | Money | None]] = [
+                {"qty": order, "value": None} for order in orders
+            ]
         else:
             orders_kwargs_list = [{"qty": None, "value": value}]
         for order_kwargs in orders_kwargs_list:
-            output = self._buy_instrument(ticker, **order_kwargs)
+            output = self._buy_instrument(ticker, **order_kwargs)  # type: ignore
             msg = output.get("msg")
             if not output.get("success"):
                 if msg:
@@ -429,7 +431,7 @@ class WebullProvider(BaseProvider):
                     "ticker": item["tickerTuple"]["symbol"],
                 }
             )
-        final = defaultdict(lambda: Money(value=0))
+        final: DefaultDict[str, Money] = defaultdict(lambda: Money(value=0))
         for item in base:
             final[item["ticker"]] += item["value"]
         return final

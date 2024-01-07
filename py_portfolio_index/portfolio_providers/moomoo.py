@@ -8,7 +8,11 @@ from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
     CacheKey,
 )
-from py_portfolio_index.exceptions import ConfigurationError, PriceFetchError
+from py_portfolio_index.exceptions import (
+    ConfigurationError,
+    PriceFetchError,
+    OrderError,
+)
 from py_portfolio_index.enums import Provider
 from functools import lru_cache
 from os import environ
@@ -110,7 +114,9 @@ class MooMooProvider(BaseProvider):
         )
         self._quote_provider = OpenQuoteContext(host="localhost", port=11111)
         BaseProvider.__init__(self)
-        self._local_latest_price_cache: Dict[str, Decimal] = defaultdict(lambda: None)
+        self._local_latest_price_cache: Dict[str, Decimal | None] = defaultdict(
+            lambda: None
+        )
         self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
         self._local_instrument_cache: Dict[str, str] = {}
         if not skip_cache:
@@ -185,7 +191,7 @@ class MooMooProvider(BaseProvider):
         qty: Optional[float],
         value: Optional[Money] = None,
         price: Optional[Decimal] = None,
-    ) -> dict:
+    ) -> bool:
         from moomoo import RET_OK, TrdSide, OrderType
 
         ret, data = self._trade_provider.unlock_trade(
@@ -194,7 +200,7 @@ class MooMooProvider(BaseProvider):
         if ret == RET_OK:
             print("unlocked orders")
         else:
-            raise ValueError("unlock trade error: ", data)
+            raise OrderError("unlock trade error: ", data)
         ret, data = self._trade_provider.place_order(
             price=price,
             qty=qty,
@@ -203,24 +209,28 @@ class MooMooProvider(BaseProvider):
             trd_side=TrdSide.BUY,
         )
         if ret == RET_OK:
-            print(data)
-            print(data["order_id"][0])  # Get the order ID of the placed order
-            print(data["order_id"].values.tolist())  # Convert to list
+            return True
         else:
-            raise ValueError("place_order error: ", data)
-            print("place_order error: ", data)
-        # else:
-        #     print('unlock_trade failed: ', data)
+            raise OrderError("place_order error: ", data)
 
     def buy_instrument(
-        self, ticker: str, qty: Decimal, price: Decimal, value: Optional[Money] = None
-    ):
+        self, ticker: str, qty: Decimal, value: Optional[Money] = None
+    ) -> bool:
+        # TODO: make sure this is always set
+        if not value and qty:
+            raise NotImplementedError(
+                "Moomoo provider must have both value and qty to purchase"
+            )
+        assert value
+        price = value / qty
         if qty:
-            orders_kwargs_list = [{"qty": qty, "value": None, "price": price}]
+            orders_kwargs_list: List[Dict[str, Money | None | Decimal]] = [
+                {"qty": qty, "value": None, "price": price}
+            ]
         else:
             orders_kwargs_list = [{"qty": None, "value": value, "price": price}]
         for order_kwargs in orders_kwargs_list:
-            self._buy_instrument(ticker, **order_kwargs)
+            return self._buy_instrument(ticker, **order_kwargs)  # type: ignore
         return True
 
     def get_unsettled_instruments(self) -> set[str]:
@@ -247,7 +257,8 @@ class MooMooProvider(BaseProvider):
         return set(item.code.split(".")[-1] for item in data.itertuples())
 
     def _get_stock_info(self, ticker: str) -> dict:
-        info = self._provider.get_ticker_info(ticker)
+        raise NotImplementedError()
+        # info = self._provider.get_ticker_info(ticker)
         # matches = self._provider.find_instrument_data(ticker)
         # for match in matches:
         #     if match["symbol"] == ticker:
@@ -258,7 +269,7 @@ class MooMooProvider(BaseProvider):
         #             "country": match["country"],
         #             "tradable": bool(match["tradable"]),
         #         }
-        return info
+        # return info
 
     def _get_portfolio(self):
         from moomoo import RET_OK
@@ -334,17 +345,18 @@ class MooMooProvider(BaseProvider):
         return prices
 
     def get_profit_or_loss(self, include_dividends: bool = True) -> Money:
-        my_stocks = self._get_cached_value(
-            CacheKey.POSITIONS, callable=self._provider.get_positions
-        )
-        pls: List[Money] = []
-        for x in my_stocks:
-            pl = Money(value=Decimal(x["unrealizedProfitLoss"]))
-            pls.append(pl)
-        _total_pl = sum(pls)  # type: ignore
-        if not include_dividends:
-            return Money(value=_total_pl)
-        return Money(value=_total_pl) + sum(self._get_dividends().values())
+        raise NotImplementedError()
+        # my_stocks = self._get_cached_value(
+        #     CacheKey.POSITIONS, callable=self._provider.get_positions
+        # )
+        # pls: List[Money] = []
+        # for x in my_stocks:
+        #     pl = Money(value=Decimal(x["unrealizedProfitLoss"]))
+        #     pls.append(pl)
+        # _total_pl = sum(pls)  # type: ignore
+        # if not include_dividends:
+        #     return Money(value=_total_pl)
+        # return Money(value=_total_pl) + sum(self._get_dividends().values())
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
         # dividends = self._provider.get_dividends()
