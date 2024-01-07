@@ -1,7 +1,6 @@
 from decimal import Decimal
 from datetime import date, datetime
 from typing import Optional, List, Dict, DefaultDict, Any
-from py_portfolio_index.constants import Logger
 from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
 from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.portfolio_providers.common import PriceCache
@@ -10,11 +9,9 @@ from py_portfolio_index.portfolio_providers.base_portfolio import (
     CacheKey,
 )
 from py_portfolio_index.exceptions import ConfigurationError, PriceFetchError
-import uuid
 from py_portfolio_index.enums import Provider
 from functools import lru_cache
 from os import environ
-from pytz import UTC
 from collections import defaultdict
 
 FRACTIONAL_SLEEP = 60
@@ -98,17 +95,26 @@ class MooMooProvider(BaseProvider):
         #     raise ConfigurationError(
         #         "Must provide ALL OF username, password, trade_token, and device_id arguments or set environment variables MOOMOO_USERNAME, MOOMOO_PASSWORD, MOOMOO_TRADE_TOKEN, and MOOMOO_DEVICE_ID "
         #     )
-        from moomoo import OpenSecTradeContext, OpenQuoteContext, SecurityFirm, TrdMarket
-        self._trade_provider = OpenSecTradeContext(filter_trdmarket=TrdMarket.US, host='localhost', port=11111,security_firm=SecurityFirm.FUTUINC)
-        self._quote_provider = OpenQuoteContext(host='localhost', port=11111)
+        from moomoo import (
+            OpenSecTradeContext,
+            OpenQuoteContext,
+            SecurityFirm,
+            TrdMarket,
+        )
+
+        self._trade_provider = OpenSecTradeContext(
+            filter_trdmarket=TrdMarket.US,
+            host="localhost",
+            port=11111,
+            security_firm=SecurityFirm.FUTUINC,
+        )
+        self._quote_provider = OpenQuoteContext(host="localhost", port=11111)
         BaseProvider.__init__(self)
         self._local_latest_price_cache: Dict[str, Decimal] = defaultdict(lambda: None)
         self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
-        self._local_instrument_cache: Dict[str,str] = {}
+        self._local_instrument_cache: Dict[str, str] = {}
         if not skip_cache:
             self._load_local_instrument_cache()
-
-            
 
     def _load_local_instrument_cache(self):
         from platformdirs import user_cache_dir
@@ -159,51 +165,63 @@ class MooMooProvider(BaseProvider):
             # )
             # return Decimal(value=list(historicals.itertuples())[0].vwap)
         else:
-            ret_sub, err_message = self._quote_provider.subscribe(['US.'+ticker], [SubType.TICKER], subscribe_push=False)
+            ret_sub, err_message = self._quote_provider.subscribe(
+                ["US." + ticker], [SubType.TICKER], subscribe_push=False
+            )
             # Subscribe to the K line type first. After the subscription is successful, moomoo OpenD will continue to receive pushes from the server, False means that there is no need to push to the script temporarily
-            if ret_sub == RET_OK: # Subscription successful
-                ret, data = self._quote_provider.get_stock_quote(['US.'+ticker]) # Get real-time data of subscription stock quotes
+            if ret_sub == RET_OK:  # Subscription successful
+                ret, data = self._quote_provider.get_stock_quote(
+                    ["US." + ticker]
+                )  # Get real-time data of subscription stock quotes
                 if ret == RET_OK:
                     return list(data.itertuples())[0]
             else:
-                print('subscription failed', err_message)
+                print("subscription failed", err_message)
             raise PriceFetchError("Could not get price")
 
     def _buy_instrument(
-        self, symbol: str, qty: Optional[float], value: Optional[Money] = None, 
-        price: Optional[Decimal] = None
+        self,
+        symbol: str,
+        qty: Optional[float],
+        value: Optional[Money] = None,
+        price: Optional[Decimal] = None,
     ) -> dict:
-        import requests
-        from moomoo import RET_OK, SubType, TrdSide, TrdEnv, OrderType
-        ret, data = self._trade_provider.unlock_trade(environ.get(self.TRADE_TOKEN_ENV, None))  # If you use a live trading account to place an order, you need to unlock the account first. The example here is to place an order on a paper trading account, and unlocking is not necessary.
+        from moomoo import RET_OK, TrdSide, OrderType
+
+        ret, data = self._trade_provider.unlock_trade(
+            environ.get(self.TRADE_TOKEN_ENV, None)
+        )  # If you use a live trading account to place an order, you need to unlock the account first. The example here is to place an order on a paper trading account, and unlocking is not necessary.
         if ret == RET_OK:
-            print('unlocked orders')
+            print("unlocked orders")
         else:
-            raise ValueError('unlock trade error: ', data)
-        kwargs = {}
-    
-        ret, data = self._trade_provider.place_order(price=price, qty=qty, code='US.'+symbol, 
-                                                     order_type=OrderType.MARKET,
-                                         trd_side=TrdSide.BUY)
+            raise ValueError("unlock trade error: ", data)
+        ret, data = self._trade_provider.place_order(
+            price=price,
+            qty=qty,
+            code="US." + symbol,
+            order_type=OrderType.MARKET,
+            trd_side=TrdSide.BUY,
+        )
         if ret == RET_OK:
             print(data)
-            print(data['order_id'][0])  # Get the order ID of the placed order
-            print(data['order_id'].values.tolist())  # Convert to list
+            print(data["order_id"][0])  # Get the order ID of the placed order
+            print(data["order_id"].values.tolist())  # Convert to list
         else:
-            raise ValueError('place_order error: ', data)
-            print('place_order error: ', data)
+            raise ValueError("place_order error: ", data)
+            print("place_order error: ", data)
         # else:
         #     print('unlock_trade failed: ', data)
 
-    def buy_instrument(self, ticker: str, qty: Decimal, price:Decimal, value: Optional[Money] = None):
+    def buy_instrument(
+        self, ticker: str, qty: Decimal, price: Decimal, value: Optional[Money] = None
+    ):
         if qty:
-            orders_kwargs_list = [{'qty':qty, 'value':None, 'price':price}]
+            orders_kwargs_list = [{"qty": qty, "value": None, "price": price}]
         else:
-            orders_kwargs_list = [{'qty':None, 'value':value, 'price':price}]
+            orders_kwargs_list = [{"qty": None, "value": value, "price": price}]
         for order_kwargs in orders_kwargs_list:
             self._buy_instrument(ticker, **order_kwargs)
         return True
-        
 
     def get_unsettled_instruments(self) -> set[str]:
         """We need to efficiently bypass
@@ -212,15 +230,21 @@ class MooMooProvider(BaseProvider):
         is any cash held for orders first"""
         from moomoo import RET_OK
         from moomoo import OrderStatus
-        ret, data = self._trade_provider.order_list_query(status_filter_list=[OrderStatus.SUBMITTED, 
-                                                                              OrderStatus.FILLED_PART, OrderStatus.WAITING_SUBMIT])
+
+        ret, data = self._trade_provider.order_list_query(
+            status_filter_list=[
+                OrderStatus.SUBMITTED,
+                OrderStatus.FILLED_PART,
+                OrderStatus.WAITING_SUBMIT,
+            ]
+        )
         if ret == RET_OK:
             print(data.head(10))
             pass
         else:
             raise ConfigurationError("Could not get order list")
         # code is of format US.MSFT, for example
-        return set(item.code.split('.')[-1] for item in data.itertuples())
+        return set(item.code.split(".")[-1] for item in data.itertuples())
 
     def _get_stock_info(self, ticker: str) -> dict:
         info = self._provider.get_ticker_info(ticker)
@@ -235,25 +259,26 @@ class MooMooProvider(BaseProvider):
         #             "tradable": bool(match["tradable"]),
         #         }
         return info
-    
+
     def _get_portfolio(self):
         from moomoo import RET_OK
+
         ret, data = self._trade_provider.accinfo_query()
         if ret == RET_OK:
             return list(data.itertuples())[0]
-        
+
         raise ConfigurationError("Could not get portfolio")
-    
+
     def _get_positions(self):
         from moomoo import RET_OK
+
         ret, data = self._trade_provider.position_list_query()
         if ret == RET_OK:
             return data.itertuples()
-        
+
         raise ConfigurationError("Could not get positions")
 
-
-    def get_holdings(self)->RealPortfolio:
+    def get_holdings(self) -> RealPortfolio:
         accounts_data = self._get_cached_value(
             CacheKey.ACCOUNT, callable=self._get_portfolio
         )
@@ -272,7 +297,7 @@ class MooMooProvider(BaseProvider):
             local: Dict[str, Any] = {}
             local["units"] = row.qty
             # instrument_data = self._provider.get_instrument_by_url(row["instrument"])
-            ticker = row.code.split('.')[-1]
+            ticker = row.code.split(".")[-1]
             local["ticker"] = ticker
             symbols.append(ticker)
             local["value"] = Decimal(row.market_val)

@@ -95,7 +95,6 @@ class WebullProvider(BaseProvider):
         device_id: str | None = None,
         skip_cache: bool = False,
     ):
-
         if not username:
             username = environ.get(self.USERNAME_ENV, None)
         if not password:
@@ -121,7 +120,7 @@ class WebullProvider(BaseProvider):
         if account_info.get("success") is False:
             raise ConfigurationError(f"Authentication is expired: {account_info}")
         self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
-        self._local_instrument_cache: Dict[str,str] = {}
+        self._local_instrument_cache: Dict[str, str] = {}
         if not skip_cache:
             self._load_local_instrument_cache()
 
@@ -194,14 +193,13 @@ class WebullProvider(BaseProvider):
 
         # we should always have this at this point, as we would have had
         # to check price
-        rtId:Optional[str] = self._local_instrument_cache.get(symbol)
+        rtId: Optional[str] = self._local_instrument_cache.get(symbol)
         if not rtId:
             tId = self._provider.get_ticker(symbol)
             self._local_instrument_cache[symbol] = tId
             self._save_local_instrument_cache()
         else:
             tId = rtId
-
 
         def place_order(
             provider: webull,
@@ -210,7 +208,7 @@ class WebullProvider(BaseProvider):
             action="BUY",
             orderType="LMT",
             enforce="GTC",
-            quant = qty,
+            quant=qty,
             outsideRegularTradingHour=True,
             stpPrice=None,
             trial_value=0,
@@ -283,17 +281,17 @@ class WebullProvider(BaseProvider):
 
                 orders = [int(int_part), round(remainder_part, 4)]
             else:
-                orders = [float_qty]        
-            orders_kwargs_list = [{'qty':order, 'value':None} for order in orders]
+                orders = [float_qty]
+            orders_kwargs_list = [{"qty": order, "value": None} for order in orders]
         else:
-            orders_kwargs_list = [{'qty':None, 'value':value}]
+            orders_kwargs_list = [{"qty": None, "value": value}]
         for order_kwargs in orders_kwargs_list:
             output = self._buy_instrument(ticker, **order_kwargs)
             msg = output.get("msg")
             if not output.get("success"):
                 if msg:
                     Logger.error(msg)
-                    if 'Your session has expired' in str(msg):
+                    if "Your session has expired" in str(msg):
                         raise ConfigurationError(msg)
                     raise ValueError(msg)
                 Logger.error(output)
@@ -306,7 +304,7 @@ class WebullProvider(BaseProvider):
         so just check the account info for if there
         is any cash held for orders first"""
         orders = self._provider.get_current_orders()
-        return set(item['ticker']["symbol"] for item in orders)
+        return set(item["ticker"]["symbol"] for item in orders)
 
     def _get_stock_info(self, ticker: str) -> dict:
         info = self._provider.get_ticker_info(ticker)
@@ -322,7 +320,7 @@ class WebullProvider(BaseProvider):
         #         }
         return info
 
-    def get_holdings(self)->RealPortfolio:
+    def get_holdings(self) -> RealPortfolio:
         accounts_data = self._get_cached_value(
             CacheKey.ACCOUNT, callable=self._provider.get_portfolio
         )
@@ -354,9 +352,7 @@ class WebullProvider(BaseProvider):
         final = []
         for s in symbols:
             local = pre[s]
-            value = Decimal(prices[s] or 0) * Decimal(
-                pre[s]["units"]
-            )
+            value = Decimal(prices[s] or 0) * Decimal(pre[s]["units"])
             local["value"] = Money(value=value)
             local["weight"] = value / total_value
             local["unsettled"] = s in unsettled
@@ -423,14 +419,19 @@ class WebullProvider(BaseProvider):
         return Money(value=_total_pl) + sum(self._get_dividends().values())
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
-        dividends:dict = self._provider.get_dividends()
-        dlist = dividends.get('dividendList', [])
+        dividends: dict = self._provider.get_dividends()
+        dlist = dividends.get("dividendList", [])
         base = []
         for item in dlist:
-            base.append({'value':Money(value=Decimal(item['dividendAmount'])), 'ticker':item['tickerTuple']['symbol']})
+            base.append(
+                {
+                    "value": Money(value=Decimal(item["dividendAmount"])),
+                    "ticker": item["tickerTuple"]["symbol"],
+                }
+            )
         final = defaultdict(lambda: Money(value=0))
         for item in base:
-            final[item['ticker']] += item['value']
+            final[item["ticker"]] += item["value"]
         return final
 
 

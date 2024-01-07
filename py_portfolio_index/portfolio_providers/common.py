@@ -15,20 +15,22 @@ class PriceCache(object):
         self.fetcher = fetcher
         self.store = defaultdict(dict)
         self.instant_refresh_times: dict[str, datetype] = {}
-        self.default_timeout:int = 60*60 # 1 hour
+        self.default_timeout: int = 60 * 60  # 1 hour
 
-    def get_prices(self, tickers: List[str], date: datetype | None = None)->Dict[str, float]:
+    def get_prices(
+        self, tickers: List[str], date: datetype | None = None
+    ) -> Dict[str, float]:
         # if no date is provided, assume they want the instantaneous price
         if not date:
-            label = 'INSTANT'
+            label = "INSTANT"
         else:
             label = date.isoformat()
         cached = self.store[label]
         found = {k: v for k, v in cached.items() if k in tickers}
-        if label == 'INSTANT':
+        if label == "INSTANT":
             for k, v in self.instant_refresh_times.items():
                 if k in tickers:
-                    if (datetime.now()-v).seconds > self.default_timeout:
+                    if (datetime.now() - v).seconds > self.default_timeout:
                         found.pop(k, None)
         missing = [x for x in tickers if x not in found]
         if missing:
@@ -36,6 +38,6 @@ class PriceCache(object):
             for ticker, price in prices.items():
                 cached[ticker] = price
                 found[ticker] = price
-                if label == 'INSTANT':
+                if label == "INSTANT":
                     self.instant_refresh_times[ticker] = datetime.now()
         return found
