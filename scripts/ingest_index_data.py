@@ -61,7 +61,13 @@ if __name__ == "__main__":
     today = datetime.today().date()
     found = False
     start = datetime.now()
-    candidates = [[v.year, v.month] for v in [start-timedelta(days=x) for x in [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300]]]
+    candidates = [
+        [v.year, v.month]
+        for v in [
+            start - timedelta(days=x)
+            for x in [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300]
+        ]
+    ]
     for year, month in candidates:
         smonth = str(month).zfill(2)
         address = f"""https://www.crsp.org/wp-content/uploads/{year}/{smonth}/Returns-and-Constituents-CRSP-Constituents.csv"""
