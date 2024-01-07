@@ -8,18 +8,19 @@ from collections import defaultdict
 from typing import List, Dict
 from datetime import date as datetype
 from datetime import datetime
+from decimal import Decimal
 
 
 class PriceCache(object):
     def __init__(self, fetcher):
         self.fetcher = fetcher
         self.store = defaultdict(dict)
-        self.instant_refresh_times: dict[str, datetype] = {}
+        self.instant_refresh_times: dict[str, datetime] = {}
         self.default_timeout: int = 60 * 60  # 1 hour
 
     def get_prices(
         self, tickers: List[str], date: datetype | None = None
-    ) -> Dict[str, float]:
+    ) -> Dict[str, Decimal]:
         # if no date is provided, assume they want the instantaneous price
         if not date:
             label = "INSTANT"
