@@ -120,7 +120,6 @@ class WebullProvider(BaseProvider):
         account_info: dict = self._provider.get_account()
         if account_info.get("success") is False:
             raise ConfigurationError(f"Authentication is expired: {account_info}")
-        self._local_latest_price_cache: Dict[str, Decimal] = {}
         self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
         self._local_instrument_cache: Dict[str,str] = {}
         if not skip_cache:
@@ -178,14 +177,13 @@ class WebullProvider(BaseProvider):
             )
             return Decimal(value=list(historicals.itertuples())[0].vwap)
         else:
-            local = self._local_latest_price_cache.get(ticker)
-            if local:
-                return local
+            stored = self._price_cache.get_prices(tickers=[ticker])
+            if stored:
+                return stored[ticker]
             quotes: dict = self._provider.get_quote(tId=webull_id)
             if not quotes.get("askList"):
                 return None
             rval = Decimal(quotes["askList"][0]["price"])
-            self._local_latest_price_cache[ticker] = rval
             return rval
 
     def _buy_instrument(
@@ -308,7 +306,7 @@ class WebullProvider(BaseProvider):
         so just check the account info for if there
         is any cash held for orders first"""
         orders = self._provider.get_current_orders()
-        return set(item["symbol"] for item in orders)
+        return set(item['ticker']["symbol"] for item in orders)
 
     def _get_stock_info(self, ticker: str) -> dict:
         info = self._provider.get_ticker_info(ticker)
@@ -347,17 +345,16 @@ class WebullProvider(BaseProvider):
             local["value"] = 0
             local["weight"] = 0
             pre[ticker] = local
-        prices = self.get_instrument_prices(symbols)
-        self._local_latest_price_cache = {**prices, **self._local_latest_price_cache}
+        prices = self._price_cache.get_prices(symbols)
         total_value = Decimal(0.0)
         for s in symbols:
-            if not self._local_latest_price_cache[s]:
+            if not prices[s]:
                 continue
-            total_value += self._local_latest_price_cache[s] * Decimal(pre[s]["units"])
+            total_value += prices[s] * Decimal(pre[s]["units"])
         final = []
         for s in symbols:
             local = pre[s]
-            value = Decimal(self._local_latest_price_cache[s] or 0) * Decimal(
+            value = Decimal(prices[s] or 0) * Decimal(
                 pre[s]["units"]
             )
             local["value"] = Money(value=value)
