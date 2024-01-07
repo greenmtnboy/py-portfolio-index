@@ -15,6 +15,7 @@ from py_portfolio_index.enums import Provider
 from functools import lru_cache
 from os import environ
 from pytz import UTC
+from collections import defaultdict
 
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
@@ -101,7 +102,7 @@ class MooMooProvider(BaseProvider):
         self._trade_provider = OpenSecTradeContext(filter_trdmarket=TrdMarket.US, host='localhost', port=11111,security_firm=SecurityFirm.FUTUINC)
         self._quote_provider = OpenQuoteContext(host='localhost', port=11111)
         BaseProvider.__init__(self)
-        self._local_latest_price_cache: Dict[str, Decimal] = {}
+        self._local_latest_price_cache: Dict[str, Decimal] = defaultdict(lambda: None)
         self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
         self._local_instrument_cache: Dict[str,str] = {}
         if not skip_cache:
@@ -158,7 +159,7 @@ class MooMooProvider(BaseProvider):
             # )
             # return Decimal(value=list(historicals.itertuples())[0].vwap)
         else:
-            ret_sub, err_message = self._quote_provider.subscribe(['US.'+ticker], [SubType.QUOTE], subscribe_push=False)
+            ret_sub, err_message = self._quote_provider.subscribe(['US.'+ticker], [SubType.TICKER], subscribe_push=False)
             # Subscribe to the K line type first. After the subscription is successful, moomoo OpenD will continue to receive pushes from the server, False means that there is no need to push to the script temporarily
             if ret_sub == RET_OK: # Subscription successful
                 ret, data = self._quote_provider.get_stock_quote(['US.'+ticker]) # Get real-time data of subscription stock quotes
@@ -169,122 +170,40 @@ class MooMooProvider(BaseProvider):
             raise PriceFetchError("Could not get price")
 
     def _buy_instrument(
-        self, symbol: str, qty: Optional[float], value: Optional[Money] = None
+        self, symbol: str, qty: Optional[float], value: Optional[Money] = None, 
+        price: Optional[Decimal] = None
     ) -> dict:
-        from webull import webull
         import requests
-
-        # we should always have this at this point, as we would have had
-        # to check price
-        rtId:Optional[str] = self._local_instrument_cache.get(symbol)
-        if not rtId:
-            tId = self._provider.get_ticker(symbol)
-            self._local_instrument_cache[symbol] = tId
-            self._save_local_instrument_cache()
+        from moomoo import RET_OK, SubType, TrdSide, TrdEnv, OrderType
+        ret, data = self._trade_provider.unlock_trade(environ.get(self.TRADE_TOKEN_ENV, None))  # If you use a live trading account to place an order, you need to unlock the account first. The example here is to place an order on a paper trading account, and unlocking is not necessary.
+        if ret == RET_OK:
+            print('unlocked orders')
         else:
-            tId = rtId
+            raise ValueError('unlock trade error: ', data)
+        kwargs = {}
+    
+        ret, data = self._trade_provider.place_order(price=price, qty=qty, code='US.'+symbol, 
+                                                     order_type=OrderType.MARKET,
+                                         trd_side=TrdSide.BUY)
+        if ret == RET_OK:
+            print(data)
+            print(data['order_id'][0])  # Get the order ID of the placed order
+            print(data['order_id'].values.tolist())  # Convert to list
+        else:
+            raise ValueError('place_order error: ', data)
+            print('place_order error: ', data)
+        # else:
+        #     print('unlock_trade failed: ', data)
 
-
-        def place_order(
-            provider: webull,
-            tId=tId,
-            price=value,
-            action="BUY",
-            orderType="LMT",
-            enforce="GTC",
-            quant = qty,
-            outsideRegularTradingHour=True,
-            stpPrice=None,
-            trial_value=0,
-            trial_type="DOLLAR",
-        ):
-            """
-            Place an order - redefined here to
-
-            price: float (LMT / STP LMT Only)
-            action: BUY / SELL / SHORT
-            ordertype : LMT / MKT / STP / STP LMT / STP TRAIL
-            timeinforce:  GTC / DAY / IOC
-            outsideRegularTradingHour: True / False
-            stpPrice: float (STP / STP LMT Only)
-            trial_value: float (STP TRIAL Only)
-            trial_type: DOLLAR / PERCENTAGE (STP TRIAL Only)
-            """
-
-            headers = provider.build_req_headers(
-                include_trade_token=True, include_time=True
-            )
-            data = {
-                "action": action,
-                "comboType": "NORMAL",
-                "orderType": orderType,
-                "outsideRegularTradingHour": outsideRegularTradingHour,
-                "quantity": quant if orderType == "MKT" else int(quant),
-                "serialId": str(uuid.uuid4()),
-                "tickerId": tId,
-                "timeInForce": enforce,
-            }
-
-            # Market orders do not support extended hours trading.
-            if orderType == "MKT":
-                data["outsideRegularTradingHour"] = False
-            elif orderType == "LMT":
-                data["lmtPrice"] = float(price)
-            elif orderType == "STP":
-                data["auxPrice"] = float(stpPrice)
-            elif orderType == "STP LMT":
-                data["lmtPrice"] = float(price)
-                data["auxPrice"] = float(stpPrice)
-            elif orderType == "STP TRAIL":
-                data["trailingStopStep"] = float(trial_value)
-                data["trailingType"] = str(trial_type)
-            response = requests.post(
-                provider._urls.place_orders(provider._account_id),
-                json=data,
-                headers=headers,
-                timeout=provider.timeout,
-            )
-            return response.json()
-
-        return place_order(
-            self._provider,
-            action="BUY",
-            price=value,
-            quant=qty,
-            orderType="MKT",
-            enforce="DAY",
-        )
-
-    def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
+    def buy_instrument(self, ticker: str, qty: Decimal, price:Decimal, value: Optional[Money] = None):
         if qty:
-            float_qty = float(qty)
-            import math
-
-            if float_qty > 1:
-                remainder_part, int_part = math.modf(float_qty)
-
-                orders = [int(int_part), round(remainder_part, 4)]
-            else:
-                orders = [float_qty]
-            for order in orders:
-                output = self._buy_instrument(ticker, qty=order, value=None)
-                msg = output.get("msg")
-                if not output.get("success"):
-                    if msg:
-                        Logger.error(msg)
-                        raise ValueError(msg)
-                    Logger.error(output)
-                    raise ValueError(output)
+            orders_kwargs_list = [{'qty':qty, 'value':None, 'price':price}]
         else:
-            output = self._buy_instrument(ticker, qty=None, value=value)
-            msg = output.get("msg")
-            if not output.get("success"):
-                if msg:
-                    Logger.error(msg)
-                    raise ValueError(msg)
-                Logger.error(output)
-                raise ValueError(output)
+            orders_kwargs_list = [{'qty':None, 'value':value, 'price':price}]
+        for order_kwargs in orders_kwargs_list:
+            self._buy_instrument(ticker, **order_kwargs)
         return True
+        
 
     def get_unsettled_instruments(self) -> set[str]:
         """We need to efficiently bypass
@@ -292,12 +211,16 @@ class MooMooProvider(BaseProvider):
         so just check the account info for if there
         is any cash held for orders first"""
         from moomoo import RET_OK
-        ret, data = self._trade_provider.order_list_query()
+        from moomoo import OrderStatus
+        ret, data = self._trade_provider.order_list_query(status_filter_list=[OrderStatus.SUBMITTED, 
+                                                                              OrderStatus.FILLED_PART, OrderStatus.WAITING_SUBMIT])
         if ret == RET_OK:
+            print(data.head(10))
             pass
         else:
             raise ConfigurationError("Could not get order list")
-        return set(item.symbol for item in data.itertuples())
+        # code is of format US.MSFT, for example
+        return set(item.code.split('.')[-1] for item in data.itertuples())
 
     def _get_stock_info(self, ticker: str) -> dict:
         info = self._provider.get_ticker_info(ticker)
@@ -343,31 +266,24 @@ class MooMooProvider(BaseProvider):
 
         pre = {}
         symbols = []
+        total_value = Decimal(0.0)
         for row in my_stocks:
+            print(row)
             local: Dict[str, Any] = {}
-            local["units"] = row["position"]
+            local["units"] = row.qty
             # instrument_data = self._provider.get_instrument_by_url(row["instrument"])
-            ticker = row["ticker"]["symbol"]
+            ticker = row.code.split('.')[-1]
             local["ticker"] = ticker
             symbols.append(ticker)
-            local["value"] = 0
+            local["value"] = Decimal(row.market_val)
             local["weight"] = 0
             pre[ticker] = local
-        prices = self.get_instrument_prices(symbols)
-        self._local_latest_price_cache = {**prices, **self._local_latest_price_cache}
-        total_value = Decimal(0.0)
-        for s in symbols:
-            if not self._local_latest_price_cache[s]:
-                continue
-            total_value += self._local_latest_price_cache[s] * Decimal(pre[s]["units"])
+            total_value += local["value"]
+
         final = []
         for s in symbols:
             local = pre[s]
-            value = Decimal(self._local_latest_price_cache[s] or 0) * Decimal(
-                pre[s]["units"]
-            )
-            local["value"] = Money(value=value)
-            local["weight"] = value / total_value
+            local["weight"] = local["value"] / total_value
             local["unsettled"] = s in unsettled
             final.append(local)
         out = [RealPortfolioElement(**row) for row in final]
