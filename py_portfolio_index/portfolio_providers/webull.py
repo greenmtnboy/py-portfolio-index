@@ -10,6 +10,7 @@ from py_portfolio_index.portfolio_providers.base_portfolio import (
     CacheKey,
 )
 from py_portfolio_index.exceptions import ConfigurationError
+from collections import defaultdict
 import uuid
 from py_portfolio_index.enums import Provider
 from functools import lru_cache
@@ -94,7 +95,6 @@ class WebullProvider(BaseProvider):
         device_id: str | None = None,
         skip_cache: bool = False,
     ):
-        webull = self._get_provider()
         if not username:
             username = environ.get(self.USERNAME_ENV, None)
         if not password:
@@ -107,6 +107,7 @@ class WebullProvider(BaseProvider):
             raise ConfigurationError(
                 "Must provide ALL OF username, password, trade_token, and device_id arguments or set environment variables WEBULL_USERNAME, WEBULL_PASSWORD, WEBULL_TRADE_TOKEN, and WEBULL_DEVICE_ID "
             )
+        webull = self._get_provider()
         self._provider = webull()
         # we must set both of these to have a valid login
         self._provider._did = device_id
@@ -118,9 +119,8 @@ class WebullProvider(BaseProvider):
         account_info: dict = self._provider.get_account()
         if account_info.get("success") is False:
             raise ConfigurationError(f"Authentication is expired: {account_info}")
-        self._local_latest_price_cache: Dict[str, Decimal] = {}
         self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
-        self._local_instrument_cache: Dict[str,str] = {}
+        self._local_instrument_cache: Dict[str, str] = {}
         if not skip_cache:
             self._load_local_instrument_cache()
 
@@ -176,14 +176,13 @@ class WebullProvider(BaseProvider):
             )
             return Decimal(value=list(historicals.itertuples())[0].vwap)
         else:
-            local = self._local_latest_price_cache.get(ticker)
-            if local:
-                return local
+            stored = self._price_cache.get_prices(tickers=[ticker])
+            if stored:
+                return stored[ticker]
             quotes: dict = self._provider.get_quote(tId=webull_id)
             if not quotes.get("askList"):
                 return None
             rval = Decimal(quotes["askList"][0]["price"])
-            self._local_latest_price_cache[ticker] = rval
             return rval
 
     def _buy_instrument(
@@ -194,14 +193,13 @@ class WebullProvider(BaseProvider):
 
         # we should always have this at this point, as we would have had
         # to check price
-        rtId:Optional[str] = self._local_instrument_cache.get(symbol)
+        rtId: Optional[str] = self._local_instrument_cache.get(symbol)
         if not rtId:
             tId = self._provider.get_ticker(symbol)
             self._local_instrument_cache[symbol] = tId
             self._save_local_instrument_cache()
         else:
             tId = rtId
-
 
         def place_order(
             provider: webull,
@@ -210,7 +208,7 @@ class WebullProvider(BaseProvider):
             action="BUY",
             orderType="LMT",
             enforce="GTC",
-            quant = qty,
+            quant=qty,
             outsideRegularTradingHour=True,
             stpPrice=None,
             trial_value=0,
@@ -284,21 +282,19 @@ class WebullProvider(BaseProvider):
                 orders = [int(int_part), round(remainder_part, 4)]
             else:
                 orders = [float_qty]
-            for order in orders:
-                output = self._buy_instrument(ticker, qty=order, value=None)
-                msg = output.get("msg")
-                if not output.get("success"):
-                    if msg:
-                        Logger.error(msg)
-                        raise ValueError(msg)
-                    Logger.error(output)
-                    raise ValueError(output)
+            orders_kwargs_list: List[Dict[str, float | Money | None]] = [
+                {"qty": order, "value": None} for order in orders
+            ]
         else:
-            output = self._buy_instrument(ticker, qty=None, value=value)
+            orders_kwargs_list = [{"qty": None, "value": value}]
+        for order_kwargs in orders_kwargs_list:
+            output = self._buy_instrument(ticker, **order_kwargs)  # type: ignore
             msg = output.get("msg")
             if not output.get("success"):
                 if msg:
                     Logger.error(msg)
+                    if "Your session has expired" in str(msg):
+                        raise ConfigurationError(msg)
                     raise ValueError(msg)
                 Logger.error(output)
                 raise ValueError(output)
@@ -310,7 +306,7 @@ class WebullProvider(BaseProvider):
         so just check the account info for if there
         is any cash held for orders first"""
         orders = self._provider.get_current_orders()
-        return set(item["symbol"] for item in orders)
+        return set(item["ticker"]["symbol"] for item in orders)
 
     def _get_stock_info(self, ticker: str) -> dict:
         info = self._provider.get_ticker_info(ticker)
@@ -326,7 +322,7 @@ class WebullProvider(BaseProvider):
         #         }
         return info
 
-    def get_holdings(self)->RealPortfolio:
+    def get_holdings(self) -> RealPortfolio:
         accounts_data = self._get_cached_value(
             CacheKey.ACCOUNT, callable=self._provider.get_portfolio
         )
@@ -349,19 +345,16 @@ class WebullProvider(BaseProvider):
             local["value"] = 0
             local["weight"] = 0
             pre[ticker] = local
-        prices = self.get_instrument_prices(symbols)
-        self._local_latest_price_cache = {**prices, **self._local_latest_price_cache}
+        prices = self._price_cache.get_prices(symbols)
         total_value = Decimal(0.0)
         for s in symbols:
-            if not self._local_latest_price_cache[s]:
+            if not prices[s]:
                 continue
-            total_value += self._local_latest_price_cache[s] * Decimal(pre[s]["units"])
+            total_value += prices[s] * Decimal(pre[s]["units"])
         final = []
         for s in symbols:
             local = pre[s]
-            value = Decimal(self._local_latest_price_cache[s] or 0) * Decimal(
-                pre[s]["units"]
-            )
+            value = Decimal(prices[s] or 0) * Decimal(pre[s]["units"])
             local["value"] = Money(value=value)
             local["weight"] = value / total_value
             local["unsettled"] = s in unsettled
@@ -428,11 +421,20 @@ class WebullProvider(BaseProvider):
         return Money(value=_total_pl) + sum(self._get_dividends().values())
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
-        dividends = self._provider.get_dividends()
-        print("dividends")
-        print(dividends)
-        out: DefaultDict[str, Money] = DefaultDict(lambda: Money(value=0))
-        return out
+        dividends: dict = self._provider.get_dividends()
+        dlist = dividends.get("dividendList", [])
+        base = []
+        for item in dlist:
+            base.append(
+                {
+                    "value": Money(value=Decimal(item["dividendAmount"])),
+                    "ticker": item["tickerTuple"]["symbol"],
+                }
+            )
+        final: DefaultDict[str, Money] = defaultdict(lambda: Money(value=0))
+        for item in base:
+            final[item["ticker"]] += item["value"]
+        return final
 
 
 class WebullPaperProvider(WebullProvider):

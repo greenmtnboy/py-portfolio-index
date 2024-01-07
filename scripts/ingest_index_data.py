@@ -2,7 +2,7 @@ from pathlib import Path
 import csv
 from io import StringIO
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 from time import sleep
 from py_portfolio_index import PaperAlpacaProvider
@@ -61,21 +61,25 @@ if __name__ == "__main__":
     today = datetime.today().date()
     found = False
     start = datetime.now()
-    for year in (today.year, today.year - 1):
-        for month in reversed(range(1, today.month)):
-            smonth = str(month).zfill(2)
-            address = f"""https://www.crsp.org/wp-content/uploads/{year}/{smonth}/Returns-and-Constituents-CRSP-Constituents.csv"""
-            print("attempting")
-            print(address)
-            data = requests.get(
-                address,
-                allow_redirects=False,
-            )
-            # we got the valid csv
-            if data.text.startswith("TradeDate"):
-                found = True
-                break
-        if found:
+    candidates = [
+        [v.year, v.month]
+        for v in [
+            start - timedelta(days=x)
+            for x in [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300]
+        ]
+    ]
+    for year, month in candidates:
+        smonth = str(month).zfill(2)
+        address = f"""https://www.crsp.org/wp-content/uploads/{year}/{smonth}/Returns-and-Constituents-CRSP-Constituents.csv"""
+        print("attempting")
+        print(address)
+        data = requests.get(
+            address,
+            allow_redirects=False,
+        )
+        # we got the valid csv
+        if data.text.startswith("TradeDate"):
+            found = True
             break
     csv_buffer = csv_buffer = StringIO(data.text)
 

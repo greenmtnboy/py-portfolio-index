@@ -169,7 +169,7 @@ class IdealPortfolio(BaseModel):
     def contains(self, ticker: str) -> bool:
         return ticker in [item.ticker for item in self.holdings]
 
-    def _reweight_portfolio(self)->None:
+    def _reweight_portfolio(self) -> None:
         weights: Decimal = Decimal(sum([item.weight for item in self.holdings]))
 
         scaling_factor = Decimal(1) / weights
@@ -311,6 +311,8 @@ class RealPortfolio(BaseModel):
     @property
     def value(self) -> Money:
         values: List[Money] = [item.value for item in self.holdings]
+        if self.cash:
+            values += [self.cash]
         return Money(value=sum(values))
 
     def _reweight_portfolio(self):
