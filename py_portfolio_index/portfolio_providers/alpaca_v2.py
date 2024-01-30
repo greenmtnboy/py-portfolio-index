@@ -292,13 +292,16 @@ class AlpacaProvider(BaseProvider):
                 cash=cash,
                 provider=self,
             )
-        total_value = sum([Decimal(item.market_value) for item in my_stocks])
+        total_value = sum(
+            [Decimal(item.market_value) for item in my_stocks if item.market_value]
+        )
         out = [
             RealPortfolioElement(
                 ticker=row.symbol,
                 units=row.qty,
-                value=Money(value=Decimal(row.market_value)),
-                weight=Decimal(row.market_value) / total_value,
+                value=Money(value=Decimal(row.market_value if row.market_value else 0)),
+                weight=Decimal(row.market_value if row.market_value else 0)
+                / total_value,
                 unsettled=row.symbol in unsettled,
             )
             for row in my_stocks
@@ -318,7 +321,7 @@ class AlpacaProvider(BaseProvider):
         my_stocks = self._get_cached_value(
             CacheKey.POSITIONS, callable=self.trading_client.get_all_positions
         )
-        output = {o.symbol: Money(value=Decimal(value=o.unrealized_pl)) for o in my_stocks}  # type: ignore
+        output = {o.symbol: Money(value=Decimal(value=o.unrealized_pl if o.unrealized_pl else 0)) for o in my_stocks}  # type: ignore
         # if include_dividends:
         #     return Money(value=_total_pl) + self._get_dividends()
         # return Money(value=_total_pl)
