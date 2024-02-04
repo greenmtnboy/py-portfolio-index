@@ -39,12 +39,8 @@ if __name__ == "__main__":
             ticker, provider=provider
         )
 
-    final = StockInfoList(
-        __root__=list([v for v in info_cache.values() if isinstance(v, StockInfo)])
-    )
-
     target = (
         Path(__file__).parent.parent / "py_portfolio_index" / "bin" / "stock_info.json"
     )
     with open(target, "w") as f:
-        f.write(final.json())
+        f.write(existing.model_dump_json())
