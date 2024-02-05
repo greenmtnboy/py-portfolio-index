@@ -17,7 +17,7 @@ with open(Path(__file__).parent / "stock_info.json", "r", encoding="utf-8") as f
     if content:
         all = loads(content)
         for row in all:
-            STOCK_INFO[row["ticker"]] = StockInfo.model_validate2(row)
+            STOCK_INFO[row["ticker"]] = StockInfo.model_validate(row)
 
 with open(Path(__file__).parent / "cached_ticker_list.csv", "r") as f:
     VALID_STOCKS = set([v for v in f.read().split("\n") if v])
