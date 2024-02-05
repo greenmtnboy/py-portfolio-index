@@ -39,7 +39,7 @@ def process_ticker(
     info.cik = int(cik_mapping[info.ticker])
 
 
-def divide_chunks(lst:list, n):
+def divide_chunks(lst: list, n):
     # looping till length l
     for i in range(0, len(lst), n):
         yield lst[i : i + n]

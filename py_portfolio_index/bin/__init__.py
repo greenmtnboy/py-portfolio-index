@@ -5,7 +5,7 @@ from pathlib import Path
 from json import loads
 
 STOCK_INFO: dict[str, StockInfo] = {}
-with open(Path(__file__).parent / "stock_info.json", "r", encoding='utf-8') as f:
+with open(Path(__file__).parent / "stock_info.json", "r", encoding="utf-8") as f:
     content = f.read()
     if content:
         all = loads(content)
