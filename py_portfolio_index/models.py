@@ -500,6 +500,12 @@ class StockInfo(BaseModel):
     sector: str | None = None
     location: str | None = None
     cusip: str | None = None
+    cik: int | None = None
+    sic_num: int | None = None
+    sic_description: str | None = None
+    description: str | None = None
+    website: str | None = None
+    category: str | None = None
     tradable: bool | None = None
     tags: List[str] = Field(default_factory=list)
     indexes: List[str] = Field(default_factory=list)
