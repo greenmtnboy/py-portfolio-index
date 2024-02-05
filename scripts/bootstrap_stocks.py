@@ -44,6 +44,8 @@ if __name__ == "__main__":
 
     for chunk in divide_chunks(tickers, 100):
         for val in chunk:
+            if val in existing.tickers:
+                continue
             try:
                 info = provider.get_stock_info(val)
             except APIError:
