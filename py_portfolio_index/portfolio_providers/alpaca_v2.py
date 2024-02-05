@@ -331,7 +331,7 @@ class AlpacaProvider(BaseProvider):
         my_stocks = self._get_cached_value(
             CacheKey.POSITIONS, callable=self.trading_client.get_all_positions
         )
-        _total_pl = sum([Decimal(value=o.unrealized_pl) for o in my_stocks])  # type: ignore
+        _total_pl = sum([Decimal(value=o.unrealized_pl if o.unrealized_pl else 0) for o in my_stocks])  # type: ignore
         if include_dividends:
             return Money(value=_total_pl) + sum(self._get_dividends().values())
         return Money(value=_total_pl)

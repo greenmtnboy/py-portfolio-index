@@ -9,6 +9,9 @@ from py_portfolio_index import PaperAlpacaProvider
 import json
 
 
+# blob:https://advisors.vanguard.com/7c64d1d0-e6a0-40af-a161-9c52d8be80f7
+# blob:https://advisors.vanguard.com/f5613fda-3c7e-4153-9229-baee79582922
+# https://www.crsp.org/wp-content/uploads/CRSP_Constituents.csv
 def validate_ticker(
     ticker: str,
     provider: PaperAlpacaProvider,
@@ -70,7 +73,9 @@ if __name__ == "__main__":
     ]
     for year, month in candidates:
         smonth = str(month).zfill(2)
-        address = f"""https://www.crsp.org/wp-content/uploads/{year}/{smonth}/Returns-and-Constituents-CRSP-Constituents.csv"""
+        # address = f"""https://www.crsp.org/wp-content/uploads/{year}/{smonth}/Returns-and-Constituents-CRSP-Constituents.csv"""
+
+    for address in ["https://www.crsp.org/wp-content/uploads/CRSP_Constituents.csv"]:
         print("attempting")
         print(address)
         data = requests.get(
