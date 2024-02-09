@@ -4,7 +4,12 @@ from time import sleep
 from datetime import date, datetime
 from typing import Optional, List, Dict, DefaultDict
 from py_portfolio_index.constants import Logger
-from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
+from py_portfolio_index.models import (
+    RealPortfolio,
+    RealPortfolioElement,
+    Money,
+    ProfitModel,
+)
 from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.portfolio_providers.common import PriceCache
 from py_portfolio_index.portfolio_providers.base_portfolio import (
@@ -361,9 +366,6 @@ class RobinhoodProvider(BaseProvider):
     def _get_local_instrument_symbol(
         self, instrument: str, refreshed: bool = False
     ) -> str:
-        if not self._local_instrument_cache:
-            self._refresh_local_instruments()
-
         instrument_to_symbol_map = self._get_cached_value(
             CacheKey.MISC,
             value="instrument_to_symbol_map",
@@ -374,7 +376,6 @@ class RobinhoodProvider(BaseProvider):
             return out
         except KeyError as e:
             if not refreshed:
-                self._refresh_local_instruments()
                 instrument_to_symbol_map = self._get_cached_value(
                     CacheKey.MISC,
                     value="instrument_to_symbol_map",
@@ -408,13 +409,12 @@ class RobinhoodProvider(BaseProvider):
         unsettled = self._get_cached_value(
             CacheKey.UNSETTLED, callable=self.get_unsettled_instruments
         )
-        if not self._local_instrument_cache:
-            self._refresh_local_instruments()
 
         pre = {}
         symbols = []
         instrument_to_symbol_map = self._get_cached_value(
             CacheKey.MISC,
+            value="instrument_to_symbol_map",
             callable=self._process_cache_to_dict,
         )
         for row in my_stocks:
@@ -442,6 +442,7 @@ class RobinhoodProvider(BaseProvider):
                 continue
             total_value += self._local_latest_price_cache[s] * Decimal(pre[s]["units"])
         final = []
+        pl = self.get_per_ticker_profit_or_loss()
         for s in symbols:
             local = pre[s]
             value = Decimal(self._local_latest_price_cache[s] or 0) * Decimal(
@@ -450,6 +451,9 @@ class RobinhoodProvider(BaseProvider):
             local["value"] = Money(value=value)
             local["weight"] = value / total_value
             local["unsettled"] = s in unsettled
+            if s in pl:
+                local["appreciation"] = pl[s].appreciation
+                local["dividends"] = pl[s].dividends
             final.append(local)
         out = [RealPortfolioElement(**row) for row in final]
 
@@ -482,15 +486,16 @@ class RobinhoodProvider(BaseProvider):
             prices = {**prices, **fbatch}
         return prices
 
-    def get_profit_or_loss(self, include_dividends: bool = True) -> Money:
+    def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
         my_stocks = self._get_cached_value(
             CacheKey.POSITIONS, callable=self._provider.get_open_stock_positions
         )
-        pls: List[Money] = []
         instrument_to_symbol_map = self._get_cached_value(
             CacheKey.MISC,
             callable=self._process_cache_to_dict,
         )
+        divs = self._get_dividends()
+        output = {}
         for x in my_stocks:
             historical_value = Decimal(x["average_buy_price"]) * Decimal(x["quantity"])
             ticker = instrument_to_symbol_map[x["instrument"]]
@@ -500,11 +505,16 @@ class RobinhoodProvider(BaseProvider):
                 current_price = Decimal(0.0)
             current_value = current_price * Decimal(x["quantity"])
             pl = Money(value=current_value - historical_value)
-            pls.append(pl)
-        _total_pl = sum(pls)  # type: ignore
-        if not include_dividends:
-            return Money(value=_total_pl)
-        return Money(value=_total_pl) + sum(self._get_dividends().values())
+            output[ticker] = ProfitModel(
+                appreciation=pl, dividends=divs.get(ticker, Money(value=Decimal(0)))
+            )
+        return output
+
+    def get_profit_or_loss(self, include_dividends: bool = True) -> Money:
+        raw = self.get_per_ticker_profit_or_loss().values()
+        if include_dividends:
+            return Money(value=sum(x.total for x in raw))
+        return Money(value=sum(x.appreciation for x in raw))
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
         from collections import defaultdict
