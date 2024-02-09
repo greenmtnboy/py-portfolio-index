@@ -306,6 +306,8 @@ class AlpacaProvider(BaseProvider):
                 weight=Decimal(row.market_value if row.market_value else 0)
                 / total_value,
                 unsettled=row.symbol in unsettled,
+                appreciation=profit[row.symbol].appreciation,
+                dividends=profit[row.symbol].dividends,
             )
             for row in my_stocks
         ]
