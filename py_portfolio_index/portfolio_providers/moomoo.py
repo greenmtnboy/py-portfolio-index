@@ -156,7 +156,7 @@ class MooMooProvider(BaseProvider):
         from moomoo import RET_OK, SubType
 
         if at_day:
-            raise ValueError
+            raise NotImplementedError
             # historicals = self._provider.get_bars(
             #     tId=webull_id,
             #     interval="d1",
@@ -181,9 +181,9 @@ class MooMooProvider(BaseProvider):
                 )  # Get real-time data of subscription stock quotes
                 if ret == RET_OK:
                     return list(data.itertuples())[0]
-            else:
-                print("subscription failed", err_message)
-            raise PriceFetchError("Could not get price")
+            raise PriceFetchError(
+                f"Subscription failed, could not get price: {err_message}"
+            )
 
     def _buy_instrument(
         self,
@@ -198,7 +198,7 @@ class MooMooProvider(BaseProvider):
             environ.get(self.TRADE_TOKEN_ENV, None)
         )  # If you use a live trading account to place an order, you need to unlock the account first. The example here is to place an order on a paper trading account, and unlocking is not necessary.
         if ret == RET_OK:
-            print("unlocked orders")
+            pass
         else:
             raise OrderError("unlock trade error: ", data)
         ret, data = self._trade_provider.place_order(
@@ -249,7 +249,6 @@ class MooMooProvider(BaseProvider):
             ]
         )
         if ret == RET_OK:
-            print(data.head(10))
             pass
         else:
             raise ConfigurationError("Could not get order list")
@@ -304,7 +303,6 @@ class MooMooProvider(BaseProvider):
         symbols = []
         total_value = Decimal(0.0)
         for row in my_stocks:
-            print(row)
             local: Dict[str, Any] = {}
             local["units"] = row.qty
             # instrument_data = self._provider.get_instrument_by_url(row["instrument"])

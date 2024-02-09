@@ -283,10 +283,21 @@ class RealPortfolioElement(IdealPortfolioElement):
     value: Money
     weight: Decimal = Decimal(0.0)
     unsettled: bool = False
+    dividends: Money = Money(value=0, currency=Currency.USD)
+    appreciation: Money = Money(value=0, currency=Currency.USD)
 
     @validator("value", pre=True)
     def value_coercion(cls, v) -> Money:
         return Money.parse(v)
+
+    def __add__(self, other: "RealPortfolioElement"):
+        if self.ticker != other.ticker:
+            raise ValueError("Cannot add different tickers")
+        self.units += other.units
+        self.value += other.value
+        self.dividends += other.dividends
+        self.appreciation += other.appreciation
+        return self
 
 
 class RealPortfolio(BaseModel):
@@ -325,8 +336,7 @@ class RealPortfolio(BaseModel):
     def add_holding(self, holding: RealPortfolioElement, reweight: bool = True):
         existing = self._index.get(holding.ticker)
         if existing:
-            existing.value += holding.value
-            existing.units += holding.units
+            existing = existing + holding
         if not existing:
             self.holdings.append(
                 RealPortfolioElement(
@@ -335,6 +345,8 @@ class RealPortfolio(BaseModel):
                     units=holding.units,
                     value=holding.value,
                     unsettled=False,
+                    dividends=holding.dividends,
+                    appreciation=holding.appreciation,
                 )
             )
         if reweight:
@@ -482,6 +494,15 @@ class LoginResponseStatus(Enum):
     MFA_REQUIRED = 1
     CHALLENGE_REQUIRED = 2
     SUCCESS = 3
+
+
+class ProfitModel(BaseModel):
+    appreciation: Money
+    dividends: Money
+
+    @property
+    def total(self):
+        return self.appreciation + self.dividends
 
 
 @dataclass

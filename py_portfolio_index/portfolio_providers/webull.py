@@ -2,7 +2,12 @@ from decimal import Decimal
 from datetime import date, datetime
 from typing import Optional, List, Dict, DefaultDict, Any
 from py_portfolio_index.constants import Logger
-from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
+from py_portfolio_index.models import (
+    RealPortfolio,
+    RealPortfolioElement,
+    Money,
+    ProfitModel,
+)
 from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.portfolio_providers.common import PriceCache
 from py_portfolio_index.portfolio_providers.base_portfolio import (
@@ -352,12 +357,15 @@ class WebullProvider(BaseProvider):
                 continue
             total_value += prices[s] * Decimal(pre[s]["units"])
         final = []
+        pl_info = self.get_per_ticker_profit_or_loss()
         for s in symbols:
             local = pre[s]
             value = Decimal(prices[s] or 0) * Decimal(pre[s]["units"])
             local["value"] = Money(value=value)
             local["weight"] = value / total_value
             local["unsettled"] = s in unsettled
+            local["appreciation"] = pl_info[s].appreciation
+            local["dividends"] = pl_info[s].dividends
             final.append(local)
         out = [RealPortfolioElement(**row) for row in final]
         cash = Decimal(accounts_data["cashBalance"])
@@ -407,18 +415,29 @@ class WebullProvider(BaseProvider):
             prices = {**prices, **fbatch}
         return prices
 
-    def get_profit_or_loss(self, include_dividends: bool = True) -> Money:
+    def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
         my_stocks = self._get_cached_value(
             CacheKey.POSITIONS, callable=self._provider.get_positions
         )
         pls: List[Money] = []
+        dividends = self._get_dividends()
         for x in my_stocks:
             pl = Money(value=Decimal(x["unrealizedProfitLoss"]))
             pls.append(pl)
-        _total_pl = sum(pls)  # type: ignore
-        if not include_dividends:
-            return Money(value=_total_pl)
-        return Money(value=_total_pl) + sum(self._get_dividends().values())
+
+        return {
+            x["ticker"]["symbol"]: ProfitModel(
+                appreciation=Money(value=Decimal(x["unrealizedProfitLoss"])),
+                dividends=dividends[x["ticker"]["symbol"]],
+            )
+            for x in my_stocks
+        }
+
+    def get_profit_or_loss(self, include_dividends: bool = True) -> Money:
+        raw = self.get_per_ticker_profit_or_loss().values()
+        if include_dividends:
+            return Money(value=sum(x.total for x in raw))
+        return Money(value=sum(x.appreciation for x in raw))
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
         dividends: dict = self._provider.get_dividends()

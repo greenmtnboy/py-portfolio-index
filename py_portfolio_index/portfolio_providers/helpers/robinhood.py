@@ -44,7 +44,7 @@ def login(
     store_session=True,
     challenge_response: str | int | None = None,
     pickle_name="",
-    prior_response=LoginResponse | None,
+    prior_response: LoginResponse | None = None,
 ):
     from robin_stocks.robinhood.authentication import (
         generate_device_token,

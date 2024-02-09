@@ -2,6 +2,7 @@ from py_portfolio_index.models import (
     RealPortfolio,
     RealPortfolioElement,
     Money,
+    ProfitModel,
 )
 from py_portfolio_index.exceptions import ConfigurationError, OrderError
 from py_portfolio_index.portfolio_providers.base_portfolio import (
@@ -295,6 +296,8 @@ class AlpacaProvider(BaseProvider):
         total_value = sum(
             [Decimal(item.market_value) for item in my_stocks if item.market_value]
         )
+
+        profit = self.get_per_ticker_profit_or_loss()
         out = [
             RealPortfolioElement(
                 ticker=row.symbol,
@@ -303,6 +306,8 @@ class AlpacaProvider(BaseProvider):
                 weight=Decimal(row.market_value if row.market_value else 0)
                 / total_value,
                 unsettled=row.symbol in unsettled,
+                appreciation=profit[row.symbol].appreciation,
+                dividends=profit[row.symbol].dividends,
             )
             for row in my_stocks
         ]
@@ -315,26 +320,26 @@ class AlpacaProvider(BaseProvider):
         out.extend(extra_unsettled)
         return RealPortfolio(holdings=out, cash=cash, provider=self)
 
-    def get_per_ticker_profit_or_loss(
-        self, include_dividends: bool = True
-    ) -> Dict[str, Money]:
+    def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
         my_stocks = self._get_cached_value(
             CacheKey.POSITIONS, callable=self.trading_client.get_all_positions
         )
-        output = {o.symbol: Money(value=Decimal(value=o.unrealized_pl if o.unrealized_pl else 0)) for o in my_stocks}  # type: ignore
-        # if include_dividends:
-        #     return Money(value=_total_pl) + self._get_dividends()
-        # return Money(value=_total_pl)
-        return output
+        divs = self._get_dividends()
+        base = {
+            o.symbol: ProfitModel(
+                appreciation=Money(value=o.unrealized_pl if o.unrealized_pl else 0),
+                dividends=divs.get(o.symbol, Money(value=Decimal(0))),
+            )
+            for o in my_stocks
+        }
+
+        return base
 
     def get_profit_or_loss(self, include_dividends: bool = True) -> Money:
-        my_stocks = self._get_cached_value(
-            CacheKey.POSITIONS, callable=self.trading_client.get_all_positions
-        )
-        _total_pl = sum([Decimal(value=o.unrealized_pl if o.unrealized_pl else 0) for o in my_stocks])  # type: ignore
+        raw = self.get_per_ticker_profit_or_loss().values()
         if include_dividends:
-            return Money(value=_total_pl) + sum(self._get_dividends().values())
-        return Money(value=_total_pl)
+            return Money(value=sum(x.total for x in raw))
+        return Money(value=sum(x.appreciation for x in raw))
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
         import requests

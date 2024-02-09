@@ -12,7 +12,13 @@ from py_portfolio_index.common import (
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import RoundingStrategy, Provider
 from py_portfolio_index.exceptions import PriceFetchError, OrderError
-from py_portfolio_index.models import Money, OrderPlan, OrderElement, StockInfo
+from py_portfolio_index.models import (
+    Money,
+    OrderPlan,
+    OrderElement,
+    StockInfo,
+    ProfitModel,
+)
 from functools import lru_cache
 from py_portfolio_index.models import RealPortfolio
 from dataclasses import dataclass, field
@@ -80,6 +86,9 @@ class BaseProvider(object):
         raise NotImplementedError
 
     def get_holdings(self) -> RealPortfolio:
+        raise NotImplementedError
+
+    def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
         raise NotImplementedError
 
     def get_profit_or_loss(self, include_dividends: bool = True) -> Money:
