@@ -72,7 +72,7 @@ class IndexInventory(BaseModel):
                 start_date = date.fromisoformat(
                     parsed.get("as_of", date.today().isoformat())
                 )
-                for row in parsed["components"]:
+                for row in parsed.get("components", []):
                     out.append(
                         IdealPortfolioElement(
                             ticker=row["ticker"], weight=Decimal(row["weight"])
