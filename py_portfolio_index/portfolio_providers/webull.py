@@ -302,6 +302,8 @@ class WebullProvider(BaseProvider):
                         raise ConfigurationError(msg)
                     raise ValueError(msg)
                 Logger.error(output)
+                if "Your session has expired" in str(msg):
+                    raise ConfigurationError(output)
                 raise ValueError(output)
         return True
 

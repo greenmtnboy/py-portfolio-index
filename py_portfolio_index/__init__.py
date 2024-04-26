@@ -21,7 +21,7 @@ from py_portfolio_index.models import IdealPortfolio
 
 AVAILABLE_PROVIDERS = get_providers()
 
-__version__ = "0.0.51"
+__version__ = "0.0.53"
 
 __all__ = [
     "INDEXES",
