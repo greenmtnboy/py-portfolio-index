@@ -74,8 +74,7 @@ if __name__ == "__main__":
     for year, month in candidates:
         smonth = str(month).zfill(2)
         # address = f"""https://www.crsp.org/wp-content/uploads/{year}/{smonth}/Returns-and-Constituents-CRSP-Constituents.csv"""
-
-    for address in ["https://www.crsp.org/wp-content/uploads/CRSP_Constituents.csv"]:
+    for address in ["https://crsp.org/wp-content/uploads/crspmi_quarterly_constituents_20231229.csv","https://www.crsp.org/wp-content/uploads/CRSP_Constituents.csv"]:
         print("attempting")
         print(address)
         data = requests.get(

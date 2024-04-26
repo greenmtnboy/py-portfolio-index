@@ -49,8 +49,10 @@ class BaseProvider(object):
     SUPPORTS_BATCH_HISTORY = 0
     CACHE: dict[str, CachedValue] = {}
 
-    def clear_cache(self):
+    def clear_cache(self, skip_clearing:List[str]):
         for value in self.CACHE.values():
+            if value in skip_clearing:
+                continue
             value.value = None
 
     def _get_cached_value(
