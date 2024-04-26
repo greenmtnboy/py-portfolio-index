@@ -1,7 +1,7 @@
 from decimal import Decimal
 from datetime import date, datetime
 from typing import Optional, List, Dict, DefaultDict, Any
-from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
+from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money, ProfitModel
 from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.portfolio_providers.common import PriceCache
 from py_portfolio_index.portfolio_providers.base_portfolio import (
@@ -342,7 +342,7 @@ class MooMooProvider(BaseProvider):
             prices = {**prices, **fbatch}
         return prices
 
-    def get_profit_or_loss(self, include_dividends: bool = True) -> Money:
+    def get_profit_or_loss(self) -> ProfitModel:
         raise NotImplementedError()
         # my_stocks = self._get_cached_value(
         #     CacheKey.POSITIONS, callable=self._provider.get_positions

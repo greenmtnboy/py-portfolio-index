@@ -49,7 +49,7 @@ class BaseProvider(object):
     SUPPORTS_BATCH_HISTORY = 0
     CACHE: dict[str, CachedValue] = {}
 
-    def clear_cache(self, skip_clearing:List[str]):
+    def clear_cache(self, skip_clearing: List[str]):
         for value in self.CACHE.values():
             if value in skip_clearing:
                 continue
@@ -93,8 +93,11 @@ class BaseProvider(object):
     def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
         raise NotImplementedError
 
-    def get_profit_or_loss(self, include_dividends: bool = True) -> Money:
-        raise NotImplementedError
+    def get_profit_or_loss(self) -> ProfitModel:
+        raw = self.get_per_ticker_profit_or_loss().values()
+        appreciation = sum(x.appreciation for x in raw)
+        dividends = sum(x.dividends for x in raw)
+        return ProfitModel(appreciation=appreciation, dividends=dividends)
 
     def get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
