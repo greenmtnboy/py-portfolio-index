@@ -69,7 +69,9 @@ class IndexInventory(BaseModel):
         if item in self.json_keys:
             with open(self.base / f"{item}.json") as f:
                 parsed = json.loads(f.read())
-                start_date = date.fromisoformat(parsed["as_of"])
+                start_date = date.fromisoformat(
+                    parsed.get("as_of", date.today().isoformat())
+                )
                 for row in parsed["components"]:
                     out.append(
                         IdealPortfolioElement(
