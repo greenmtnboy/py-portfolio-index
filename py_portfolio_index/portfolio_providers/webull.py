@@ -435,12 +435,6 @@ class WebullProvider(BaseProvider):
             for x in my_stocks
         }
 
-    def get_profit_or_loss(self, include_dividends: bool = True) -> Money:
-        raw = self.get_per_ticker_profit_or_loss().values()
-        if include_dividends:
-            return Money(value=sum(x.total for x in raw))
-        return Money(value=sum(x.appreciation for x in raw))
-
     def _get_dividends(self) -> DefaultDict[str, Money]:
         dividends: dict = self._provider.get_dividends()
         dlist = dividends.get("dividendList", [])

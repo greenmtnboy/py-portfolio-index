@@ -144,6 +144,21 @@ class Money(BaseModel):
         return Money(value=Decimal(round(self.value, n)), currency=self.currency)
 
 
+class ProfitModel(BaseModel):
+    appreciation: Money
+    dividends: Money
+
+    @property
+    def total(self):
+        return self.appreciation + self.dividends
+
+    def __add__(self, other: "ProfitModel"):
+        return ProfitModel(
+            appreciation=self.appreciation + other.appreciation,
+            dividends=self.dividends + other.dividends,
+        )
+
+
 class IdealPortfolioElement(BaseModel):
     ticker: str
     weight: Decimal
@@ -304,7 +319,7 @@ class RealPortfolio(BaseModel):
     holdings: List[RealPortfolioElement]
     provider: Optional[ProviderProtocol] = None
     cash: None | Money = None
-    profit_and_loss: None | Money = None
+    profit_and_loss: None | ProfitModel = None
 
     # @property
     # def provider(self) -> Optional["BaseProvider" ]:
@@ -494,15 +509,6 @@ class LoginResponseStatus(Enum):
     MFA_REQUIRED = 1
     CHALLENGE_REQUIRED = 2
     SUCCESS = 3
-
-
-class ProfitModel(BaseModel):
-    appreciation: Money
-    dividends: Money
-
-    @property
-    def total(self):
-        return self.appreciation + self.dividends
 
 
 @dataclass
