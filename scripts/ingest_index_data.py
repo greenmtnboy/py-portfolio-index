@@ -74,26 +74,29 @@ if __name__ == "__main__":
     for year, month in candidates:
         smonth = str(month).zfill(2)
         # address = f"""https://www.crsp.org/wp-content/uploads/{year}/{smonth}/Returns-and-Constituents-CRSP-Constituents.csv"""
-        #"https://www.crsp.org/wp-content/uploads/CRSP_Constituents.csv"
-    for address in ["https://crsp.org/wp-content/uploads/crspmi_quarterly_constituents_20231229.csv","https://www.crsp.org/wp-content/uploads/CRSP_Constituents.csv"]:
+        # "https://www.crsp.org/wp-content/uploads/CRSP_Constituents.csv"
+    for address in [
+        "https://crsp.org/wp-content/uploads/crspmi_quarterly_constituents_20231229.csv",
+        "https://www.crsp.org/wp-content/uploads/CRSP_Constituents.csv",
+    ]:
         print("attempting")
         print(address)
         data = requests.get(
             address,
             allow_redirects=True,
             headers={
-                'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-            }
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            },
         )
         print(data.text[0:100])
         # print(len(response.text))
         # we got the valid csv
         if data.text.startswith("TradeDate"):
             found = True
-            print('got match')
+            print("got match")
             break
     if not found:
-        raise ValueError('Could not find results')
+        raise ValueError("Could not find results")
     csv_buffer = csv_buffer = StringIO(data.text)
 
     # Read the CSV data from the in-memory buffer using the csv.reader

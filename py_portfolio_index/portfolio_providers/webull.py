@@ -435,7 +435,6 @@ class WebullProvider(BaseProvider):
             for x in my_stocks
         }
 
-
     def _get_dividends(self) -> DefaultDict[str, Money]:
         dividends: dict = self._provider.get_dividends()
         dlist = dividends.get("dividendList", [])

@@ -510,7 +510,6 @@ class RobinhoodProvider(BaseProvider):
             )
         return output
 
-
     def _get_dividends(self) -> DefaultDict[str, Money]:
         from collections import defaultdict
 

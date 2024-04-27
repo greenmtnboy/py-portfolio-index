@@ -335,8 +335,6 @@ class AlpacaProvider(BaseProvider):
 
         return base
 
-    
-
     def _get_dividends(self) -> DefaultDict[str, Money]:
         import requests
         import json

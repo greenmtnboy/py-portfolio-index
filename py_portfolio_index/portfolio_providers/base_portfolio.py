@@ -95,8 +95,8 @@ class BaseProvider(object):
 
     def get_profit_or_loss(self) -> ProfitModel:
         raw = self.get_per_ticker_profit_or_loss().values()
-        appreciation = sum(x.appreciation for x in raw)
-        dividends = sum(x.dividends for x in raw)
+        appreciation = sum([x.appreciation for x in raw], Money(value=0.0))
+        dividends = sum([x.dividends for x in raw], Money(value=0.0))
         return ProfitModel(appreciation=appreciation, dividends=dividends)
 
     def get_instrument_prices(
