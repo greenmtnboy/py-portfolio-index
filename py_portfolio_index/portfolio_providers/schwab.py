@@ -1,7 +1,7 @@
 from decimal import Decimal
 from datetime import date, datetime
 from typing import Optional, List, Dict, DefaultDict, Any
-from py_portfolio_index.constants import Logger, CACHE_DIR
+from py_portfolio_index.constants import Logger
 from py_portfolio_index.models import (
     RealPortfolio,
     RealPortfolioElement,
@@ -75,17 +75,17 @@ class InstrumentDict(dict):
         raise ValueError(f"Could not find instrument {key} after refresh")
 
 
-class WebullProvider(BaseProvider):
+class SchwabProvider(BaseProvider):
     """Provider for interacting with stocks held in
-    Webull
+    Schwab
     """
 
-    PROVIDER = Provider.WEBULL
+    PROVIDER = Provider.SCHWAB
     SUPPORTS_BATCH_HISTORY = 0
-    PASSWORD_ENV = "WEBULL_PASSWORD"
-    USERNAME_ENV = "WEBULL_USERNAME"
-    TRADE_TOKEN_ENV = "WEBULL_TRADE_TOKEN"
-    DEVICE_ID_ENV = "WEBULL_DEVICE_ID"
+    PASSWORD_ENV = "SCHWAB_PASSWORD"
+    USERNAME_ENV = "SCHWAB_USERNAME"
+    TRADE_TOKEN_ENV = "SCHWAB_TRADE_TOKEN"
+    DEVICE_ID_ENV = "SCHWAB_DEVICE_ID"
 
     def _get_provider(self):
         from webull import webull  # for paper trading, import 'paper_webull'
@@ -110,11 +110,10 @@ class WebullProvider(BaseProvider):
             device_id = environ.get(self.DEVICE_ID_ENV, None)
         if not (username and password and trade_token and device_id):
             raise ConfigurationError(
-                "Must provide ALL OF username, password, trade_token, and device_id arguments or set environment variables WEBULL_USERNAME, WEBULL_PASSWORD, WEBULL_TRADE_TOKEN, and WEBULL_DEVICE_ID "
+                "Must provide ALL OF username, password, trade_token, and device_id arguments or set environment variables SCHWAB_USERNAME, SCHWAB_PASSWORD, SCHWAB_TRADE_TOKEN, and SCHWAB_DEVICE_ID "
             )
         webull = self._get_provider()
         self._provider = webull()
-        self._provider.timeout = 30
         # we must set both of these to have a valid login
         self._provider._did = device_id
         self._provider._headers["did"] = device_id
@@ -135,7 +134,7 @@ class WebullProvider(BaseProvider):
         from pathlib import Path
         import json
 
-        path = Path(user_cache_dir(CACHE_DIR, ensure_exists=True))
+        path = Path(user_cache_dir("py_portfolio_index", ensure_exists=True))
         file = path / CACHE_PATH
         if not file.exists():
             self._local_instrument_cache = {}
@@ -151,7 +150,7 @@ class WebullProvider(BaseProvider):
         from pathlib import Path
         import json
 
-        path = Path(user_cache_dir(CACHE_DIR, ensure_exists=True))
+        path = Path(user_cache_dir("py_portfolio_index", ensure_exists=True))
         file = path / CACHE_PATH
         with open(file, "w") as f:
             json.dump(self._local_instrument_cache, f)
@@ -338,7 +337,6 @@ class WebullProvider(BaseProvider):
         
 
     def get_holdings(self) -> RealPortfolio:
-        start = datetime.now()
         accounts_data = self._get_cached_value(
             CacheKey.ACCOUNT, callable=self.get_portfolio
         )
@@ -348,8 +346,6 @@ class WebullProvider(BaseProvider):
         unsettled = self._get_cached_value(
             CacheKey.UNSETTLED, callable=self.get_unsettled_instruments
         )
-
-        print(f'got cached info {datetime.now()-start}')
 
         pre = {}
         symbols = []
@@ -364,7 +360,6 @@ class WebullProvider(BaseProvider):
             local["weight"] = 0
             pre[ticker] = local
         prices = self._price_cache.get_prices(symbols)
-        print(f'got price info{datetime.now()-start}')
         total_value = Decimal(0.0)
         for s in symbols:
             if not prices[s]:
@@ -372,7 +367,6 @@ class WebullProvider(BaseProvider):
             total_value += prices[s] * Decimal(pre[s]["units"])
         final = []
         pl_info = self.get_per_ticker_profit_or_loss()
-        print(f'got p&L {datetime.now()-start}')
         for s in symbols:
             local = pre[s]
             value = Decimal(prices[s] or 0) * Decimal(pre[s]["units"])
@@ -388,64 +382,8 @@ class WebullProvider(BaseProvider):
 
     def get_instrument_prices(self, tickers: List[str], at_day: Optional[date] = None):
         return self._price_cache.get_prices(tickers=tickers, date=at_day)
-    ##/market-data/snapshot
-    def _get_instrument_prices(
-        self, tickers: List[str], at_day: Optional[date] = None
-    ) -> Dict[str, Optional[Decimal]]:
-        batches: List[Dict[str, Optional[Decimal]]] = []
-        if at_day:
-            batch_size = 1
-        else:
-            batch_size = 100
-        for list_batch in divide_into_batches(tickers, batch_size):
-            # TODO: determine if there is a bulk API
-            wbIds = {}
-            for ticker in list_batch:
-                webull_id = self._local_instrument_cache.get(ticker)
-                if not webull_id:
-                    # skip the call
-                    webull_id = str(self._provider.get_ticker(ticker))
-                    self._local_instrument_cache[ticker] = webull_id
-                    self._save_local_instrument_cache()
-                wbIds[webull_id] = ticker
-            
-            if at_day:
-                output = {}
-                for wbid, ticker in wbIds.items():
-                    historicals = self._provider.get_bars(
-                        stock=ticker,
-                        interval="d1",
-                        timeStamp=int(
-                            datetime(
-                                day=at_day.day,
-                                month=at_day.month,
-                                year=at_day.year,
-                                tzinfo=UTC,
-                            ).timestamp()
-                        ),
-                    )
-                    output[ticker] =  Decimal(value=list(historicals.itertuples())[0].vwap)
-                batches.append(
-                    output
-                )
-            else:
-                from concurrent.futures import ThreadPoolExecutor, as_completed
-                final = {}
-                with ThreadPoolExecutor(max_workers=10) as executor:
-                    futures = {
-                        executor.submit(self._provider.get_quote, None, wbid)
-                        for wbid in wbIds
-                    }
-                    for future in as_completed(futures):
-                        output = future.result()
-                        final[wbIds[str(output['tickerId'])]]=  Decimal(output["askList"][0]["price"])
-                batches.append(final)
-        prices: Dict[str, Optional[Decimal]] = {}
-        for fbatch in batches:
-            prices = {**prices, **fbatch}
-        return prices
 
-    def _get_instrument_prices_old(
+    def _get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
     ) -> Dict[str, Optional[Decimal]]:
         batches: List[Dict[str, Optional[Decimal]]] = []
@@ -520,15 +458,3 @@ class WebullProvider(BaseProvider):
             final[item["ticker"]] += item["value"]
         return final
 
-
-class WebullPaperProvider(WebullProvider):
-    PROVIDER = Provider.WEBULL_PAPER
-    PASSWORD_ENV = "WEBULL_PAPER_PASSWORD"
-    USERNAME_ENV = "WEBULL_PAPER_USERNAME"
-    TRADE_TOKEN_ENV = "WEBULL_PAPER_TRADE_TOKEN"
-    DEVICE_ID_ENV = "WEBULL_PAPER_DEVICE_ID"
-
-    def _get_provider(self):
-        from webull import paper_webull
-
-        return paper_webull

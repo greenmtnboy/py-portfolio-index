@@ -10,11 +10,12 @@ class Provider(str, Enum):
     WEBULL = "webull"
     WEBULL_PAPER = "webull_paper"
     MOOMOO = "moomoo"
+    SCHWAB = "schwab"
 
 
 class ProviderClass(Enum):
     PAPER = [Provider.ALPACA_PAPER, Provider.WEBULL_PAPER, Provider.LOCAL_DICT]
-    REAL = [Provider.ALPACA, Provider.WEBULL, Provider.ROBINHOOD]
+    REAL = [Provider.ALPACA, Provider.WEBULL, Provider.ROBINHOOD, Provider.SCHWAB]
 
 
 class PurchaseStrategy(IntEnum):
