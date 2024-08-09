@@ -9,7 +9,7 @@ from py_portfolio_index.models import (
     ProfitModel,
 )
 from py_portfolio_index.common import divide_into_batches
-from py_portfolio_index.portfolio_providers.common import PriceCache
+
 from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
     CacheKey,
@@ -25,6 +25,7 @@ from pytz import UTC
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
 
+DEFAULT_WEBULL_TIMEOUT = 60
 CACHE_PATH = "webull_tickers.json"
 
 
@@ -74,7 +75,6 @@ class InstrumentDict(dict):
             return self[key]
         raise ValueError(f"Could not find instrument {key} after refresh")
 
-
 class WebullProvider(BaseProvider):
     """Provider for interacting with stocks held in
     Webull
@@ -114,7 +114,7 @@ class WebullProvider(BaseProvider):
             )
         webull = self._get_provider()
         self._provider = webull()
-        self._provider.timeout = 30
+        self._provider.timeout = 60
         # we must set both of these to have a valid login
         self._provider._did = device_id
         self._provider._headers["did"] = device_id
@@ -125,7 +125,6 @@ class WebullProvider(BaseProvider):
         account_info: dict = self._provider.get_account()
         if account_info.get("success") is False:
             raise ConfigurationError(f"Authentication is expired: {account_info}")
-        self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
         self._local_instrument_cache: Dict[str, str] = {}
         if not skip_cache:
             self._load_local_instrument_cache()
@@ -329,16 +328,16 @@ class WebullProvider(BaseProvider):
         #             "tradable": bool(match["tradable"]),
         #         }
         return info
-    
-    def get_portfolio(self)-> dict:
+
+    def get_portfolio(self) -> dict:
         try:
             return self._provider.get_portfolio()
-        except KeyError as e:
-            raise ConfigurationError(f"Could not fetch portfolio on {str(e)}; assuming session expired")
-        
+        except Exception as e:
+            raise ConfigurationError(
+                f"Could not fetch portfolio on {str(e)}; assuming session expired"
+            )
 
     def get_holdings(self) -> RealPortfolio:
-        start = datetime.now()
         accounts_data = self._get_cached_value(
             CacheKey.ACCOUNT, callable=self.get_portfolio
         )
@@ -348,8 +347,6 @@ class WebullProvider(BaseProvider):
         unsettled = self._get_cached_value(
             CacheKey.UNSETTLED, callable=self.get_unsettled_instruments
         )
-
-        print(f'got cached info {datetime.now()-start}')
 
         pre = {}
         symbols = []
@@ -364,7 +361,6 @@ class WebullProvider(BaseProvider):
             local["weight"] = 0
             pre[ticker] = local
         prices = self._price_cache.get_prices(symbols)
-        print(f'got price info{datetime.now()-start}')
         total_value = Decimal(0.0)
         for s in symbols:
             if not prices[s]:
@@ -372,7 +368,6 @@ class WebullProvider(BaseProvider):
             total_value += prices[s] * Decimal(pre[s]["units"])
         final = []
         pl_info = self.get_per_ticker_profit_or_loss()
-        print(f'got p&L {datetime.now()-start}')
         for s in symbols:
             local = pre[s]
             value = Decimal(prices[s] or 0) * Decimal(pre[s]["units"])
@@ -386,8 +381,9 @@ class WebullProvider(BaseProvider):
         cash = Decimal(accounts_data["cashBalance"])
         return RealPortfolio(holdings=out, cash=Money(value=cash), provider=self)
 
-    def get_instrument_prices(self, tickers: List[str], at_day: Optional[date] = None):
+    def get_instrument_prices(self, tickers: List[str], at_day: Optional[date] = None)-> Dict[str, Decimal]:
         return self._price_cache.get_prices(tickers=tickers, date=at_day)
+
     ##/market-data/snapshot
     def _get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
@@ -408,7 +404,7 @@ class WebullProvider(BaseProvider):
                     self._local_instrument_cache[ticker] = webull_id
                     self._save_local_instrument_cache()
                 wbIds[webull_id] = ticker
-            
+
             if at_day:
                 output = {}
                 for wbid, ticker in wbIds.items():
@@ -424,12 +420,13 @@ class WebullProvider(BaseProvider):
                             ).timestamp()
                         ),
                     )
-                    output[ticker] =  Decimal(value=list(historicals.itertuples())[0].vwap)
-                batches.append(
-                    output
-                )
+                    output[ticker] = Decimal(
+                        value=list(historicals.itertuples())[0].vwap
+                    )
+                batches.append(output)
             else:
                 from concurrent.futures import ThreadPoolExecutor, as_completed
+
                 final = {}
                 with ThreadPoolExecutor(max_workers=10) as executor:
                     futures = {
@@ -438,7 +435,11 @@ class WebullProvider(BaseProvider):
                     }
                     for future in as_completed(futures):
                         output = future.result()
-                        final[wbIds[str(output['tickerId'])]]=  Decimal(output["askList"][0]["price"])
+                        if 'askList' in output:
+                            final[wbIds[str(output["tickerId"])]] = Decimal(
+                                output["askList"][0]["price"]
+                            )
+                        final[wbIds[str(output["tickerId"])]] = None
                 batches.append(final)
         prices: Dict[str, Optional[Decimal]] = {}
         for fbatch in batches:
@@ -490,12 +491,7 @@ class WebullProvider(BaseProvider):
         my_stocks = self._get_cached_value(
             CacheKey.POSITIONS, callable=self._provider.get_positions
         )
-        pls: List[Money] = []
         dividends = self._get_dividends()
-        for x in my_stocks:
-            pl = Money(value=Decimal(x["unrealizedProfitLoss"]))
-            pls.append(pl)
-
         return {
             x["ticker"]["symbol"]: ProfitModel(
                 appreciation=Money(value=Decimal(x["unrealizedProfitLoss"])),
@@ -505,7 +501,7 @@ class WebullProvider(BaseProvider):
         }
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
-        dividends: dict = self._provider.get_dividends()
+        dividends: dict = self._get_cached_value( CacheKey.DIVIDENDS, callable=self._provider.get_dividends)
         dlist = dividends.get("dividendList", [])
         base = []
         for item in dlist:

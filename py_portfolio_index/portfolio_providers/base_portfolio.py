@@ -24,6 +24,7 @@ from py_portfolio_index.models import RealPortfolio
 from dataclasses import dataclass, field
 from enum import Enum
 from datetime import datetime
+from py_portfolio_index.portfolio_providers.common import PriceCache
 
 
 @dataclass
@@ -47,6 +48,7 @@ class BaseProvider(object):
     MIN_ORDER_VALUE = Money(value=1)
     MAX_ORDER_DECIMALS = 2
     SUPPORTS_BATCH_HISTORY = 0
+    SUPPORTS_FRACTIONAL_SHARES = True
     CACHE: dict[str, CachedValue] = {}
 
     def clear_cache(self, skip_clearing: List[str]):
@@ -79,12 +81,20 @@ class BaseProvider(object):
 
     def __init__(self) -> None:
         self.stock_info_cache: Dict[str, StockInfo] = {}
+        self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
 
     @property
     def valid_assets(self) -> Set[str]:
         return set()
 
+    @property
+    def cash(self) -> Money:
+        return self.get_holdings().cash
+    
     def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None):
+        raise NotImplementedError
+
+    def _get_instrument_prices(self, ticker: str, at_day: Optional[date] = None):
         raise NotImplementedError
 
     def get_holdings(self) -> RealPortfolio:
@@ -160,8 +170,6 @@ class BaseProvider(object):
                     raise e
                 else:
                     continue
-            if not price:
-                price = Money(value=0)
             if price == Money(value=0):
                 to_buy_currency = Money(value=0)
             else:

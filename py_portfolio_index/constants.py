@@ -1,4 +1,4 @@
-from logging import getLogger
+from logging import getLogger, Logger as baseLogger
 
 LOGGER_NAME = "py_portfolio_index"
 
@@ -6,4 +6,4 @@ CACHE_DIR = "py_portfolio_index"
 
 AUTO_TARGET_SIZE = -1
 
-Logger = getLogger(LOGGER_NAME)
+Logger:baseLogger = getLogger(LOGGER_NAME)
