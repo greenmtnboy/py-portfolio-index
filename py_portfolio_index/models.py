@@ -52,6 +52,10 @@ class Money(BaseModel):
     @property
     def decimal(self) -> Decimal:
         return self.value  # type: ignore
+    
+    @property
+    def is_zero(self):
+        return self.value == Decimal(0)
 
     @validator("value", pre=True)
     def coerce_to_decimal(cls, v) -> Decimal:
@@ -92,6 +96,8 @@ class Money(BaseModel):
             if other.currency != self.currency:
                 raise ValueError("Currency conversions not supported")
             return other.value
+        elif isinstance(other, int):
+            return Decimal(value=other)
         return other
 
     def __eq__(self, other):
@@ -375,7 +381,7 @@ class RealPortfolio(BaseModel):
                 self.add_holding(item, reweight=False)
             self._reweight_portfolio()
         else:
-            raise ValueError
+            raise ValueError(f"{type(other)} cannot be added to portfolio element")
         return self
 
     def refresh(self):
@@ -440,7 +446,17 @@ class OrderElement(BaseModel):
     ticker: str
     order_type: OrderType
     value: Money | None
-    qty: int | None
+    qty: float | int | None
+    price: Money | None = None
+    provider: Optional[Provider] = None
+
+    @property
+    def inferred_value(self) -> Money:
+        if self.value:
+            return self.value
+        if self.qty and self.price:
+            return self.price * self.qty
+        raise ValueError("Cannot infer value")
 
     def __add__(self, other):
         if not isinstance(other, OrderElement):
@@ -468,6 +484,10 @@ class OrderElement(BaseModel):
 class OrderPlan(BaseModel):
     to_buy: List[OrderElement]
     to_sell: List[OrderElement]
+
+    @property
+    def all_orders(self) -> List[OrderElement]:
+        return self.to_buy + self.to_sell
 
     @property
     def tickers(self):

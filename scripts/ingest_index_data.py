@@ -73,14 +73,14 @@ if __name__ == "__main__":
         ]
     ]
     for year, month in candidates:
-        #constituents are only updated quarterly
-        if month not in [3,6,9,12]:
+        # constituents are only updated quarterly
+        if month not in [3, 6, 9, 12]:
             continue
         smonth = str(month).zfill(2)
         dow_start, end = calendar.monthrange(year, month)
         for day in reversed(range(1, end + 1)):
             sday = str(day).zfill(2)
-    
+
             address = f"https://crsp.org/wp-content/uploads/crspmi_quarterly_constituents_{year}{smonth}{sday}.csv"
             # for address in [
             #     "https://crsp.org/wp-content/uploads/crspmi_quarterly_constituents_20231229.csv",

@@ -6,6 +6,7 @@ class Provider(str, Enum):
     ALPACA_PAPER = "alpaca_paper"
     ROBINHOOD = "robinhood"
     LOCAL_DICT = "local_dict"
+    LOCAL_DICT_NO_PARTIAL = "local_dict_no_partial"
     DUMMY = "dummy"
     WEBULL = "webull"
     WEBULL_PAPER = "webull_paper"
