@@ -372,7 +372,10 @@ class WebullProvider(BaseProvider):
             local = pre[s]
             value = Decimal(prices[s] or 0) * Decimal(pre[s]["units"])
             local["value"] = Money(value=value)
-            local["weight"] = value / total_value
+            if value == 0.0000:
+                local["weight"] = 0.0000
+            else:
+                local["weight"] = value / total_value
             local["unsettled"] = s in unsettled
             local["appreciation"] = pl_info[s].appreciation
             local["dividends"] = pl_info[s].dividends

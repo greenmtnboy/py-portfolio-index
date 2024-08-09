@@ -49,7 +49,7 @@ class BaseProvider(object):
     MAX_ORDER_DECIMALS = 2
     SUPPORTS_BATCH_HISTORY = 0
     SUPPORTS_FRACTIONAL_SHARES = True
-    CACHE: dict[str, CachedValue] = {}
+
 
     def clear_cache(self, skip_clearing: List[str]):
         for value in self.CACHE.values():
@@ -72,16 +72,19 @@ class BaseProvider(object):
             cached = self.CACHE[skey]
         elif callable:
             cached = CachedValue(value=None, fetcher=callable)
+            self.CACHE[skey] = cached
         if cached.value:
             age = datetime.now() - cached.set
             if age.seconds < max_age_seconds:
                 return cached.value
         cached.value = cached.fetcher()
+        
         return cached.value
 
     def __init__(self) -> None:
         self.stock_info_cache: Dict[str, StockInfo] = {}
         self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
+        self.CACHE: dict[str, CachedValue] = {}
 
     @property
     def valid_assets(self) -> Set[str]:

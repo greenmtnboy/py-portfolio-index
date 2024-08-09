@@ -25,6 +25,7 @@ from py_portfolio_index.portfolio_providers.helpers.robinhood import (
 from py_portfolio_index.enums import Provider
 from functools import lru_cache
 from os import environ
+from collections import defaultdict
 
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
@@ -112,7 +113,6 @@ class RobinhoodProvider(BaseProvider):
         if not skip_cache:
             self._load_local_instrument_cache()
         self._local_latest_price_cache: Dict[str, Decimal] = {}
-        self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
 
     @property
     def valid_assets(self) -> set[str]:
@@ -494,7 +494,7 @@ class RobinhoodProvider(BaseProvider):
             CacheKey.MISC,
             callable=self._process_cache_to_dict,
         )
-        divs = self._get_dividends()
+        divs = self._get_cached_value(CacheKey.DIVIDENDS, callable=self._get_dividends)
         output = {}
         for x in my_stocks:
             historical_value = Decimal(x["average_buy_price"]) * Decimal(x["quantity"])
@@ -511,11 +511,8 @@ class RobinhoodProvider(BaseProvider):
         return output
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
-        from collections import defaultdict
 
-        value = self._get_cached_value(
-            CacheKey.DIVIDENDS, callable=self._provider.get_dividends
-        )
+        value = self._provider.get_dividends()
         output: DefaultDict[str, Money] = defaultdict(lambda: Money(value=0))
         instrument_to_symbol_map = self._get_cached_value(
             CacheKey.MISC,

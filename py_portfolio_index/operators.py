@@ -148,72 +148,6 @@ def generate_auto_target_size(
     return in_portfolio_value + cash
 
 
-def generate_composite_order_plan(
-    composite: CompositePortfolio,
-    ideal: IdealPortfolio,
-    purchase_order_maps: Mapping[Provider, PurchaseStrategy] | PurchaseStrategy,
-    # rounding_strategy=RoundingStrategy.CLOSEST,
-    purchase_power: Optional[Money | float | int] = None,
-    target_size: Optional[Money | float | int] = None,
-    min_order_value: Money = MIN_ORDER_MONEY,
-    safety_threshold: Decimal = Decimal(0.95),
-) -> Mapping[Provider, OrderPlan]:
-    provider_map = {x.provider: x for x in composite.portfolios if x.provider}
-    providers: List[BaseProvider] = list(provider_map.keys())  # type: ignore
-
-    if isinstance(purchase_order_maps, PurchaseStrategy):
-        purchase_order_maps = {x.PROVIDER: purchase_order_maps for x in providers}
-    processed = set()
-    # check each of our p
-    output: defaultdict[Provider, OrderPlan] = defaultdict(
-        lambda: OrderPlan(to_buy=[], to_sell=[])
-    )
-    skip_tickers: set[str] = set()
-    for provider in providers:
-        skip_tickers = skip_tickers.union(provider.get_unsettled_instruments())
-
-    purchase_power_money = Money(value=purchase_power) if purchase_power else None
-
-    while providers:
-        provider = providers.pop()
-        if purchase_power_money and purchase_power_money < Money(value=0):
-            Logger.info("No dollars left to purchase")
-            continue
-        Logger.info(f"Beginning plan for {provider}")
-        processed.add(provider.PROVIDER)
-        port = provider_map[provider]
-        # build the plan across the _entire_ composite portfolio
-
-        # if we don't know how much cash we have, skip
-        print(f"doing provider {provider} with {port.cash}")
-        if not port.cash:
-            continue
-
-        local_max_spend = port.cash * safety_threshold
-        if purchase_power_money:
-            local_purchase_power = min(
-                purchase_power_money * safety_threshold, local_max_spend
-            )
-            purchase_power_money = purchase_power_money - local_purchase_power
-        else:
-            local_purchase_power = port.cash * safety_threshold
-
-        purchase_plan = generate_order_plan(
-            ideal=ideal,
-            real=composite,
-            buy_order=purchase_order_maps[provider.PROVIDER],
-            # rounding_strategy=RoundingStrategy.CLOSEST,
-            target_size=target_size,
-            purchase_power=local_purchase_power,
-            min_order_value=min_order_value,
-            skip_tickers=skip_tickers,
-        )
-        for ticker in purchase_plan.tickers:
-            skip_tickers.add(ticker)
-        output[provider.PROVIDER] += purchase_plan
-    return output
-
-
 def generate_sell_order(
     key: str,
     values: Dict[str, Money],
@@ -229,6 +163,8 @@ def generate_sell_order(
             target_value * diffvalue.comparison - target_value * diffvalue.model
         )
         price = values[key]
+        if not price:
+            return None
         qty = round_with_strategy(sell_target / price, RoundingStrategy.FLOOR)
         sell_target = max(sell_target, MIN_ORDER_MONEY)
         return OrderElement(
@@ -274,7 +210,11 @@ def generate_buy_order(
                 )
                 buy_target = Money(value=max_value)
         buy_target = max(buy_target, min_order_value)
-        price = Money(value=prices[key])
+        _price = prices[key]
+        if not _price:
+            return None
+        price = Money(value=_price)
+
         Logger.debug(
             f"{diff_text} {key}, {print_per(diffvalue.model)} target vs {print_per(diffvalue.comparison)} actual. Should be {target_value * diffvalue.model}, is {diffvalue.actual}"
         )
@@ -430,7 +370,7 @@ def generate_order_plan(
     return OrderPlan(to_buy=to_purchase, to_sell=to_sell)
 
 
-def generate_composite_order_plan_v2(
+def generate_composite_order_plan(
     composite: CompositePortfolio,
     ideal: IdealPortfolio,
     purchase_order_maps: Mapping[Provider, PurchaseStrategy] | PurchaseStrategy,
