@@ -13,6 +13,7 @@ from py_portfolio_index.models import (
 )
 from py_portfolio_index.enums import PurchaseStrategy
 from py_portfolio_index.portfolio_providers.local_dict import LocalDictProvider
+from py_portfolio_index.portfolio_providers.common import PriceCache
 
 
 def test_generate_order_plan():
@@ -34,6 +35,7 @@ def test_generate_order_plan():
         ideal_port,
         target_size=1000,
         buy_order=PurchaseStrategy.LARGEST_DIFF_FIRST,
+        price_cache=PriceCache(fetcher=lambda tickers, date: {y: 100 for y in tickers}),
     )
 
     expected = {"AAPL": Money(value=400), "MSFT": Money(value=500)}
