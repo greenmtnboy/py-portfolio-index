@@ -45,23 +45,27 @@ class LocalDictProvider(BaseProvider):
     @property
     def cash(self) -> Decimal:
         return self._portfolio.cash
-    
-    def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None)->Decimal:
+
+    def _get_instrument_price(
+        self, ticker: str, at_day: Optional[date] = None
+    ) -> Decimal:
         value = self._price_dict.get(ticker)
         if not value:
             nvalue = self.default_price_gen.get()
             self._price_dict[ticker] = nvalue
             return nvalue
         return value
-    
-    def _get_instrument_prices(self, tickers: List[str], at_day: Optional[date] = None)-> Dict[str, Decimal]:
+
+    def _get_instrument_prices(
+        self, tickers: List[str], at_day: Optional[date] = None
+    ) -> Dict[str, Decimal]:
         for ticker in tickers:
             value = self._price_dict.get(ticker)
             if not value:
                 nvalue = self.default_price_gen.get()
                 self._price_dict[ticker] = nvalue
-        return {ticker:self._price_dict[ticker] for ticker in tickers}
-    
+        return {ticker: self._price_dict[ticker] for ticker in tickers}
+
     def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
         price = self.get_instrument_price(ticker)
         if not price:
@@ -86,4 +90,3 @@ class LocalDictProvider(BaseProvider):
 class LocalDictNoPartialProvider(LocalDictProvider):
     PROVIDER = Provider.LOCAL_DICT_NO_PARTIAL
     SUPPORTS_FRACTIONAL_SHARES = False
-

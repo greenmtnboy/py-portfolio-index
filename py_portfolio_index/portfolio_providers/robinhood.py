@@ -11,7 +11,6 @@ from py_portfolio_index.models import (
     ProfitModel,
 )
 from py_portfolio_index.common import divide_into_batches
-from py_portfolio_index.portfolio_providers.common import PriceCache
 from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
     CacheKey,
@@ -511,7 +510,6 @@ class RobinhoodProvider(BaseProvider):
         return output
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
-
         value = self._provider.get_dividends()
         output: DefaultDict[str, Money] = defaultdict(lambda: Money(value=0))
         instrument_to_symbol_map = self._get_cached_value(

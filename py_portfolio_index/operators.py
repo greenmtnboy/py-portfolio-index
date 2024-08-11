@@ -158,7 +158,6 @@ def generate_sell_order(
     if round(diffvalue.diff, 4) == 0.0000:
         return None
     elif diffvalue.diff < 0:
-        diff_text = "Overweight"
         sell_target: Money = (
             target_value * diffvalue.comparison - target_value * diffvalue.model
         )
@@ -202,6 +201,7 @@ def generate_buy_order(
                 purchase_power,
             )
         )
+        Logger.debug(f"Buy target for {key} is {buy_target}")
         if buy_order == PurchaseStrategy.PEANUT_BUTTER:
             if buy_target > 0.0:
                 max_value: Decimal = max(
@@ -215,10 +215,8 @@ def generate_buy_order(
             return None
         price = Money(value=_price)
 
-        Logger.debug(
-            f"{diff_text} {key}, {print_per(diffvalue.model)} target vs {print_per(diffvalue.comparison)} actual. Should be {target_value * diffvalue.model}, is {diffvalue.actual}"
-        )
         if not fractional_shares:
+            Logger.debug(f"Int order debug: {buy_target}, {price}")
             qty = round_int_with_strategy(buy_target / price, RoundingStrategy.FLOOR)
             if qty == 0:
                 return None
@@ -227,6 +225,9 @@ def generate_buy_order(
             # if we can use fractional, go with the target price only
             qty = None
 
+        Logger.debug(
+            f"{diff_text} {key}, {print_per(diffvalue.model)} target vs {print_per(diffvalue.comparison)} actual. Should be {target_value * diffvalue.model}, is {diffvalue.actual}"
+        )
         return OrderElement(
             ticker=key,
             value=buy_target,
@@ -328,17 +329,15 @@ def generate_order_plan(
             buying += abs(_diff)
 
     Logger.info(
-        f"Total portfolio % delta {print_per(diff)}. Overweight {print_per(selling)}, underweight {print_per(buying)}"
+        f"Total portfolio % delta {print_per(diff)}. Overweight {print_per(selling)}, underweight {print_per(buying)}, have {purchase_power}"
     )
 
     scaling_factor, diff_output = gen_diff_and_scaling(
         buy_order, output, purchase_power, target_value, currently_held
     )
-    Logger.debug(f"Scaling factor is {scaling_factor}")
-    Logger.debug(f"Diff output is {diff_output}")
     to_purchase: list[OrderElement] = []
     to_sell: list[OrderElement] = []
-    # first sell everything
+
     prices = price_cache.get_prices([*diff_output.keys()])
 
     for key, diffvalue in diff_output.items():
@@ -360,12 +359,14 @@ def generate_order_plan(
             fractional_shares=fractional_shares,
         )
         if order:
-            Logger.debug(f"Order is {order}")
             if order.value:
                 purchase_power = purchase_power - order.value
             else:
                 purchase_power = purchase_power - (prices[key] * order.qty)
+            Logger.debug(f"{purchase_power} left - order is {order}")
             to_purchase.append(order)
+        if purchase_power <= 0:
+            break
 
     return OrderPlan(to_buy=to_purchase, to_sell=to_sell)
 

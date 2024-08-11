@@ -1,5 +1,4 @@
 from py_portfolio_index.models import (
-    RealPortfolio,
     RealPortfolioElement,
     CompositePortfolio,
     Money,
@@ -15,7 +14,6 @@ from py_portfolio_index.operators import (
     generate_composite_order_plan,
     OrderElement,
     OrderType,
-    OrderPlan,
 )
 from py_portfolio_index.enums import Provider
 from py_portfolio_index.constants import Logger
@@ -57,8 +55,8 @@ def test_composite():
     expected_size = 2000
 
     composite_order_plan = generate_composite_order_plan(
-        composite,
-        ideal_port,
+        composite=composite,
+        ideal=ideal_port,
         target_size=expected_size,
         purchase_order_maps=PurchaseStrategy.LARGEST_DIFF_FIRST,
     )

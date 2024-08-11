@@ -50,6 +50,10 @@ class BaseProvider(object):
     SUPPORTS_BATCH_HISTORY = 0
     SUPPORTS_FRACTIONAL_SHARES = True
 
+    def __init__(self) -> None:
+        self.stock_info_cache: Dict[str, StockInfo] = {}
+        self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
+        self.CACHE: dict[str, CachedValue] = {}
 
     def clear_cache(self, skip_clearing: List[str]):
         for value in self.CACHE.values():
@@ -78,13 +82,8 @@ class BaseProvider(object):
             if age.seconds < max_age_seconds:
                 return cached.value
         cached.value = cached.fetcher()
-        
-        return cached.value
 
-    def __init__(self) -> None:
-        self.stock_info_cache: Dict[str, StockInfo] = {}
-        self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
-        self.CACHE: dict[str, CachedValue] = {}
+        return cached.value
 
     @property
     def valid_assets(self) -> Set[str]:
@@ -93,7 +92,7 @@ class BaseProvider(object):
     @property
     def cash(self) -> Money:
         return self.get_holdings().cash
-    
+
     def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None):
         raise NotImplementedError
 
@@ -114,11 +113,8 @@ class BaseProvider(object):
 
     def get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
-    ) -> Dict[str, Optional[Decimal]]:
-        output = {}
-        for ticker in tickers:
-            output[ticker] = self.get_instrument_price(ticker, at_day=at_day)
-        return output
+    ) -> Dict[str, Decimal]:
+        return self._price_cache.get_prices(tickers=tickers, date=at_day)
 
     @lru_cache(maxsize=None)
     def get_instrument_price(

@@ -1,7 +1,7 @@
 from decimal import Decimal
 from datetime import date, datetime
 from typing import Optional, List, Dict, DefaultDict, Any
-from py_portfolio_index.constants import Logger, CACHE_DIR
+from py_portfolio_index.constants import CACHE_DIR
 from py_portfolio_index.models import (
     RealPortfolio,
     RealPortfolioElement,
@@ -9,7 +9,6 @@ from py_portfolio_index.models import (
     ProfitModel,
 )
 from py_portfolio_index.common import divide_into_batches
-from py_portfolio_index.portfolio_providers.common import PriceCache
 from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
     CacheKey,
@@ -20,9 +19,7 @@ from py_portfolio_index.exceptions import OrderError
 from py_portfolio_index.enums import Provider
 from functools import lru_cache
 from os import environ, remove
-from pytz import UTC
 from pathlib import Path
-import json
 from platformdirs import user_cache_dir
 
 FRACTIONAL_SLEEP = 60
@@ -187,7 +184,7 @@ class SchwabProvider(BaseProvider):
             .set_session(Session.SEAMLESS)
             .build(),
         )
-        id = self._utils.extract_order_id(order)
+        _ = self._utils.extract_order_id(order)
         return order
 
     def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):

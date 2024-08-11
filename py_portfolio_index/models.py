@@ -52,7 +52,7 @@ class Money(BaseModel):
     @property
     def decimal(self) -> Decimal:
         return self.value  # type: ignore
-    
+
     @property
     def is_zero(self):
         return self.value == Decimal(0)
@@ -133,6 +133,9 @@ class Money(BaseModel):
 
     def __mul__(self, other) -> "Money":
         return Money(value=self.value * self._cmp_helper(other), currency=self.currency)
+
+    def __div__(self, other):
+        return Money(value=self.value / self._cmp_helper(other), currency=self.currency)
 
     def __truediv__(self, other):
         return Money(value=self.value / self._cmp_helper(other), currency=self.currency)

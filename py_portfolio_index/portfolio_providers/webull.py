@@ -75,6 +75,7 @@ class InstrumentDict(dict):
             return self[key]
         raise ValueError(f"Could not find instrument {key} after refresh")
 
+
 class WebullProvider(BaseProvider):
     """Provider for interacting with stocks held in
     Webull
@@ -118,16 +119,17 @@ class WebullProvider(BaseProvider):
         # we must set both of these to have a valid login
         self._provider._did = device_id
         self._provider._headers["did"] = device_id
-        BaseProvider.__init__(self)
+
         self._provider.login(username=username, password=password)
+        self._local_instrument_cache: Dict[str, str] = {}
+        if not skip_cache:
+            self._load_local_instrument_cache()
 
         self._provider.get_trade_token(trade_token)
         account_info: dict = self._provider.get_account()
         if account_info.get("success") is False:
             raise ConfigurationError(f"Authentication is expired: {account_info}")
-        self._local_instrument_cache: Dict[str, str] = {}
-        if not skip_cache:
-            self._load_local_instrument_cache()
+        BaseProvider.__init__(self)
 
     def _load_local_instrument_cache(self):
         from platformdirs import user_cache_dir
@@ -181,9 +183,6 @@ class WebullProvider(BaseProvider):
             )
             return Decimal(value=list(historicals.itertuples())[0].vwap)
         else:
-            stored = self._price_cache.get_prices(tickers=[ticker])
-            if stored:
-                return stored[ticker]
             quotes: dict = self._provider.get_quote(tId=webull_id)
             if not quotes.get("askList"):
                 return None
@@ -384,10 +383,6 @@ class WebullProvider(BaseProvider):
         cash = Decimal(accounts_data["cashBalance"])
         return RealPortfolio(holdings=out, cash=Money(value=cash), provider=self)
 
-    def get_instrument_prices(self, tickers: List[str], at_day: Optional[date] = None)-> Dict[str, Decimal]:
-        return self._price_cache.get_prices(tickers=tickers, date=at_day)
-
-    ##/market-data/snapshot
     def _get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
     ) -> Dict[str, Optional[Decimal]]:
@@ -399,15 +394,18 @@ class WebullProvider(BaseProvider):
         for list_batch in divide_into_batches(tickers, batch_size):
             # TODO: determine if there is a bulk API
             wbIds = {}
+            new_ids = False
             for ticker in list_batch:
                 webull_id = self._local_instrument_cache.get(ticker)
                 if not webull_id:
                     # skip the call
                     webull_id = str(self._provider.get_ticker(ticker))
                     self._local_instrument_cache[ticker] = webull_id
-                    self._save_local_instrument_cache()
-                wbIds[webull_id] = ticker
+                    new_ids = True
 
+                wbIds[webull_id] = ticker
+            if new_ids:
+                self._save_local_instrument_cache()
             if at_day:
                 output = {}
                 for wbid, ticker in wbIds.items():
@@ -438,53 +436,13 @@ class WebullProvider(BaseProvider):
                     }
                     for future in as_completed(futures):
                         output = future.result()
-                        if 'askList' in output:
+                        if "askList" in output:
                             final[wbIds[str(output["tickerId"])]] = Decimal(
                                 output["askList"][0]["price"]
                             )
-                        final[wbIds[str(output["tickerId"])]] = None
+                        else:
+                            final[wbIds[str(output["tickerId"])]] = None
                 batches.append(final)
-        prices: Dict[str, Optional[Decimal]] = {}
-        for fbatch in batches:
-            prices = {**prices, **fbatch}
-        return prices
-
-    def _get_instrument_prices_old(
-        self, tickers: List[str], at_day: Optional[date] = None
-    ) -> Dict[str, Optional[Decimal]]:
-        batches: List[Dict[str, Optional[Decimal]]] = []
-        for list_batch in divide_into_batches(tickers, 1):
-            # TODO: determine if there is a bulk API
-            ticker: str = list_batch[0]
-            webull_id = self._local_instrument_cache.get(ticker)
-            if not webull_id:
-                # skip the call
-                webull_id = str(self._provider.get_ticker(ticker))
-                self._local_instrument_cache[ticker] = webull_id
-                self._save_local_instrument_cache()
-            if at_day:
-                historicals = self._provider.get_bars(
-                    stock=ticker,
-                    interval="d1",
-                    timeStamp=int(
-                        datetime(
-                            day=at_day.day,
-                            month=at_day.month,
-                            year=at_day.year,
-                            tzinfo=UTC,
-                        ).timestamp()
-                    ),
-                )
-                batches.append(
-                    {ticker: Decimal(value=list(historicals.itertuples())[0].vwap)}
-                )
-            else:
-                quotes = self._provider.get_quote(tId=webull_id)
-                if not quotes.get("askList"):
-                    rval = None
-                else:
-                    rval = Decimal(quotes["askList"][0]["price"])
-                batches.append({ticker: rval})
         prices: Dict[str, Optional[Decimal]] = {}
         for fbatch in batches:
             prices = {**prices, **fbatch}
@@ -504,7 +462,9 @@ class WebullProvider(BaseProvider):
         }
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
-        dividends: dict = self._get_cached_value( CacheKey.DIVIDENDS, callable=self._provider.get_dividends)
+        dividends: dict = self._get_cached_value(
+            CacheKey.DIVIDENDS, callable=self._provider.get_dividends
+        )
         dlist = dividends.get("dividendList", [])
         base = []
         for item in dlist:
