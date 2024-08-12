@@ -352,7 +352,6 @@ class WebullProvider(BaseProvider):
         for row in my_stocks:
             local: Dict[str, Any] = {}
             local["units"] = row["position"]
-            # instrument_data = self._provider.get_instrument_by_url(row["instrument"])
             ticker = row["ticker"]["symbol"]
             local["ticker"] = ticker
             symbols.append(ticker)
@@ -362,9 +361,10 @@ class WebullProvider(BaseProvider):
         prices = self._price_cache.get_prices(symbols)
         total_value = Decimal(0.0)
         for s in symbols:
-            if not prices[s]:
+            price = prices[s]
+            if not price:
                 continue
-            total_value += prices[s] * Decimal(pre[s]["units"])
+            total_value += price * Decimal(pre[s]["units"])
         final = []
         pl_info = self.get_per_ticker_profit_or_loss()
         for s in symbols:
@@ -393,7 +393,7 @@ class WebullProvider(BaseProvider):
             batch_size = 100
         for list_batch in divide_into_batches(tickers, batch_size):
             # TODO: determine if there is a bulk API
-            wbIds = {}
+            wb_ids: Dict[str, str] = {}
             new_ids = False
             for ticker in list_batch:
                 webull_id = self._local_instrument_cache.get(ticker)
@@ -403,12 +403,12 @@ class WebullProvider(BaseProvider):
                     self._local_instrument_cache[ticker] = webull_id
                     new_ids = True
 
-                wbIds[webull_id] = ticker
+                wb_ids[webull_id] = ticker
             if new_ids:
                 self._save_local_instrument_cache()
             if at_day:
-                output = {}
-                for wbid, ticker in wbIds.items():
+                output: dict[str, Decimal | None] = {}
+                for _, ticker in wb_ids.items():
                     historicals = self._provider.get_bars(
                         stock=ticker,
                         interval="d1",
@@ -421,27 +421,29 @@ class WebullProvider(BaseProvider):
                             ).timestamp()
                         ),
                     )
-                    output[ticker] = Decimal(
-                        value=list(historicals.itertuples())[0].vwap
-                    )
+                    base = list(historicals.itertuples())[0]
+                    if base:
+                        output[ticker] = Decimal(value=base[0].vwap)
+                    else:
+                        output[ticker] = None
                 batches.append(output)
             else:
                 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-                final = {}
+                final: Dict[str, Decimal | None] = {}
                 with ThreadPoolExecutor(max_workers=10) as executor:
                     futures = {
                         executor.submit(self._provider.get_quote, None, wbid)
-                        for wbid in wbIds
+                        for wbid in wb_ids
                     }
                     for future in as_completed(futures):
-                        output = future.result()
-                        if "askList" in output:
-                            final[wbIds[str(output["tickerId"])]] = Decimal(
-                                output["askList"][0]["price"]
-                            )
+                        future_output = future.result()
+                        ticker = wb_ids[str(future_output["tickerId"])]
+                        if "askList" in future_output:
+                            value = future_output["askList"][0]["price"]
+                            final[ticker] = Decimal(value=value)
                         else:
-                            final[wbIds[str(output["tickerId"])]] = None
+                            final[ticker] = None
                 batches.append(final)
         prices: Dict[str, Optional[Decimal]] = {}
         for fbatch in batches:

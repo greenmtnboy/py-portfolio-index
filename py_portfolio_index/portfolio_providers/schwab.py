@@ -160,7 +160,7 @@ class SchwabProvider(BaseProvider):
                     end_datetime=at_day,
                 )
             )
-            rval = Decimal(value=list(historicals[0].vwap))
+            rval = Decimal(value=historicals[0].vwap)
 
         else:
             quotes = api_helper(self._provider.get_quote(symbol=ticker))
@@ -170,10 +170,10 @@ class SchwabProvider(BaseProvider):
     def _buy_instrument(
         self,
         symbol: str,
-        qty: Optional[float],
+        qty: int,
         value: Optional[Money] = None,
         price: Optional[Decimal] = None,
-    ) -> dict:
+    ) -> None:
         from schwab.orders.equities import equity_buy_market, Duration, Session
         from httpx import Request
 
@@ -185,27 +185,17 @@ class SchwabProvider(BaseProvider):
             .build(),
         )
         _ = self._utils.extract_order_id(order)
-        return order
+        return None
 
     def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
+        if value:
+            raise NotImplementedError("Schwab does not support buying by value")
         orders_kwargs_list = [
             {"qty": qty, "value": None, "price": self.get_instrument_price(ticker)}
         ]
         for order_kwargs in orders_kwargs_list:
             try:
-                output = self._buy_instrument(ticker, **order_kwargs)  # type: ignore
-                print(output)
-                # msg = output.get("msg")
-                # if not output.get("success"):
-                #     if msg:
-                #         Logger.error(msg)
-                #         if "Your session has expired" in str(msg):
-                #             raise ConfigurationError(msg)
-                #         raise ValueError(msg)
-                #     Logger.error(output)
-                #     if "Your session has expired" in str(output):
-                #         raise ConfigurationError(output)
-                #     raise ValueError(output)
+                self._buy_instrument(ticker, **order_kwargs)  # type: ignore
             except Exception as e:
                 raise OrderError(f"Could not buy {ticker}: {str(e)}")
         return True
@@ -259,7 +249,6 @@ class SchwabProvider(BaseProvider):
         for row in my_stocks:
             local: Dict[str, Any] = {}
             local["units"] = row["longQuantity"]
-            # instrument_data = self._provider.get_instrument_by_url(row["instrument"])
             ticker = row["instrument"]["symbol"]
             local["ticker"] = ticker
             symbols.append(ticker)
@@ -269,9 +258,10 @@ class SchwabProvider(BaseProvider):
         prices = self._price_cache.get_prices(symbols)
         total_value = Decimal(0.0)
         for s in symbols:
-            if not prices[s]:
+            price = prices[s]
+            if not price:
                 continue
-            total_value += prices[s] * Decimal(pre[s]["units"])
+            total_value += price * Decimal(pre[s]["units"])
         final = []
         pl_info = self.get_per_ticker_profit_or_loss()
         for s in symbols:
@@ -284,9 +274,6 @@ class SchwabProvider(BaseProvider):
         out = [RealPortfolioElement(**row) for row in final]
         cash = Decimal(accounts_data["currentBalances"]["cashBalance"])
         return RealPortfolio(holdings=out, cash=Money(value=cash), provider=self)
-
-    def get_instrument_prices(self, tickers: List[str], at_day: Optional[date] = None):
-        return self._price_cache.get_prices(tickers=tickers, date=at_day)
 
     def _get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
@@ -303,7 +290,7 @@ class SchwabProvider(BaseProvider):
                             end_datetime=at_day,
                         )
                     )
-                    batches.append({ticker: Decimal(value=list(historicals[0].vwap))})
+                    batches.append({ticker: Decimal(value=list(historicals)[0].vwap)})
             else:
                 quotes = api_helper(self._provider.get_quotes(symbols=list_batch))
                 for ticker in list_batch:

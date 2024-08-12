@@ -91,12 +91,12 @@ class BaseProvider(object):
 
     @property
     def cash(self) -> Money:
-        return self.get_holdings().cash
+        return self.get_holdings().cash or Money(value=0)
 
     def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None):
         raise NotImplementedError
 
-    def _get_instrument_prices(self, ticker: str, at_day: Optional[date] = None):
+    def _get_instrument_prices(self, ticker: List[str], at_day: Optional[date] = None):
         raise NotImplementedError
 
     def get_holdings(self) -> RealPortfolio:
@@ -113,7 +113,7 @@ class BaseProvider(object):
 
     def get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
-    ) -> Dict[str, Decimal]:
+    ) -> Dict[str, Optional[Decimal]]:
         return self._price_cache.get_prices(tickers=tickers, date=at_day)
 
     @lru_cache(maxsize=None)

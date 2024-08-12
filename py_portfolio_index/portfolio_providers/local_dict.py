@@ -43,8 +43,8 @@ class LocalDictProvider(BaseProvider):
         self.default_price_gen = default_price_gen()
 
     @property
-    def cash(self) -> Decimal:
-        return self._portfolio.cash
+    def cash(self) -> Money:
+        return self._portfolio.cash or Money(value=0)
 
     def _get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
