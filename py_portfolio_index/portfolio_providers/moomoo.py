@@ -8,7 +8,6 @@ from py_portfolio_index.models import (
     ProfitModel,
 )
 from py_portfolio_index.common import divide_into_batches
-from py_portfolio_index.portfolio_providers.common import PriceCache
 from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
     CacheKey,
@@ -18,6 +17,7 @@ from py_portfolio_index.exceptions import (
     PriceFetchError,
     OrderError,
 )
+from py_portfolio_index.constants import CACHE_DIR
 from py_portfolio_index.enums import Provider
 from functools import lru_cache
 from os import environ
@@ -92,18 +92,6 @@ class MooMooProvider(BaseProvider):
         self,
         skip_cache: bool = False,
     ):
-        # if not username:
-        #     username = environ.get(self.USERNAME_ENV, None)
-        # if not password:
-        #     password = environ.get(self.PASSWORD_ENV, None)
-        # if not trade_token:
-        #     trade_token = environ.get(self.TRADE_TOKEN_ENV, None)
-        # if not device_id:
-        #     device_id = environ.get(self.DEVICE_ID_ENV, None)
-        # if not (username and password and trade_token and device_id):
-        #     raise ConfigurationError(
-        #         "Must provide ALL OF username, password, trade_token, and device_id arguments or set environment variables MOOMOO_USERNAME, MOOMOO_PASSWORD, MOOMOO_TRADE_TOKEN, and MOOMOO_DEVICE_ID "
-        #     )
         from moomoo import (
             OpenSecTradeContext,
             OpenQuoteContext,
@@ -122,7 +110,6 @@ class MooMooProvider(BaseProvider):
         self._local_latest_price_cache: Dict[str, Decimal | None] = defaultdict(
             lambda: None
         )
-        self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
         self._local_instrument_cache: Dict[str, str] = {}
         if not skip_cache:
             self._load_local_instrument_cache()
@@ -132,7 +119,7 @@ class MooMooProvider(BaseProvider):
         from pathlib import Path
         import json
 
-        path = Path(user_cache_dir("py_portfolio_index", ensure_exists=True))
+        path = Path(user_cache_dir(CACHE_DIR, ensure_exists=True))
         file = path / CACHE_PATH
         if not file.exists():
             self._local_instrument_cache = {}
@@ -148,7 +135,7 @@ class MooMooProvider(BaseProvider):
         from pathlib import Path
         import json
 
-        path = Path(user_cache_dir("py_portfolio_index", ensure_exists=True))
+        path = Path(user_cache_dir(CACHE_DIR, ensure_exists=True))
         file = path / CACHE_PATH
         with open(file, "w") as f:
             json.dump(self._local_instrument_cache, f)

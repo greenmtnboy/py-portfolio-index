@@ -181,23 +181,25 @@ class SchwabProvider(BaseProvider):
             self._account_hash,
             order_spec=equity_buy_market(symbol, quantity=int(qty))
             .set_duration(Duration.DAY)
-            .set_session(Session.SEAMLESS)
+            .set_session(Session.NORMAL)
             .build(),
         )
         _ = self._utils.extract_order_id(order)
         return None
 
     def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
-        if value:
-            raise NotImplementedError("Schwab does not support buying by value")
-        orders_kwargs_list = [
-            {"qty": qty, "value": None, "price": self.get_instrument_price(ticker)}
-        ]
-        for order_kwargs in orders_kwargs_list:
-            try:
-                self._buy_instrument(ticker, **order_kwargs)  # type: ignore
-            except Exception as e:
-                raise OrderError(f"Could not buy {ticker}: {str(e)}")
+        if qty:
+            orders_kwargs: dict[str, Decimal | Money | None] = {
+                "qty": qty,
+                "value": None,
+            }
+        else:
+            orders_kwargs = {"qty": None, "value": value}
+
+        try:
+            self._buy_instrument(ticker, **orders_kwargs)  # type: ignore
+        except Exception as e:
+            raise OrderError(f"Could not buy {ticker}: {str(e)}")
         return True
 
     def get_unsettled_instruments(self) -> set[str]:

@@ -111,7 +111,6 @@ class RobinhoodProvider(BaseProvider):
         self._local_instrument_cache: List[Dict] = []
         if not skip_cache:
             self._load_local_instrument_cache()
-        self._local_latest_price_cache: Dict[str, Decimal] = {}
 
     @property
     def valid_assets(self) -> set[str]:
@@ -146,7 +145,6 @@ class RobinhoodProvider(BaseProvider):
         with open(file, "w") as f:
             json.dump(self._local_instrument_cache, f)
 
-    @lru_cache(maxsize=None)
     def _get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
     ) -> Optional[Decimal]:
@@ -161,14 +159,10 @@ class RobinhoodProvider(BaseProvider):
                 f"No historical data found for ticker {ticker} on date {at_day.isoformat()}"
             )
         else:
-            local = self._local_latest_price_cache.get(ticker)
-            if local:
-                return local
             quotes = self._provider.get_quotes([ticker])
             if not quotes[0]:
                 return None
             rval = Decimal(quotes[0]["ask_price"])
-            self._local_latest_price_cache[ticker] = rval
             return rval
 
     def _buy_instrument(
@@ -434,19 +428,17 @@ class RobinhoodProvider(BaseProvider):
         }
         symbols = [s for s in symbols if s not in inactive_stocks]
         prices = self.get_instrument_prices(symbols)
-        self._local_latest_price_cache = {**prices, **self._local_latest_price_cache}
         total_value = Decimal(0.0)
         for s in symbols:
-            if not self._local_latest_price_cache[s]:
+            price = prices[s]
+            if not prices[s]:
                 continue
-            total_value += self._local_latest_price_cache[s] * Decimal(pre[s]["units"])
+            total_value += price * Decimal(pre[s]["units"])
         final = []
         pl = self.get_per_ticker_profit_or_loss()
         for s in symbols:
             local = pre[s]
-            value = Decimal(self._local_latest_price_cache[s] or 0) * Decimal(
-                pre[s]["units"]
-            )
+            value = Decimal(prices[s] or 0) * Decimal(pre[s]["units"])
             local["value"] = Money(value=value)
             local["weight"] = value / total_value
             local["unsettled"] = s in unsettled

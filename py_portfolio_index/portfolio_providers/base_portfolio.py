@@ -52,7 +52,10 @@ class BaseProvider(object):
 
     def __init__(self) -> None:
         self.stock_info_cache: Dict[str, StockInfo] = {}
-        self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
+        self._price_cache: PriceCache = PriceCache(
+            fetcher=self._get_instrument_prices,
+            single_fetcher=self._get_instrument_price,
+        )
         self.CACHE: dict[str, CachedValue] = {}
 
     def clear_cache(self, skip_clearing: List[str]):
@@ -116,16 +119,10 @@ class BaseProvider(object):
     ) -> Dict[str, Optional[Decimal]]:
         return self._price_cache.get_prices(tickers=tickers, date=at_day)
 
-    @lru_cache(maxsize=None)
     def get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
     ) -> Optional[Decimal]:
-        try:
-            return self._get_instrument_price(ticker, at_day)
-        except NotImplementedError as e:
-            raise e
-        except Exception as e:
-            raise PriceFetchError(e)
+        return self._price_cache.get_price(ticker=ticker, date=at_day)
 
     def buy_instrument(
         self, ticker: str, qty: Decimal, value: Optional[Money] = None

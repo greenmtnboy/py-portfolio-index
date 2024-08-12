@@ -31,8 +31,8 @@ def filter_prices_response(
     if not earliest:
         ticker_vals = reversed(ticker_vals)
     for x in ticker_vals:
-        if x.high:
-            return Decimal(x.high)
+        if x.close:
+            return Decimal(x.close)
     return None
 
 
@@ -83,7 +83,8 @@ class AlpacaProvider(BaseProvider):
             "Apca-Api-Secret-Key": secret_key,
         }
         self._price_cache: PriceCache = PriceCache(
-            fetcher=self._get_instrument_prices_wrapper
+            fetcher=self._get_instrument_prices_wrapper,
+            single_fetcher=self._get_instrument_price,
         )
 
     @property
@@ -106,7 +107,7 @@ class AlpacaProvider(BaseProvider):
         self, tickers: List[str], at_day: Optional[date] = None
     ) -> Dict[str, Optional[Decimal]]:
         from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
-        from alpaca.data.requests import StockBarsRequest
+        from alpaca.data.requests import StockBarsRequest, Adjustment
 
         if at_day:
             today = datetime.now(tz=timezone.utc)
@@ -118,7 +119,6 @@ class AlpacaProvider(BaseProvider):
                 datetime.now(tz=timezone.utc) - timedelta(minutes=30),
                 start + timedelta(days=7),
             )
-            # end = datetime(at_day.year, at_day.month, at_day.day+7, hour=23, tzinfo=timezone.utc)
             raw = self.historical_client.get_stock_bars(
                 StockBarsRequest(
                     symbol_or_symbols=tickers,
@@ -126,13 +126,9 @@ class AlpacaProvider(BaseProvider):
                     end=end,
                     timeframe=TimeFrame(amount=1, unit=TimeFrameUnit.Day),
                     limit=len(tickers) * 7,
-                    adjustment=None,
+                    adjustment=Adjustment.SPLIT,
                     feed=None,
                 )
-                # [ticker],
-                # timeframe=TimeFrame(amount=1, unit=TimeFrameUnit.Day),
-                # start=start.isoformat(),
-                # end=end.isoformat(),
             )
             # take the first day after target day
 
@@ -151,10 +147,6 @@ class AlpacaProvider(BaseProvider):
                     adjustment=None,
                     limit=len(tickers) * 7,
                 )
-                # [ticker],
-                # timeframe=TimeFrame(amount=1, unit=TimeFrameUnit.Day),
-                # start=start.isoformat(),
-                # end=end.isoformat(),
             )
             # take the first day after target day
             return {

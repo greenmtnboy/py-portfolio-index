@@ -173,6 +173,15 @@ class IdealPortfolioElement(BaseModel):
     weight: Decimal
 
 
+@dataclass
+class ReweightResponse:
+    original: Decimal
+    new: Decimal
+    original_price: Decimal | None
+    new_price: Decimal | None
+    ratio: Decimal
+
+
 class IdealPortfolio(BaseModel):
     holdings: List[IdealPortfolioElement]
     source_date: Optional[date] = Field(default_factory=date.today)
@@ -251,7 +260,12 @@ class IdealPortfolio(BaseModel):
         )
         return self
 
-    def reweight_to_present(self, provider: "BaseProvider") -> dict:
+    def reweight_to_present(
+        self, provider: "BaseProvider"
+    ) -> dict[str, ReweightResponse]:
+        if self.source_date == date.today():
+            Logger.info("Already reweighted to present")
+            return {}
         output = {}
         imaginary_base = Decimal(1_000_000)
         values = {}
@@ -295,8 +309,17 @@ class IdealPortfolio(BaseModel):
                 ratio = round(((new_weight - item.weight) / item.weight) * 100, 2)
             else:
                 ratio = Decimal(0.0)
-            output[item.ticker] = ratio
+            output[item.ticker] = ReweightResponse(
+                original=item.weight,
+                new=new_weight,
+                original_price=historic_prices[item.ticker],
+                new_price=today_prices[item.ticker],
+                ratio=ratio,
+            )
             item.weight = new_weight
+        # change our source date to today
+        # so we don't reweight again
+        self.source_date = date.today()
         self._reweight_portfolio()
         return output
 

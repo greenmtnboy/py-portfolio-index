@@ -202,7 +202,6 @@ def generate_buy_order(
             purchase_power,
         )
     )
-    Logger.debug(f"Buy target for {key} is {initial_buy_target}")
     if buy_order == PurchaseStrategy.PEANUT_BUTTER:
         if initial_buy_target > 0.0:
             max_value: Decimal = max(
