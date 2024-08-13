@@ -11,7 +11,7 @@ from py_portfolio_index.common import (
 )
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import RoundingStrategy, Provider
-from py_portfolio_index.exceptions import PriceFetchError, OrderError
+from py_portfolio_index.exceptions import OrderError
 from py_portfolio_index.models import (
     Money,
     OrderPlan,
@@ -19,7 +19,6 @@ from py_portfolio_index.models import (
     StockInfo,
     ProfitModel,
 )
-from functools import lru_cache
 from py_portfolio_index.models import RealPortfolio
 from dataclasses import dataclass, field
 from enum import Enum

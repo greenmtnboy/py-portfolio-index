@@ -22,7 +22,6 @@ from py_portfolio_index.portfolio_providers.helpers.robinhood import (
     ROBINHOOD_USERNAME_ENV,
 )
 from py_portfolio_index.enums import Provider
-from functools import lru_cache
 from os import environ
 from collections import defaultdict
 

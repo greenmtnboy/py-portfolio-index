@@ -14,72 +14,56 @@ from py_portfolio_index.portfolio_providers.base_portfolio import (
     CacheKey,
 )
 from py_portfolio_index.exceptions import ConfigurationError
-from collections import defaultdict
+
 from py_portfolio_index.exceptions import OrderError
 from py_portfolio_index.enums import Provider
+from collections import defaultdict
 from functools import lru_cache
 from os import environ, remove
 from pathlib import Path
 from platformdirs import user_cache_dir
+from pytz import UTC
 
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
 
+
 CACHE_PATH = "schwab_tickers.json"
 
 
-def nearest_value(all_historicals, pivot) -> Optional[dict]:
-    filtered = [z for z in all_historicals if z]
-    if not filtered:
-        return None
-    return min(
-        filtered,
-        key=lambda x: abs(
-            datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - pivot
-        ),
+def date_to_datetimes(at_day: date) -> tuple[datetime, datetime]:
+    start_datetime = datetime(
+        day=at_day.day,
+        year=at_day.year,
+        month=at_day.month,
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+        tzinfo=UTC,
     )
-
-
-def nearest_multi_value(
-    symbol: str, all_historicals, pivot: Optional[date] = None
-) -> Optional[Decimal]:
-    filtered = [z for z in all_historicals if z and z["symbol"] == symbol]
-    if not filtered:
-        return None
-    if pivot is not None:
-        lpivot = pivot or date.today()
-        closest = min(
-            filtered,
-            key=lambda x: abs(
-                datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - lpivot
-            ),
-        )
-    else:
-        closest = filtered[0]
-    if closest:
-        value = closest.get("last_trade_price", closest.get("high_price", None))
-        return Decimal(value)
-    return None
-
-
-class InstrumentDict(dict):
-    def __init__(self, refresher, *args):
-        super().__init__(*args)
-        self.refresher = refresher
-
-    def __missing__(self, key):
-        mapping = self.refresher()
-        self.update(mapping)
-        if key in self:
-            return self[key]
-        raise ValueError(f"Could not find instrument {key} after refresh")
+    end_datetime = datetime(
+        day=at_day.day,
+        year=at_day.year,
+        month=at_day.month,
+        hour=23,
+        minute=59,
+        second=59,
+        microsecond=0,
+        tzinfo=UTC,
+    )
+    return start_datetime, end_datetime
 
 
 def api_helper(response):
     from httpx import Response
 
     raw: Response = response
-    raw.raise_for_status()
+    try:
+        raw.raise_for_status()
+    except Exception as e:
+        print(raw.content)
+        raise e
     return raw.json()
 
 
@@ -100,7 +84,7 @@ class SchwabProvider(BaseProvider):
         self,
         api_key: str | None = None,
         app_secret: str | None = None,
-        skip_cache: bool = False,
+        external_auth: bool = False,
     ):
         if not api_key:
             api_key = environ.get(self.API_KEY_ENV, None)
@@ -124,6 +108,11 @@ class SchwabProvider(BaseProvider):
         try:
             c = auth.client_from_token_file(token_path, api_key, app_secret=app_secret)
         except FileNotFoundError:
+            if external_auth:
+                raise ConfigurationError(
+                    "External authentication flag set but invalid auth"
+                )
+
             c = auth.client_from_login_flow(
                 api_key,
                 app_secret,
@@ -153,11 +142,12 @@ class SchwabProvider(BaseProvider):
         if stored:
             return stored[ticker]
         if at_day:
+            start_datetime, end_datetime = date_to_datetimes(at_day)
             historicals = api_helper(
                 self._provider.get_price_history_every_day(
                     symbol=ticker,
-                    start_datetime=at_day,
-                    end_datetime=at_day,
+                    start_datetime=start_datetime,
+                    end_datetime=end_datetime,
                 )
             )
             rval = Decimal(value=historicals[0].vwap)
@@ -282,17 +272,21 @@ class SchwabProvider(BaseProvider):
     ) -> Dict[str, Optional[Decimal]]:
         batches: List[Dict[str, Optional[Decimal]]] = []
         prices: Dict[str, Optional[Decimal]] = {}
+
         for list_batch in divide_into_batches(tickers, 100):
             if at_day:
+                start_datetime, end_datetime = date_to_datetimes(at_day)
                 for ticker in list_batch:
                     historicals = api_helper(
                         self._provider.get_price_history_every_day(
                             symbol=ticker,
-                            start_datetime=at_day,
-                            end_datetime=at_day,
+                            start_datetime=start_datetime,
+                            end_datetime=end_datetime,
                         )
                     )
-                    batches.append({ticker: Decimal(value=list(historicals)[0].vwap)})
+                    batches.append(
+                        {ticker: Decimal(value=historicals["candles"][0]["close"])}
+                    )
             else:
                 quotes = api_helper(self._provider.get_quotes(symbols=list_batch))
                 for ticker in list_batch:
@@ -302,8 +296,6 @@ class SchwabProvider(BaseProvider):
                         )
                     else:
                         prices[ticker] = None
-                # batches.append({ticker:Decimal(value=quotes[ticker]['quote']['lastPrice']) for ticker in list_batch})
-
         for fbatch in batches:
             prices = {**prices, **fbatch}
         return prices

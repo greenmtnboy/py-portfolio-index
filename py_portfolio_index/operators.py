@@ -388,13 +388,22 @@ def generate_composite_order_plan(
     target_size: Optional[Money | float | int],
     min_order_value: Money = MIN_ORDER_MONEY,
     safety_threshold: Decimal = Decimal(0.95),
+    target_order_size: Optional[Money] = None,
 ) -> Mapping[Provider, OrderPlan]:
     provider_to_portfolio_map = {
         x.provider: x for x in composite.portfolios if x.provider
     }
-    purchase_power_money = {
-        x.provider.PROVIDER: x.cash for x in composite.portfolios if x.provider
-    }
+    if target_order_size:
+        purchase_power_money = {}
+        for portfolio in composite.portfolios:
+            if portfolio.provider:
+                local_power = min(portfolio.cash, target_order_size)
+                purchase_power_money[portfolio.provider.PROVIDER] = local_power
+                target_order_size -= local_power
+    else:
+        purchase_power_money = {
+            x.provider.PROVIDER: x.cash for x in composite.portfolios if x.provider
+        }
     Logger.debug(f"Purchase power money is {purchase_power_money}")
     providers: List[BaseProvider] = list(provider_to_portfolio_map.keys())  # type: ignore
 

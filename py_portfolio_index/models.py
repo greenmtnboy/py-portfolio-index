@@ -350,7 +350,7 @@ class RealPortfolioElement(IdealPortfolioElement):
 class RealPortfolio(BaseModel):
     holdings: List[RealPortfolioElement]
     provider: Optional[ProviderProtocol] = None
-    cash: None | Money = None
+    cash: Money = Field(default_factory=lambda: Money(value=0, currency=Currency.USD))
     profit_and_loss: None | ProfitModel = None
 
     # @property
