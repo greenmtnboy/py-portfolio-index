@@ -17,6 +17,8 @@ class ExtraAuthenticationStepException(Exception):
         super().__init__(*args)
         self.response = response
 
+class SchwabExtraAuthenticationStepException(ExtraAuthenticationStepException):
+    pass
 
 class OrderError(Exception):
     def __init__(self, message, *args):

@@ -16,7 +16,11 @@ from py_portfolio_index.constants import CACHE_DIR
 from platformdirs import user_cache_dir
 from pathlib import Path
 from dataclasses import dataclass
+from py_portfolio_index.exceptions import (
+    SchwabExtraAuthenticationStepException
 
+)
+from os import environ, remove
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -236,14 +240,24 @@ def create_login_context(
     callback_timeout: float = 300.0,
 ):
     from authlib.integrations.httpx_client import OAuth2Client
-
+    from schwab import auth
+    token_path = (
+        Path(user_cache_dir(CACHE_DIR, ensure_exists=True)) / "schwab_token.json"
+    )
+    try:
+        c = auth.client_from_token_file(token_path, api_key, app_secret=app_secret)
+        c.get_account_numbers().raise_for_status()
+        return
+    except FileNotFoundError:
+        pass
+    except Exception:
+        remove(token_path)
+        pass
     if callback_timeout is None:
         callback_timeout = 0
     if callback_timeout < 0:
         raise ValueError("callback_timeout must be positive")
-    token_path = (
-        Path(user_cache_dir(CACHE_DIR, ensure_exists=True)) / "schwab_token.json"
-    )
+
     # Start the server
     parsed = urllib.parse.urlparse(callback_url)
 
