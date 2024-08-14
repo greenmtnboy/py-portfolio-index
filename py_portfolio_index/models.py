@@ -53,6 +53,10 @@ class Money(BaseModel):
     def decimal(self) -> Decimal:
         return self.value  # type: ignore
 
+    @property
+    def is_zero(self):
+        return self.value == Decimal(0)
+
     @validator("value", pre=True)
     def coerce_to_decimal(cls, v) -> Decimal:
         if isinstance(v, (int, float)):
@@ -92,6 +96,8 @@ class Money(BaseModel):
             if other.currency != self.currency:
                 raise ValueError("Currency conversions not supported")
             return other.value
+        elif isinstance(other, int):
+            return Decimal(value=other)
         return other
 
     def __eq__(self, other):
@@ -128,6 +134,9 @@ class Money(BaseModel):
     def __mul__(self, other) -> "Money":
         return Money(value=self.value * self._cmp_helper(other), currency=self.currency)
 
+    def __div__(self, other):
+        return Money(value=self.value / self._cmp_helper(other), currency=self.currency)
+
     def __truediv__(self, other):
         return Money(value=self.value / self._cmp_helper(other), currency=self.currency)
 
@@ -162,6 +171,15 @@ class ProfitModel(BaseModel):
 class IdealPortfolioElement(BaseModel):
     ticker: str
     weight: Decimal
+
+
+@dataclass
+class ReweightResponse:
+    original: Decimal
+    new: Decimal
+    original_price: Decimal | None
+    new_price: Decimal | None
+    ratio: Decimal
 
 
 class IdealPortfolio(BaseModel):
@@ -242,7 +260,12 @@ class IdealPortfolio(BaseModel):
         )
         return self
 
-    def reweight_to_present(self, provider: "BaseProvider") -> dict:
+    def reweight_to_present(
+        self, provider: "BaseProvider"
+    ) -> dict[str, ReweightResponse]:
+        if self.source_date == date.today():
+            Logger.info("Already reweighted to present")
+            return {}
         output = {}
         imaginary_base = Decimal(1_000_000)
         values = {}
@@ -286,8 +309,17 @@ class IdealPortfolio(BaseModel):
                 ratio = round(((new_weight - item.weight) / item.weight) * 100, 2)
             else:
                 ratio = Decimal(0.0)
-            output[item.ticker] = ratio
+            output[item.ticker] = ReweightResponse(
+                original=item.weight,
+                new=new_weight,
+                original_price=historic_prices.get(item.ticker),
+                new_price=today_prices.get(item.ticker),
+                ratio=ratio,
+            )
             item.weight = new_weight
+        # change our source date to today
+        # so we don't reweight again
+        self.source_date = date.today()
         self._reweight_portfolio()
         return output
 
@@ -318,7 +350,7 @@ class RealPortfolioElement(IdealPortfolioElement):
 class RealPortfolio(BaseModel):
     holdings: List[RealPortfolioElement]
     provider: Optional[ProviderProtocol] = None
-    cash: None | Money = None
+    cash: Money = Field(default_factory=lambda: Money(value=0, currency=Currency.USD))
     profit_and_loss: None | ProfitModel = None
 
     # @property
@@ -375,7 +407,7 @@ class RealPortfolio(BaseModel):
                 self.add_holding(item, reweight=False)
             self._reweight_portfolio()
         else:
-            raise ValueError
+            raise ValueError(f"{type(other)} cannot be added to portfolio element")
         return self
 
     def refresh(self):
@@ -440,7 +472,17 @@ class OrderElement(BaseModel):
     ticker: str
     order_type: OrderType
     value: Money | None
-    qty: int | None
+    qty: float | int | None
+    price: Money | None = None
+    provider: Optional[Provider] = None
+
+    @property
+    def inferred_value(self) -> Money:
+        if self.value:
+            return self.value
+        if self.qty and self.price:
+            return self.price * self.qty
+        raise ValueError("Cannot infer value")
 
     def __add__(self, other):
         if not isinstance(other, OrderElement):
@@ -468,6 +510,10 @@ class OrderElement(BaseModel):
 class OrderPlan(BaseModel):
     to_buy: List[OrderElement]
     to_sell: List[OrderElement]
+
+    @property
+    def all_orders(self) -> List[OrderElement]:
+        return self.to_buy + self.to_sell
 
     @property
     def tickers(self):

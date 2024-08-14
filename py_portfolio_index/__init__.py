@@ -16,12 +16,13 @@ from py_portfolio_index.portfolio_providers.webull import (
     WebullPaperProvider,
 )
 from py_portfolio_index.portfolio_providers.moomoo import MooMooProvider
+from py_portfolio_index.portfolio_providers.schwab import SchwabProvider
 from py_portfolio_index.config import get_providers
 from py_portfolio_index.models import IdealPortfolio
 
 AVAILABLE_PROVIDERS = get_providers()
 
-__version__ = "0.0.68"
+__version__ = "0.1.0"
 
 __all__ = [
     "INDEXES",
@@ -34,6 +35,7 @@ __all__ = [
     "AlpacaProvider",
     "WebullProvider",
     "WebullPaperProvider",
+    "SchwabProvider",
     "MooMooProvider",
     "RobinhoodProvider",
     "PurchaseStrategy",

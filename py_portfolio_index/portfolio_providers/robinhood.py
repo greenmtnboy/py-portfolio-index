@@ -11,7 +11,6 @@ from py_portfolio_index.models import (
     ProfitModel,
 )
 from py_portfolio_index.common import divide_into_batches
-from py_portfolio_index.portfolio_providers.common import PriceCache
 from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
     CacheKey,
@@ -23,8 +22,8 @@ from py_portfolio_index.portfolio_providers.helpers.robinhood import (
     ROBINHOOD_USERNAME_ENV,
 )
 from py_portfolio_index.enums import Provider
-from functools import lru_cache
 from os import environ
+from collections import defaultdict
 
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
@@ -111,8 +110,6 @@ class RobinhoodProvider(BaseProvider):
         self._local_instrument_cache: List[Dict] = []
         if not skip_cache:
             self._load_local_instrument_cache()
-        self._local_latest_price_cache: Dict[str, Decimal] = {}
-        self._price_cache: PriceCache = PriceCache(fetcher=self._get_instrument_prices)
 
     @property
     def valid_assets(self) -> set[str]:
@@ -147,7 +144,6 @@ class RobinhoodProvider(BaseProvider):
         with open(file, "w") as f:
             json.dump(self._local_instrument_cache, f)
 
-    @lru_cache(maxsize=None)
     def _get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
     ) -> Optional[Decimal]:
@@ -162,14 +158,10 @@ class RobinhoodProvider(BaseProvider):
                 f"No historical data found for ticker {ticker} on date {at_day.isoformat()}"
             )
         else:
-            local = self._local_latest_price_cache.get(ticker)
-            if local:
-                return local
             quotes = self._provider.get_quotes([ticker])
             if not quotes[0]:
                 return None
             rval = Decimal(quotes[0]["ask_price"])
-            self._local_latest_price_cache[ticker] = rval
             return rval
 
     def _buy_instrument(
@@ -435,19 +427,17 @@ class RobinhoodProvider(BaseProvider):
         }
         symbols = [s for s in symbols if s not in inactive_stocks]
         prices = self.get_instrument_prices(symbols)
-        self._local_latest_price_cache = {**prices, **self._local_latest_price_cache}
         total_value = Decimal(0.0)
         for s in symbols:
-            if not self._local_latest_price_cache[s]:
+            price = prices[s]
+            if not prices[s]:
                 continue
-            total_value += self._local_latest_price_cache[s] * Decimal(pre[s]["units"])
+            total_value += price * Decimal(pre[s]["units"])
         final = []
         pl = self.get_per_ticker_profit_or_loss()
         for s in symbols:
             local = pre[s]
-            value = Decimal(self._local_latest_price_cache[s] or 0) * Decimal(
-                pre[s]["units"]
-            )
+            value = Decimal(prices[s] or 0) * Decimal(pre[s]["units"])
             local["value"] = Money(value=value)
             local["weight"] = value / total_value
             local["unsettled"] = s in unsettled
@@ -494,7 +484,7 @@ class RobinhoodProvider(BaseProvider):
             CacheKey.MISC,
             callable=self._process_cache_to_dict,
         )
-        divs = self._get_dividends()
+        divs = self._get_cached_value(CacheKey.DIVIDENDS, callable=self._get_dividends)
         output = {}
         for x in my_stocks:
             historical_value = Decimal(x["average_buy_price"]) * Decimal(x["quantity"])
@@ -511,11 +501,7 @@ class RobinhoodProvider(BaseProvider):
         return output
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
-        from collections import defaultdict
-
-        value = self._get_cached_value(
-            CacheKey.DIVIDENDS, callable=self._provider.get_dividends
-        )
+        value = self._provider.get_dividends()
         output: DefaultDict[str, Money] = defaultdict(lambda: Money(value=0))
         instrument_to_symbol_map = self._get_cached_value(
             CacheKey.MISC,

@@ -1,6 +1,6 @@
-## Py Portfolio Index
+## Customized Index Funds
 
-`py-portfolio-index` is a python library to make it easier to mantain a broad, index-based approach to stock investing while being able to layer in person preferences, such as to exclude or reweight certain kinds of stocks.
+`py-portfolio-index` is a python library to make it easier to mantain a broad, index-based approach to stock investing while being able to layer in personal preferences, such as to exclude or reweight certain kinds of stocks.
 
  For example, a user could construct a portfolio that matches the composition of the S&P 500, but excludes oil companies and overweights semiconductor companies.
 
@@ -15,29 +15,33 @@ Large Cap or real-estate and are updated quarterly.
 
 ## Lists/Themes
 
-py-portfolio-index also contains a default list of stock lists, which can be access via the STOCK_LISTS dictionary: `from py_portfolio_index import STOCK_LISTS`. These lists are thematic groupings, such as by industry (space)
+py-portfolio-index also contains a default list of stock lists, which can be access via the STOCK_LISTS dictionary: `from py_portfolio_index import STOCK_LISTS`. These lists are thematic groupings, such as by industry (oil, space)
 or by other criteria (vice). Lists can be applied to modify indexes or reweight them to create customized
 portfolios. 
 
 #### Install
 
-The package supports Python 3.9 plus.
+The package supports Python 3.9+.
 
 `pip install py-portfolio-index`
 
-Note that provider dependencies must be installed independently, for each provider you wish to use.
+Note that provider dependencies must be installed independently for each provider you wish to use.
 
 - alpaca - `pip install alpaca-trade-api` or `pip install py-portfolio-index[alpaca]`
 - robinhood - `pip install robin_stocks` or `pip install py-portfolio-index[robinhood]`
 - webull - `pip install webull` or `pip install py-portfolio-index[webull]`
+- scwhab - `pip install schwab-py` or `pip install py-portfolio-index[schwab]`
 
 #### Considerations
+
+Default index construction uses market orders and assumes an accumulative portfolio. 
+
+Some market information may be internally cached for up to an hour to improve performnace. py-portfolio-index is not designed for active day-trading. 
 
 Some providers may take some time to place an order. Keep this in mind when running repeated rebalances, as the
 portfolio balance may not have updated to reflect your last order.
 
-Also remember that the stock markets are not always open!
-
+Remember that the stock markets are not always open! Providers may vary in their treatment of market hours. 
 
 #### Basic Example
 
@@ -139,7 +143,7 @@ provider.purchase_order_plan(plan = planned_orders, fractional_shares=False, ski
 
 ### Webull
 
-Webull support is experimental. Follow similar patterns to the above examples, but use the WebullProvider.
+Webull support is mature. Follow similar patterns to the above examples, but use the WebullProvider.
 
 This currently uses [this unoffical API package](https://github.com/tedchou12/webull), and requires you 
 to follow device-id authorization path from their docs. 
@@ -147,6 +151,20 @@ to follow device-id authorization path from their docs.
 ```python
 
 from py_portfolio_index import WebullProvider
+
+```
+
+
+### Schwab
+
+Schwab support is experimental. Follow similar patterns to the above examples, but use the ScwhabProvider.
+
+This currently uses [this unoffical API package](https://github.com/alexgolec/schwab-py), and requires you
+to create an app on the schwab website and follow the authorization path from their docs.
+
+```python
+
+from py_portfolio_index import SchwabProvider
 
 ```
 
@@ -167,6 +185,8 @@ Can be found in the examples folder.
 ### Logging
 
 It can be helpful to configure the logger to print messages. You can either configure the standard python logger or use the portfolio specific one using an example like the below.
+
+Relevant messages are at both INFO and DEBUG levels. 
 
 ```python
 from py_portfolio_index.constants import Logger

@@ -30,4 +30,10 @@ def get_providers() -> List[Provider]:
         providers.append(Provider.WEBULL_PAPER)
     except ImportError:
         pass
+    try:
+        from schwab import client  # noqa: F401
+
+        providers.append(Provider.SCHWAB)
+    except ImportError:
+        pass
     return providers

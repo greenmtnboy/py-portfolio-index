@@ -11,7 +11,7 @@ from py_portfolio_index.common import (
 )
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import RoundingStrategy, Provider
-from py_portfolio_index.exceptions import PriceFetchError, OrderError
+from py_portfolio_index.exceptions import OrderError
 from py_portfolio_index.models import (
     Money,
     OrderPlan,
@@ -19,11 +19,11 @@ from py_portfolio_index.models import (
     StockInfo,
     ProfitModel,
 )
-from functools import lru_cache
 from py_portfolio_index.models import RealPortfolio
 from dataclasses import dataclass, field
 from enum import Enum
 from datetime import datetime
+from py_portfolio_index.portfolio_providers.common import PriceCache
 
 
 @dataclass
@@ -47,7 +47,15 @@ class BaseProvider(object):
     MIN_ORDER_VALUE = Money(value=1)
     MAX_ORDER_DECIMALS = 2
     SUPPORTS_BATCH_HISTORY = 0
-    CACHE: dict[str, CachedValue] = {}
+    SUPPORTS_FRACTIONAL_SHARES = True
+
+    def __init__(self) -> None:
+        self.stock_info_cache: Dict[str, StockInfo] = {}
+        self._price_cache: PriceCache = PriceCache(
+            fetcher=self._get_instrument_prices,
+            single_fetcher=self._get_instrument_price,
+        )
+        self.CACHE: dict[str, CachedValue] = {}
 
     def clear_cache(self, skip_clearing: List[str]):
         for value in self.CACHE.values():
@@ -70,21 +78,27 @@ class BaseProvider(object):
             cached = self.CACHE[skey]
         elif callable:
             cached = CachedValue(value=None, fetcher=callable)
+            self.CACHE[skey] = cached
         if cached.value:
             age = datetime.now() - cached.set
             if age.seconds < max_age_seconds:
                 return cached.value
         cached.value = cached.fetcher()
-        return cached.value
 
-    def __init__(self) -> None:
-        self.stock_info_cache: Dict[str, StockInfo] = {}
+        return cached.value
 
     @property
     def valid_assets(self) -> Set[str]:
         return set()
 
+    @property
+    def cash(self) -> Money:
+        return self.get_holdings().cash or Money(value=0)
+
     def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None):
+        raise NotImplementedError
+
+    def _get_instrument_prices(self, ticker: List[str], at_day: Optional[date] = None):
         raise NotImplementedError
 
     def get_holdings(self) -> RealPortfolio:
@@ -102,21 +116,12 @@ class BaseProvider(object):
     def get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
     ) -> Dict[str, Optional[Decimal]]:
-        output = {}
-        for ticker in tickers:
-            output[ticker] = self.get_instrument_price(ticker, at_day=at_day)
-        return output
+        return self._price_cache.get_prices(tickers=tickers, date=at_day)
 
-    @lru_cache(maxsize=None)
     def get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
     ) -> Optional[Decimal]:
-        try:
-            return self._get_instrument_price(ticker, at_day)
-        except NotImplementedError as e:
-            raise e
-        except Exception as e:
-            raise PriceFetchError(e)
+        return self._price_cache.get_price(ticker=ticker, date=at_day)
 
     def buy_instrument(
         self, ticker: str, qty: Decimal, value: Optional[Money] = None
@@ -160,8 +165,6 @@ class BaseProvider(object):
                     raise e
                 else:
                     continue
-            if not price:
-                price = Money(value=0)
             if price == Money(value=0):
                 to_buy_currency = Money(value=0)
             else:

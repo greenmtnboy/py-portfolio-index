@@ -48,6 +48,7 @@ setuptools.setup(
         "alpaca": ["alpaca-py"],
         "robinhood": ["robin-stocks"],
         "webull": ["webull"],
+        "schwab": ["schwab-py"],
     },
     classifiers=[
         "Programming Language :: Python",

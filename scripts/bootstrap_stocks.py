@@ -29,16 +29,18 @@ if __name__ == "__main__":
     provider = PaperAlpacaProvider()
 
     info_cache: dict[str, StockInfo | bool] = {}
+
+    tickers = get(DUMB_STOCK_API).json()
     target = (
         Path(__file__).parent.parent / "py_portfolio_index" / "bin" / "stock_info.json"
     )
-    tickers = get(DUMB_STOCK_API).json()
-    with open(target, "r") as f:
-        contents = f.read()
-        if contents:
-            existing = StockInfoList.model_validate_json(contents)
-        else:
-            existing = StockInfoList(root=[])
+    if not target.exists():
+        existing = StockInfoList(root=[])
+    else:
+        with open(target, "r") as f:
+            contents = f.read()
+            if contents:
+                existing = StockInfoList.model_validate_json(contents)
     with open(target, "w") as f:
         f.write(existing.model_dump_json())
 
