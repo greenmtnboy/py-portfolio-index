@@ -1,5 +1,5 @@
 
-# Welcome to the PyTrilogy Contributing Guide <!-- omit in toc -->
+# Welcome to the py-portfolio-index Contributing Guide <!-- omit in toc -->
 
 In this guide you will get an overview of the contribution workflow from opening an issue, creating a PR, reviewing, and merging the PR.
 
