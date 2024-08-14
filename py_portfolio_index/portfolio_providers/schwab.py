@@ -62,7 +62,7 @@ def api_helper(response):
     try:
         raw.raise_for_status()
     except Exception as e:
-        if 'Exception while authenticating refresh token' in str(e):
+        if "Exception while authenticating refresh token" in str(e):
             raise ConfigurationError(str(e))
         raise e
     return raw.json()

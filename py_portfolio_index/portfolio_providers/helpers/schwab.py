@@ -16,12 +16,9 @@ from py_portfolio_index.constants import CACHE_DIR
 from platformdirs import user_cache_dir
 from pathlib import Path
 from dataclasses import dataclass
-from py_portfolio_index.exceptions import (
-    SchwabExtraAuthenticationStepException
-
-)
-from os import environ, remove
+from os import remove
 from typing import TYPE_CHECKING
+import atexit
 
 if TYPE_CHECKING:
     from authlib.integrations.httpx_client import OAuth2Client
@@ -241,6 +238,7 @@ def create_login_context(
 ):
     from authlib.integrations.httpx_client import OAuth2Client
     from schwab import auth
+
     token_path = (
         Path(user_cache_dir(CACHE_DIR, ensure_exists=True)) / "schwab_token.json"
     )
@@ -283,6 +281,15 @@ def create_login_context(
         args=(output_queue, callback_port, callback_path),
     )
     server.start()
+
+    # ensure we clean this up on exit
+    def terminate_server():
+        try:
+            psutil.Process(server.pid).kill()
+        except psutil.NoSuchProcess:
+            pass
+
+    atexit.register(terminate_server)
     # Wait until the server successfully starts
     while True:
         # Check if the server is still alive
