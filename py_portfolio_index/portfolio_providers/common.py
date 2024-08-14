@@ -15,7 +15,9 @@ DEFAULT_TIMEOUT = 60 * 60
 
 
 class PriceCache(object):
-    def __init__(self, fetcher, single_fetcher, timeout: int = DEFAULT_TIMEOUT) -> None:
+    def __init__(
+        self, fetcher, single_fetcher=None, timeout: int = DEFAULT_TIMEOUT
+    ) -> None:
         self.fetcher = fetcher
         self.single_fetcher = single_fetcher
         self.store: defaultdict[str, dict[str, Decimal | None]] = defaultdict(dict)
