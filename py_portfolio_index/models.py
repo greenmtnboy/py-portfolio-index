@@ -312,8 +312,8 @@ class IdealPortfolio(BaseModel):
             output[item.ticker] = ReweightResponse(
                 original=item.weight,
                 new=new_weight,
-                original_price=historic_prices[item.ticker],
-                new_price=today_prices[item.ticker],
+                original_price=historic_prices.get(item.ticker),
+                new_price=today_prices.get(item.ticker),
                 ratio=ratio,
             )
             item.weight = new_weight
