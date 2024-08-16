@@ -9,11 +9,10 @@ on:
 
 jobs:
   deploy:
-
     runs-on: ubuntu-latest
     environment:
       name: release
-      url: https://pypi.org/p/pypreql
+      url: https://pypi.org/p/py-portfolio-index
     permissions:
       id-token: write
     steps:
