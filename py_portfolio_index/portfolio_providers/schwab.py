@@ -14,7 +14,7 @@ from py_portfolio_index.portfolio_providers.base_portfolio import (
     CacheKey,
 )
 from py_portfolio_index.exceptions import ConfigurationError
-
+from py_portfolio_index.constants import Logger
 from py_portfolio_index.exceptions import OrderError
 from py_portfolio_index.enums import Provider
 from collections import defaultdict
@@ -23,10 +23,11 @@ from os import environ, remove
 from pathlib import Path
 from platformdirs import user_cache_dir
 from pytz import UTC
+from time import sleep
 
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
-
+FRACTIONAL_SLEEP = 60
 
 CACHE_PATH = "schwab_tickers.json"
 
@@ -175,7 +176,18 @@ class SchwabProvider(BaseProvider):
             .set_session(Session.NORMAL)
             .build(),
         )
-        _ = self._utils.extract_order_id(order)
+        try:
+            _ = self._utils.extract_order_id(order)
+        except Exception as e:
+            if "order not successful: status 429" in str(e):
+                Logger.info(
+                    f"RH error: was throttled on fractional orders! Sleeping {FRACTIONAL_SLEEP}"
+                )
+                sleep(FRACTIONAL_SLEEP)
+                return self._buy_instrument(
+                    symbol=symbol, qty=qty, value=value, price=price
+                )
+            raise e
         return None
 
     def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):

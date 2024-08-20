@@ -155,7 +155,8 @@ class RobinhoodProvider(BaseProvider):
             if closest:
                 return Decimal(closest["high_price"])
             raise PriceFetchError(
-                f"No historical data found for ticker {ticker} on date {at_day.isoformat()}"
+                [ticker],
+                f"No historical data found for ticker {ticker} on date {at_day.isoformat()}",
             )
         else:
             quotes = self._provider.get_quotes([ticker])

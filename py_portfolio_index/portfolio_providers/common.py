@@ -52,7 +52,7 @@ class PriceCache(object):
         except NotImplementedError:
             return self.get_prices([ticker], date)[ticker]
         except Exception as e:
-            raise PriceFetchError(e)
+            raise PriceFetchError([ticker], e)
 
     def get_prices(
         self, tickers: List[str], date: datetype | None = None
@@ -70,8 +70,10 @@ class PriceCache(object):
         if missing:
             try:
                 prices: dict[str, Decimal | None] = self.fetcher(missing, date)
+            except PriceFetchError:
+                raise
             except Exception as e:
-                raise PriceFetchError(e)
+                raise PriceFetchError(missing, e)
             for ticker, price in prices.items():
                 cached[ticker] = price
                 found[ticker] = price

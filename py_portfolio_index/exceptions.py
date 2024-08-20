@@ -5,7 +5,9 @@ if TYPE_CHECKING:
 
 
 class PriceFetchError(Exception):
-    pass
+    def __init__(self, tickers: list[str] | None = None, *args):
+        super().__init__(*args)
+        self.tickers = tickers or []
 
 
 class ConfigurationError(Exception):
