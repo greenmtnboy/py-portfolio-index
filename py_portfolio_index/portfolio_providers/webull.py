@@ -165,7 +165,8 @@ class WebullProvider(BaseProvider):
         webull_id = self._local_instrument_cache.get(ticker)
         if not webull_id:
             # skip the call
-            webull_id = str(self._provider.get_ticker(ticker))
+            lookup_ticker = ticker.replace(".", "-")
+            webull_id = str(self._provider.get_ticker(lookup_ticker))
             self._local_instrument_cache[ticker] = webull_id
             self._save_local_instrument_cache()
         if at_day:
@@ -199,7 +200,9 @@ class WebullProvider(BaseProvider):
         # to check price
         rtId: Optional[str] = self._local_instrument_cache.get(symbol)
         if not rtId:
-            tId = self._provider.get_ticker(symbol)
+            # webull uses '-' instead of '.'; BRK.B -> BRK-B
+            lookup_symbol = symbol.replace(".", "-")
+            tId = self._provider.get_ticker(lookup_symbol)
             self._local_instrument_cache[symbol] = tId
             self._save_local_instrument_cache()
         else:
@@ -396,10 +399,12 @@ class WebullProvider(BaseProvider):
             wb_ids: Dict[str, str] = {}
             new_ids = False
             for ticker in list_batch:
+                lookup_ticker = ticker.replace(".", "-")
+
                 webull_id = self._local_instrument_cache.get(ticker)
                 if not webull_id:
                     # skip the call
-                    webull_id = str(self._provider.get_ticker(ticker))
+                    webull_id = str(self._provider.get_ticker(lookup_ticker))
                     self._local_instrument_cache[ticker] = webull_id
                     new_ids = True
 

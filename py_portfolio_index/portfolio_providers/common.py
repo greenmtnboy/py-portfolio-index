@@ -70,6 +70,8 @@ class PriceCache(object):
         if missing:
             try:
                 prices: dict[str, Decimal | None] = self.fetcher(missing, date)
+            except PriceFetchError:
+                raise
             except Exception as e:
                 raise PriceFetchError(e)
             for ticker, price in prices.items():
