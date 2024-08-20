@@ -174,7 +174,7 @@ class MooMooProvider(BaseProvider):
                 if ret == RET_OK:
                     return list(data.itertuples())[0]
             raise PriceFetchError(
-                f"Subscription failed, could not get price: {err_message}"
+                [ticker], f"Subscription failed, could not get price: {err_message}"
             )
 
     def _buy_instrument(
