@@ -238,6 +238,10 @@ class SchwabProvider(BaseProvider):
             raise ConfigurationError(
                 f"Could not fetch portfolio on {str(e)}; assuming session expired"
             )
+        except Exception as e:
+            if 'refresh_token' in str(e):
+                raise ConfigurationError(f"Could not fetch portfolio: {str(e)}; assuming session expired")
+            raise e
 
     def get_holdings(self) -> RealPortfolio:
         accounts_data = self._get_cached_value(

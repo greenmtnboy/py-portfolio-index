@@ -582,3 +582,9 @@ class StockInfo(BaseModel):
     tradable: bool | None = None
     tags: List[str] = Field(default_factory=list)
     indexes: List[str] = Field(default_factory=list)
+
+
+class DividentResult(BaseModel):
+    ticker: str
+    date: date
+    amount: Money
