@@ -290,3 +290,6 @@ class BaseProvider(object):
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
         raise NotImplementedError
+
+    def get_dividend_history(self) -> Dict[str, Money]:
+        return self._get_cached_value(CacheKey.DIVIDENDS, callable=self._get_dividends)
