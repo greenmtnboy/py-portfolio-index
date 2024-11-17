@@ -1,4 +1,7 @@
+from pydantic import BaseModel
 
 
-
-class DA
+class Datastore(BaseModel):
+    x : int
+    # pass
+    # apss
