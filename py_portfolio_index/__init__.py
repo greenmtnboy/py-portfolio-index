@@ -19,6 +19,7 @@ from py_portfolio_index.portfolio_providers.moomoo import MooMooProvider
 from py_portfolio_index.portfolio_providers.schwab import SchwabProvider
 from py_portfolio_index.config import get_providers
 from py_portfolio_index.models import IdealPortfolio
+from py_portfolio_index.enums import ProviderType
 
 AVAILABLE_PROVIDERS = get_providers()
 
@@ -41,4 +42,5 @@ __all__ = [
     "PurchaseStrategy",
     "RoundingStrategy",
     "IdealPortfolio",
+    "ProviderType",
 ]

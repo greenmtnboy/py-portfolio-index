@@ -6,7 +6,7 @@ from py_portfolio_index.models import (
     RealPortfolioElement,
 )
 from py_portfolio_index.models import Money
-from py_portfolio_index.enums import Provider
+from py_portfolio_index.enums import ProviderType
 from decimal import Decimal
 from .base_portfolio import BaseProvider
 
@@ -28,7 +28,7 @@ class RandGen:
 
 
 class LocalDictProvider(BaseProvider):
-    PROVIDER = Provider.LOCAL_DICT
+    PROVIDER = ProviderType.LOCAL_DICT
 
     def __init__(
         self,
@@ -88,5 +88,5 @@ class LocalDictProvider(BaseProvider):
 
 
 class LocalDictNoPartialProvider(LocalDictProvider):
-    PROVIDER = Provider.LOCAL_DICT_NO_PARTIAL
+    PROVIDER = ProviderType.LOCAL_DICT_NO_PARTIAL
     SUPPORTS_FRACTIONAL_SHARES = False

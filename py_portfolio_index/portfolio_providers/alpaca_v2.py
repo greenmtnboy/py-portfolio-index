@@ -8,15 +8,19 @@ from py_portfolio_index.exceptions import ConfigurationError, OrderError
 from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
     CachedValue,
-    CacheKey,
+    ObjectKey,
 )
 from decimal import Decimal
 from typing import Optional, Dict, List, Set, DefaultDict
 from datetime import date, datetime, timezone, timedelta
 from py_portfolio_index.common import divide_into_batches
-from py_portfolio_index.enums import Provider
+from py_portfolio_index.enums import ProviderType
+from py_portfolio_index.models import DividendResult
 from os import environ
 from py_portfolio_index.portfolio_providers.common import PriceCache
+from collections import defaultdict
+import requests
+import json
 
 MAX_OPEN_ORDER_SIZE = 500
 
@@ -38,7 +42,7 @@ def filter_prices_response(
 
 class AlpacaProvider(BaseProvider):
     SUPPORTS_BATCH_HISTORY = 50
-    PROVIDER = Provider.ALPACA
+    PROVIDER = ProviderType.ALPACA
 
     API_KEY_VARIABLE = "ALPACA_API_KEY"
     API_SECRET_VARIABLE = "ALPACA_API_SECRET"
@@ -213,7 +217,7 @@ class AlpacaProvider(BaseProvider):
         from alpaca.trading.requests import GetOrdersRequest, QueryOrderStatus
 
         open_orders = self._get_cached_value(
-            CacheKey.OPEN_ORDERS,
+            ObjectKey.OPEN_ORDERS,
             callable=lambda: self.trading_client.get_orders(
                 filter=GetOrdersRequest(
                     status=QueryOrderStatus.OPEN, limit=MAX_OPEN_ORDER_SIZE
@@ -230,7 +234,7 @@ class AlpacaProvider(BaseProvider):
         from alpaca.trading.requests import GetOrdersRequest, QueryOrderStatus
 
         open_orders = self._get_cached_value(
-            CacheKey.OPEN_ORDERS,
+            ObjectKey.OPEN_ORDERS,
             callable=lambda: self.trading_client.get_orders(
                 filter=GetOrdersRequest(
                     status=QueryOrderStatus.OPEN, limit=MAX_OPEN_ORDER_SIZE
@@ -249,13 +253,13 @@ class AlpacaProvider(BaseProvider):
 
         try:
             my_stocks = self._get_cached_value(
-                CacheKey.POSITIONS, callable=self.trading_client.get_all_positions
+                ObjectKey.POSITIONS, callable=self.trading_client.get_all_positions
             )
             account = self._get_cached_value(
-                CacheKey.ACCOUNT, callable=self.trading_client.get_account
+                ObjectKey.ACCOUNT, callable=self.trading_client.get_account
             )
             unsettled = self._get_cached_value(
-                CacheKey.UNSETTLED, callable=self.get_unsettled_instruments
+                ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments
             )
             unsettled_cash = self._get_unsettled_cash()
         except APIError as e:
@@ -314,9 +318,13 @@ class AlpacaProvider(BaseProvider):
 
     def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
         my_stocks = self._get_cached_value(
-            CacheKey.POSITIONS, callable=self.trading_client.get_all_positions
+            ObjectKey.POSITIONS, callable=self.trading_client.get_all_positions
         )
-        divs = self._get_dividends()
+        raw_divs = self._get_dividends()
+
+        divs: DefaultDict[str, Money] = defaultdict(lambda: Money(value=Decimal(0)))
+        for z in raw_divs:
+            divs[z["symbol"]] += Money(value=Decimal(z["net_amount"]))
         base = {
             o.symbol: ProfitModel(
                 appreciation=Money(value=o.unrealized_pl if o.unrealized_pl else 0),
@@ -327,13 +335,7 @@ class AlpacaProvider(BaseProvider):
 
         return base
 
-    def _get_dividends(self) -> DefaultDict[str, Money]:
-        import requests
-        import json
-        from collections import defaultdict
-
-        output: DefaultDict[str, Money] = defaultdict(lambda: Money(value=Decimal(0)))
-
+    def _get_dividends(self) -> list[dict]:
         api_call = "/v2/account/activities/DIV"
         headers = self._legacy_headers
         params = {
@@ -352,14 +354,32 @@ class AlpacaProvider(BaseProvider):
                 has_data = False
             else:
                 params["page_token"] = response[-1]["id"]
-        for z in all_data:
-            output[z["symbol"]] += Money(value=Decimal(z["net_amount"]))
 
-        return output
+        return all_data
+
+    def get_dividend_details(
+        self, start: datetime | None = None
+    ) -> list[DividendResult]:
+        value = self._get_dividends()
+        final = []
+        for x in value:
+            if x["status"] == "executed":
+                paid_date = date.fromisoformat(x["date"])
+                if start and paid_date < start.date():
+                    continue
+                final.append(
+                    DividendResult(
+                        ticker=x["symbol"],
+                        amount=Money(value=float(x["net_amount"])),
+                        date=paid_date,
+                        provider=self.PROVIDER,
+                    )
+                )
+        return final
 
 
 class PaperAlpacaProvider(AlpacaProvider):
-    PROVIDER = Provider.ALPACA_PAPER
+    PROVIDER = ProviderType.ALPACA_PAPER
     API_KEY_VARIABLE = "ALPACA_PAPER_API_KEY"
     API_SECRET_VARIABLE = "ALPACA_PAPER_API_SECRET"
 

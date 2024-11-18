@@ -15,7 +15,7 @@ from py_portfolio_index.operators import (
     OrderElement,
     OrderType,
 )
-from py_portfolio_index.enums import Provider
+from py_portfolio_index.enums import ProviderType
 from py_portfolio_index.constants import Logger
 from logging import StreamHandler, DEBUG
 
@@ -69,7 +69,7 @@ def test_composite():
             value=None,
             qty=5,
             price=Money(value=33),
-            provider=Provider.LOCAL_DICT_NO_PARTIAL,
+            provider=ProviderType.LOCAL_DICT_NO_PARTIAL,
         ),
         # OrderElement(ticker="AAPL", order_type= OrderType.BUY, value=None, qty=0, provider=Provider.LOCAL_DICT_NO_PARTIAL),
     ]
@@ -81,6 +81,6 @@ def test_composite():
             value=Money(value="759.9999999999999644728632120"),
             qty=None,
             price=Money(value=100),
-            provider=Provider.LOCAL_DICT,
+            provider=ProviderType.LOCAL_DICT,
         ),
     ]

@@ -11,12 +11,13 @@ from py_portfolio_index.models import (
 from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
-    CacheKey,
+    ObjectKey,
 )
 from py_portfolio_index.exceptions import ConfigurationError
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.exceptions import OrderError
-from py_portfolio_index.enums import Provider
+from py_portfolio_index.enums import ProviderType
+from py_portfolio_index.models import DividendResult
 from collections import defaultdict
 from functools import lru_cache
 from os import environ, remove
@@ -74,7 +75,7 @@ class SchwabProvider(BaseProvider):
     Schwab
     """
 
-    PROVIDER = Provider.SCHWAB
+    PROVIDER = ProviderType.SCHWAB
     SUPPORTS_BATCH_HISTORY = 0
     API_KEY_ENV = "SCHWAB_API_KEY"
     APP_SECRET_ENV = "SCHWAB_APP_SECRET"
@@ -120,7 +121,7 @@ class SchwabProvider(BaseProvider):
                 app_secret,
                 "https://127.0.0.1:8182",
                 token_path,
-                interactive=False,
+                interactive=external_auth,
             )
         # we must set both of these to have a valid login
         BaseProvider.__init__(self)
@@ -239,18 +240,20 @@ class SchwabProvider(BaseProvider):
                 f"Could not fetch portfolio on {str(e)}; assuming session expired"
             )
         except Exception as e:
-            if 'refresh_token' in str(e):
-                raise ConfigurationError(f"Could not fetch portfolio: {str(e)}; assuming session expired")
+            if "refresh_token" in str(e):
+                raise ConfigurationError(
+                    f"Could not fetch portfolio: {str(e)}; assuming session expired"
+                )
             raise e
 
     def get_holdings(self) -> RealPortfolio:
         accounts_data = self._get_cached_value(
-            CacheKey.ACCOUNT, callable=self.get_portfolio
+            ObjectKey.ACCOUNT, callable=self.get_portfolio
         )
         my_stocks = accounts_data["positions"]
 
         unsettled = self._get_cached_value(
-            CacheKey.UNSETTLED, callable=self.get_unsettled_instruments
+            ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments
         )
 
         pre = {}
@@ -329,7 +332,7 @@ class SchwabProvider(BaseProvider):
 
     def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
         account_info = self._get_cached_value(
-            CacheKey.ACCOUNT, callable=self.get_portfolio
+            ObjectKey.ACCOUNT, callable=self.get_portfolio
         )
 
         dividends = self._get_dividends()
@@ -341,9 +344,9 @@ class SchwabProvider(BaseProvider):
             for x in account_info["positions"]
         }
 
-    def _get_dividends(self) -> DefaultDict[str, Money]:
+    def _get_dividends(self) -> defaultdict[str, Money]:
         dividends: dict = self._get_cached_value(
-            CacheKey.DIVIDENDS, callable=self._get_dividends_wrapper
+            ObjectKey.DIVIDENDS, callable=self._get_dividends_wrapper
         )
         base = []
         for item in dividends:
@@ -356,4 +359,26 @@ class SchwabProvider(BaseProvider):
         final: DefaultDict[str, Money] = defaultdict(lambda: Money(value=0))
         for item in base:
             final[item["ticker"]] += item["value"]
+        return final
+
+    def get_dividend_details(
+        self, start: datetime | None = None
+    ) -> list[DividendResult]:
+        dividends: dict = self._get_cached_value(
+            ObjectKey.DIVIDENDS, callable=self._get_dividends_wrapper
+        )
+        final = []
+        for x in dividends:
+            if x["status"] == "VALID":
+                paid_date = datetime.fromisoformat(x["settlementDate"]).date()
+                if start and paid_date < start.date():
+                    continue
+                final.append(
+                    DividendResult(
+                        ticker=x["transferItems"][0]["instrument"]["symbol"],
+                        amount=Money(value=float(x["netAmount"])),
+                        date=paid_date,
+                        provider=self.PROVIDER,
+                    )
+                )
         return final

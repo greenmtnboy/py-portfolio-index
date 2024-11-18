@@ -12,12 +12,13 @@ from py_portfolio_index.common import divide_into_batches
 
 from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
-    CacheKey,
+    ObjectKey,
 )
 from py_portfolio_index.exceptions import ConfigurationError
+from py_portfolio_index.models import DividendResult
 from collections import defaultdict
 import uuid
-from py_portfolio_index.enums import Provider
+from py_portfolio_index.enums import ProviderType
 from functools import lru_cache
 from os import environ
 from pytz import UTC
@@ -81,7 +82,7 @@ class WebullProvider(BaseProvider):
     Webull
     """
 
-    PROVIDER = Provider.WEBULL
+    PROVIDER = ProviderType.WEBULL
     SUPPORTS_BATCH_HISTORY = 0
     PASSWORD_ENV = "WEBULL_PASSWORD"
     USERNAME_ENV = "WEBULL_USERNAME"
@@ -125,7 +126,9 @@ class WebullProvider(BaseProvider):
         if not skip_cache:
             self._load_local_instrument_cache()
 
-        self._provider.get_trade_token(trade_token)
+        token = self._provider.get_trade_token(trade_token)
+        if not token:
+            raise ConfigurationError("Could not get trade token with provided password")
         account_info: dict = self._provider.get_account()
         if account_info.get("success") is False:
             raise ConfigurationError(f"Authentication is expired: {account_info}")
@@ -341,13 +344,13 @@ class WebullProvider(BaseProvider):
 
     def get_holdings(self) -> RealPortfolio:
         accounts_data = self._get_cached_value(
-            CacheKey.ACCOUNT, callable=self.get_portfolio
+            ObjectKey.ACCOUNT, callable=self.get_portfolio
         )
         my_stocks = self._get_cached_value(
-            CacheKey.POSITIONS, callable=self._provider.get_positions
+            ObjectKey.POSITIONS, callable=self._provider.get_positions
         )
         unsettled = self._get_cached_value(
-            CacheKey.UNSETTLED, callable=self.get_unsettled_instruments
+            ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments
         )
 
         pre = {}
@@ -457,7 +460,7 @@ class WebullProvider(BaseProvider):
 
     def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
         my_stocks = self._get_cached_value(
-            CacheKey.POSITIONS, callable=self._provider.get_positions
+            ObjectKey.POSITIONS, callable=self._provider.get_positions
         )
         dividends = self._get_dividends()
         return {
@@ -468,9 +471,9 @@ class WebullProvider(BaseProvider):
             for x in my_stocks
         }
 
-    def _get_dividends(self) -> DefaultDict[str, Money]:
+    def _get_dividends(self) -> defaultdict[str, Money]:
         dividends: dict = self._get_cached_value(
-            CacheKey.DIVIDENDS, callable=self._provider.get_dividends
+            ObjectKey.DIVIDENDS, callable=self._provider.get_dividends
         )
         dlist = dividends.get("dividendList", [])
         base = []
@@ -486,9 +489,31 @@ class WebullProvider(BaseProvider):
             final[item["ticker"]] += item["value"]
         return final
 
+    def get_dividend_details(
+        self, start: datetime | None = None
+    ) -> list[DividendResult]:
+        dividends: dict = self._get_cached_value(
+            ObjectKey.DIVIDENDS, callable=self._provider.get_dividends
+        )
+        dlist = dividends.get("dividendList", [])
+        final = []
+        for x in dlist:
+            paid_date = datetime.strptime(x["payDate"], r"%m/%d/%Y").date()
+            if start and paid_date < start.date():
+                continue
+            final.append(
+                DividendResult(
+                    ticker=x["tickerTuple"]["symbol"],
+                    amount=Money(value=float(x["dividendAmount"])),
+                    date=paid_date,
+                    provider=self.PROVIDER,
+                )
+            )
+        return final
+
 
 class WebullPaperProvider(WebullProvider):
-    PROVIDER = Provider.WEBULL_PAPER
+    PROVIDER = ProviderType.WEBULL_PAPER
     PASSWORD_ENV = "WEBULL_PAPER_PASSWORD"
     USERNAME_ENV = "WEBULL_PAPER_USERNAME"
     TRADE_TOKEN_ENV = "WEBULL_PAPER_TRADE_TOKEN"
