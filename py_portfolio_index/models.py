@@ -9,7 +9,7 @@ from typing import (
     runtime_checkable,
 )
 from pydantic import BaseModel, Field, validator
-from py_portfolio_index.enums import Currency, Provider
+from py_portfolio_index.enums import Currency, ProviderType
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.exceptions import PriceFetchError
 from decimal import Decimal
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 @runtime_checkable
 class ProviderProtocol(Protocol):
-    PROVIDER: Provider = Provider.DUMMY
+    PROVIDER: ProviderType = ProviderType.DUMMY
 
     def handle_order_element(self, element: "OrderElement") -> bool:
         pass
@@ -456,7 +456,7 @@ class CompositePortfolio:
     def get_holding(self, ticker: str) -> RealPortfolioElement | None:
         return self.internal_base.get_holding(ticker)
 
-    def get_provider_portfolio(self, provider: "Provider") -> RealPortfolio:
+    def get_provider_portfolio(self, provider: "ProviderType") -> RealPortfolio:
         for port in self.portfolios:
             if port.provider and port.provider.PROVIDER == provider:
                 return port
@@ -474,7 +474,7 @@ class OrderElement(BaseModel):
     value: Money | None
     qty: float | int | None
     price: Money | None = None
-    provider: Optional[Provider] = None
+    provider: Optional[ProviderType] = None
 
     @property
     def inferred_value(self) -> Money:
@@ -580,5 +580,13 @@ class StockInfo(BaseModel):
     website: str | None = None
     category: str | None = None
     tradable: bool | None = None
+    market_cap: str | None = None
     tags: List[str] = Field(default_factory=list)
     indexes: List[str] = Field(default_factory=list)
+
+
+class DividendResult(BaseModel):
+    ticker: str
+    date: date
+    amount: Money
+    provider: ProviderType

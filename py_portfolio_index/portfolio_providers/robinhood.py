@@ -9,11 +9,12 @@ from py_portfolio_index.models import (
     RealPortfolioElement,
     Money,
     ProfitModel,
+    DividendResult,
 )
 from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
-    CacheKey,
+    ObjectKey,
 )
 from py_portfolio_index.exceptions import PriceFetchError, ConfigurationError
 from py_portfolio_index.portfolio_providers.helpers.robinhood import (
@@ -21,7 +22,7 @@ from py_portfolio_index.portfolio_providers.helpers.robinhood import (
     ROBINHOOD_PASSWORD_ENV,
     ROBINHOOD_USERNAME_ENV,
 )
-from py_portfolio_index.enums import Provider
+from py_portfolio_index.enums import ProviderType
 from os import environ
 from collections import defaultdict
 
@@ -81,8 +82,8 @@ class RobinhoodProvider(BaseProvider):
     Robinhood.
     """
 
-    PROVIDER = Provider.ROBINHOOD
-    SUPPORTS_BATCH_HISTORY = 70
+    PROVIDER: ProviderType = ProviderType.ROBINHOOD
+    SUPPORTS_BATCH_HISTORY: int = 70
 
     def __init__(
         self,
@@ -116,7 +117,7 @@ class RobinhoodProvider(BaseProvider):
         if not self._local_instrument_cache:
             self._load_local_instrument_cache()
         return self._get_cached_value(
-            CacheKey.MISC,
+            ObjectKey.MISC,
             value="valid_tickers",
             callable=lambda: {row["symbol"] for row in self._local_instrument_cache},
         )
@@ -246,12 +247,12 @@ class RobinhoodProvider(BaseProvider):
             qty = round(float(value.decimal) / price, 2)
 
         account = self._get_cached_value(
-            CacheKey.MISC,
+            ObjectKey.MISC,
             value="account_id",
             callable=lambda: load_account_profile(account_number=None, info="url"),
         )
         sym_to_i = self._get_cached_value(
-            CacheKey.MISC,
+            ObjectKey.MISC,
             value="symbol_to_instrument",
             callable=lambda: {
                 row["symbol"]: row["url"] for row in self._local_instrument_cache
@@ -314,7 +315,7 @@ class RobinhoodProvider(BaseProvider):
         so just check the account info for if there
         is any cash held for orders first"""
         accounts_data = self._get_cached_value(
-            CacheKey.ACCOUNT, callable=self._provider.load_account_profile
+            ObjectKey.ACCOUNT, callable=self._provider.load_account_profile
         )
         if not accounts_data:
             raise ConfigurationError("Could not load account profile, check login")
@@ -360,7 +361,7 @@ class RobinhoodProvider(BaseProvider):
         self, instrument: str, refreshed: bool = False
     ) -> str:
         instrument_to_symbol_map = self._get_cached_value(
-            CacheKey.MISC,
+            ObjectKey.MISC,
             value="instrument_to_symbol_map",
             callable=self._process_cache_to_dict,
         )
@@ -370,7 +371,7 @@ class RobinhoodProvider(BaseProvider):
         except KeyError as e:
             if not refreshed:
                 instrument_to_symbol_map = self._get_cached_value(
-                    CacheKey.MISC,
+                    ObjectKey.MISC,
                     value="instrument_to_symbol_map",
                     callable=self._process_cache_to_dict,
                     # force refresh
@@ -394,19 +395,19 @@ class RobinhoodProvider(BaseProvider):
 
     def get_holdings(self):
         accounts_data = self._get_cached_value(
-            CacheKey.ACCOUNT, callable=self._provider.load_account_profile
+            ObjectKey.ACCOUNT, callable=self._provider.load_account_profile
         )
         my_stocks = self._get_cached_value(
-            CacheKey.POSITIONS, callable=self._provider.get_open_stock_positions
+            ObjectKey.POSITIONS, callable=self._provider.get_open_stock_positions
         )
         unsettled = self._get_cached_value(
-            CacheKey.UNSETTLED, callable=self.get_unsettled_instruments
+            ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments
         )
 
         pre = {}
         symbols = []
         instrument_to_symbol_map = self._get_cached_value(
-            CacheKey.MISC,
+            ObjectKey.MISC,
             value="instrument_to_symbol_map",
             callable=self._process_cache_to_dict,
         )
@@ -479,13 +480,13 @@ class RobinhoodProvider(BaseProvider):
 
     def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
         my_stocks = self._get_cached_value(
-            CacheKey.POSITIONS, callable=self._provider.get_open_stock_positions
+            ObjectKey.POSITIONS, callable=self._provider.get_open_stock_positions
         )
         instrument_to_symbol_map = self._get_cached_value(
-            CacheKey.MISC,
+            ObjectKey.MISC,
             callable=self._process_cache_to_dict,
         )
-        divs = self._get_cached_value(CacheKey.DIVIDENDS, callable=self._get_dividends)
+        divs = self._get_cached_value(ObjectKey.DIVIDENDS, callable=self._get_dividends)
         output = {}
         for x in my_stocks:
             historical_value = Decimal(x["average_buy_price"]) * Decimal(x["quantity"])
@@ -505,7 +506,7 @@ class RobinhoodProvider(BaseProvider):
         value = self._provider.get_dividends()
         output: DefaultDict[str, Money] = defaultdict(lambda: Money(value=0))
         instrument_to_symbol_map = self._get_cached_value(
-            CacheKey.MISC,
+            ObjectKey.MISC,
             callable=self._process_cache_to_dict,
         )
         [
@@ -516,3 +517,31 @@ class RobinhoodProvider(BaseProvider):
             if item["state"] == "paid":
                 output[item["symbol"]] += Money(value=float(item["amount"]))
         return output
+
+    def get_dividend_details(
+        self, start: datetime | None = None
+    ) -> list[DividendResult]:
+        value = self._provider.get_dividends()
+        instrument_to_symbol_map = self._get_cached_value(
+            ObjectKey.MISC,
+            callable=self._process_cache_to_dict,
+        )
+        [
+            item.update({"symbol": instrument_to_symbol_map[item["instrument"]]})
+            for item in value
+        ]
+        final = []
+        for x in value:
+            if x["state"] == "paid":
+                paid_date = date.fromisoformat(x["payable_date"])
+                if start and paid_date < start.date():
+                    continue
+                final.append(
+                    DividendResult(
+                        ticker=x["symbol"],
+                        amount=Money(value=float(x["amount"])),
+                        date=date.fromisoformat(x["payable_date"]),
+                        provider=self.PROVIDER,
+                    )
+                )
+        return final

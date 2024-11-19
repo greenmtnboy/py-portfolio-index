@@ -1,5 +1,5 @@
 from math import floor, ceil
-from typing import Dict, Union, Optional, Set, List, Callable, Any, DefaultDict
+from typing import Dict, Union, Optional, Set, List, Callable, Any
 from decimal import Decimal
 from datetime import date
 
@@ -10,7 +10,7 @@ from py_portfolio_index.common import (
     get_basic_stock_info,
 )
 from py_portfolio_index.constants import Logger
-from py_portfolio_index.enums import RoundingStrategy, Provider
+from py_portfolio_index.enums import RoundingStrategy, ProviderType
 from py_portfolio_index.exceptions import OrderError
 from py_portfolio_index.models import (
     Money,
@@ -18,12 +18,13 @@ from py_portfolio_index.models import (
     OrderElement,
     StockInfo,
     ProfitModel,
+    DividendResult,
 )
 from py_portfolio_index.models import RealPortfolio
 from dataclasses import dataclass, field
-from enum import Enum
 from datetime import datetime
 from py_portfolio_index.portfolio_providers.common import PriceCache
+from py_portfolio_index.enums import ObjectKey
 
 
 @dataclass
@@ -33,17 +34,8 @@ class CachedValue:
     set: datetime = field(default_factory=datetime.now)
 
 
-class CacheKey(Enum):
-    POSITIONS = 0
-    DIVIDENDS = 1
-    UNSETTLED = 2
-    ACCOUNT = 3
-    OPEN_ORDERS = 4
-    MISC = 5
-
-
 class BaseProvider(object):
-    PROVIDER: Provider = Provider.DUMMY
+    PROVIDER: ProviderType = ProviderType.DUMMY
     MIN_ORDER_VALUE = Money(value=1)
     MAX_ORDER_DECIMALS = 2
     SUPPORTS_BATCH_HISTORY = 0
@@ -65,7 +57,7 @@ class BaseProvider(object):
 
     def _get_cached_value(
         self,
-        key: CacheKey,
+        key: ObjectKey,
         value: Optional[Any] = None,
         max_age_seconds: int = 60 * 60,
         callable: Optional[Callable] = None,
@@ -288,5 +280,13 @@ class BaseProvider(object):
     def refresh(self):
         pass
 
-    def _get_dividends(self) -> DefaultDict[str, Money]:
+    def _get_dividends(self):
         raise NotImplementedError
+
+    def get_dividend_details(
+        self, start: datetime | None = None
+    ) -> list[DividendResult]:
+        raise NotImplementedError
+
+    def get_dividend_history(self) -> Dict[str, Money]:
+        return self._get_cached_value(ObjectKey.DIVIDENDS, callable=self._get_dividends)

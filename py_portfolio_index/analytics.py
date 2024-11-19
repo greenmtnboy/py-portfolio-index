@@ -1,0 +1,2 @@
+class Analytics:
+    pass

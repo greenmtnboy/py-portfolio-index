@@ -1,7 +1,7 @@
 from enum import IntEnum, Enum
 
 
-class Provider(str, Enum):
+class ProviderType(str, Enum):
     ALPACA = "alpaca"
     ALPACA_PAPER = "alpaca_paper"
     ROBINHOOD = "robinhood"
@@ -14,9 +14,27 @@ class Provider(str, Enum):
     SCHWAB = "schwab"
 
 
+class ObjectKey(Enum):
+    POSITIONS = 0
+    DIVIDENDS = 1
+    UNSETTLED = 2
+    ACCOUNT = 3
+    OPEN_ORDERS = 4
+    MISC = 5
+
+
 class ProviderClass(Enum):
-    PAPER = [Provider.ALPACA_PAPER, Provider.WEBULL_PAPER, Provider.LOCAL_DICT]
-    REAL = [Provider.ALPACA, Provider.WEBULL, Provider.ROBINHOOD, Provider.SCHWAB]
+    PAPER = [
+        ProviderType.ALPACA_PAPER,
+        ProviderType.WEBULL_PAPER,
+        ProviderType.LOCAL_DICT,
+    ]
+    REAL = [
+        ProviderType.ALPACA,
+        ProviderType.WEBULL,
+        ProviderType.ROBINHOOD,
+        ProviderType.SCHWAB,
+    ]
 
 
 class PurchaseStrategy(IntEnum):

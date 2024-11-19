@@ -10,7 +10,7 @@ from py_portfolio_index.models import (
 from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
-    CacheKey,
+    ObjectKey,
 )
 from py_portfolio_index.exceptions import (
     ConfigurationError,
@@ -18,7 +18,7 @@ from py_portfolio_index.exceptions import (
     OrderError,
 )
 from py_portfolio_index.constants import CACHE_DIR
-from py_portfolio_index.enums import Provider
+from py_portfolio_index.enums import ProviderType
 from functools import lru_cache
 from os import environ
 from collections import defaultdict
@@ -81,7 +81,7 @@ class MooMooProvider(BaseProvider):
     MooMoo
     """
 
-    PROVIDER = Provider.MOOMOO
+    PROVIDER = ProviderType.MOOMOO
     SUPPORTS_BATCH_HISTORY = 0
     PASSWORD_ENV = "MOOMOO_PASSWORD"
     USERNAME_ENV = "MOOMOO_USERNAME"
@@ -282,13 +282,13 @@ class MooMooProvider(BaseProvider):
 
     def get_holdings(self) -> RealPortfolio:
         accounts_data = self._get_cached_value(
-            CacheKey.ACCOUNT, callable=self._get_portfolio
+            ObjectKey.ACCOUNT, callable=self._get_portfolio
         )
         my_stocks = self._get_cached_value(
-            CacheKey.POSITIONS, callable=self._get_positions
+            ObjectKey.POSITIONS, callable=self._get_positions
         )
         unsettled = self._get_cached_value(
-            CacheKey.UNSETTLED, callable=self.get_unsettled_instruments
+            ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments
         )
 
         pre = {}
@@ -348,10 +348,13 @@ class MooMooProvider(BaseProvider):
         #     return Money(value=_total_pl)
         # return Money(value=_total_pl) + sum(self._get_dividends().values())
 
-    def _get_dividends(self) -> DefaultDict[str, Money]:
+    def _get_dividends(self) -> defaultdict[str, Money]:
         # dividends = self._provider.get_dividends()
         out: DefaultDict[str, Money] = DefaultDict(lambda: Money(value=0))
         return out
+
+    def get_dividend_history(self) -> Dict[str, Money]:
+        return super().get_dividend_history()
 
 
 # class MooMooPaperProvider(MooMooProvider):

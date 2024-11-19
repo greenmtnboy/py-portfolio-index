@@ -71,16 +71,16 @@ if __name__ == "__main__":
     edgar = EdgarClient(user_agent="ethan.dickinson@gmail.com")
 
     for chunk in divide_chunks(existing.root, 100):
+
         for ticker in chunk:
             process_ticker(
                 ticker, provider=provider, sec_api=edgar, cik_mapping=mapping
             )
-
-        target = (
-            Path(__file__).parent.parent
-            / "py_portfolio_index"
-            / "bin"
-            / "stock_info.json"
-        )
-        with open(target, "w") as f:
-            f.write(existing.model_dump_json())
+    target = (
+        Path(__file__).parent.parent
+        / "py_portfolio_index"
+        / "bin"
+        / "stock_info.json"
+    )
+    with open(target, "w") as f:
+        f.write(existing.model_dump_json())

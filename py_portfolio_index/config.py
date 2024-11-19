@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from py_portfolio_index.enums import Currency, Provider
+from py_portfolio_index.enums import Currency, ProviderType
 from typing import List
 
 
@@ -8,32 +8,32 @@ class Config:
     default_currency = Currency.USD
 
 
-def get_providers() -> List[Provider]:
+def get_providers() -> List[ProviderType]:
     providers = []
     try:
         from alpaca.trading.client import TradingClient  # noqa: F401
 
-        providers.append(Provider.ALPACA)
-        providers.append(Provider.ALPACA_PAPER)
+        providers.append(ProviderType.ALPACA)
+        providers.append(ProviderType.ALPACA_PAPER)
     except ImportError:
         pass
     try:
         import robin_stocks.robinhood as r  # noqa: F401
 
-        providers.append(Provider.ROBINHOOD)
+        providers.append(ProviderType.ROBINHOOD)
     except ImportError:
         pass
     try:
         from webull import webull  # noqa: F401
 
-        providers.append(Provider.WEBULL)
-        providers.append(Provider.WEBULL_PAPER)
+        providers.append(ProviderType.WEBULL)
+        providers.append(ProviderType.WEBULL_PAPER)
     except ImportError:
         pass
     try:
         from schwab import client  # noqa: F401
 
-        providers.append(Provider.SCHWAB)
+        providers.append(ProviderType.SCHWAB)
     except ImportError:
         pass
     return providers

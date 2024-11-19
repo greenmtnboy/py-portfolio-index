@@ -11,7 +11,7 @@ from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
 from py_portfolio_index.portfolio_providers.common import PriceCache
 from py_portfolio_index.models import (
     Money,
-    Provider,
+    ProviderType,
     OrderElement,
     OrderPlan,
     OrderType,
@@ -153,7 +153,7 @@ def generate_sell_order(
     prices: Dict[str, Decimal | None],
     target_value: Money,
     diffvalue: ComparisonResult,
-    provider: Provider | None = None,
+    provider: ProviderType | None = None,
 ) -> OrderElement | None:
     if round(diffvalue.diff, 4) == 0.0000:
         return None
@@ -185,7 +185,7 @@ def generate_buy_order(
     prices: Dict[str, Decimal | None],
     target_value: Money,
     diffvalue: ComparisonResult,
-    provider: Provider | None = None,
+    provider: ProviderType | None = None,
     fractional_shares: bool = True,
 ) -> OrderElement | None:
     if purchase_power <= 0:
@@ -281,7 +281,7 @@ def generate_order_plan(
     min_order_value: Money = MIN_ORDER_MONEY,
     skip_tickers: Optional[set[str]] = None,
     fractional_shares: bool = True,
-    provider: Provider | None = None,
+    provider: ProviderType | None = None,
     existing_orders: List[OrderElement] | None = None,
 ) -> OrderPlan:
     diff = Decimal(0.0)
@@ -384,12 +384,12 @@ def generate_order_plan(
 def generate_composite_order_plan(
     composite: CompositePortfolio,
     ideal: IdealPortfolio,
-    purchase_order_maps: Mapping[Provider, PurchaseStrategy] | PurchaseStrategy,
+    purchase_order_maps: Mapping[ProviderType, PurchaseStrategy] | PurchaseStrategy,
     target_size: Optional[Money | float | int],
     min_order_value: Money = MIN_ORDER_MONEY,
     safety_threshold: Decimal = Decimal(0.95),
     target_order_size: Optional[Money] = None,
-) -> Mapping[Provider, OrderPlan]:
+) -> Mapping[ProviderType, OrderPlan]:
     provider_to_portfolio_map = {
         x.provider: x for x in composite.portfolios if x.provider
     }
@@ -411,7 +411,7 @@ def generate_composite_order_plan(
         purchase_order_maps = {x.PROVIDER: purchase_order_maps for x in providers}
     processed = set()
     # check each of our p
-    output: defaultdict[Provider, OrderPlan] = defaultdict(
+    output: defaultdict[ProviderType, OrderPlan] = defaultdict(
         lambda: OrderPlan(to_buy=[], to_sell=[])
     )
     skip_tickers: set[str] = set()
