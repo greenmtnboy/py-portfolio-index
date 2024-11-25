@@ -34,8 +34,8 @@ def process_ticker(
     if api_response["sic"].isdigit():
         info.sic_num = int(api_response["sic"])
     info.sic_description = api_response["sicDescription"]
-    info.description = api_response["description"]
-    info.category = api_response["category"].replace("<br>", "")
+    # info.description = api_response["description"]
+    # info.category = api_response["category"].replace("<br>", "")
     info.cik = int(cik_mapping[info.ticker])
 
 
@@ -83,4 +83,4 @@ if __name__ == "__main__":
         / "stock_info.json"
     )
     with open(target, "w") as f:
-        f.write(existing.model_dump_json())
+        f.write(existing.model_dump_json(indent=4))

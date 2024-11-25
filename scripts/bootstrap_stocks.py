@@ -2,7 +2,7 @@ from pydantic import RootModel
 from py_portfolio_index.models import StockInfo
 from pathlib import Path
 from py_portfolio_index import PaperAlpacaProvider
-from typing import List
+from typing import List, Generator
 from requests import get
 from alpaca.common.exceptions import APIError
 
@@ -19,7 +19,7 @@ class StockInfoList(RootModel):
         return set([x.ticker for x in self.root])
 
 
-def divide_chunks(lst: list[str], n) -> list[list[str]]:
+def divide_chunks(lst: list[str], n) -> Generator[list[list[str]]]:
     # looping till length l
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
@@ -56,11 +56,11 @@ if __name__ == "__main__":
                 print(f"adding {val}")
                 existing.root.append(info)
 
-        target = (
-            Path(__file__).parent.parent
-            / "py_portfolio_index"
-            / "bin"
-            / "stock_info.json"
-        )
-        with open(target, "w", encoding="utf-8") as f:
-            f.write(existing.model_dump_json())
+    target = (
+        Path(__file__).parent.parent
+        / "py_portfolio_index"
+        / "bin"
+        / "stock_info.json"
+    )
+    with open(target, "w", encoding="utf-8") as f:
+        f.write(existing.model_dump_json(indent=4))

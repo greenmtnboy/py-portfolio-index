@@ -36,6 +36,7 @@ jobs:
                 python scripts/clean_stock_lists_invalid_tickers.py
                 python scripts/bootstrap_stocks.py
                 python scripts/ingest_edgar_data.py
+                python scripts/ingest_finance_db.py
             - name: Commit changes
               uses: EndBug/add-and-commit@v9
               with:
