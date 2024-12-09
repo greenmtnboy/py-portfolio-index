@@ -1,5 +1,6 @@
-name: Update package stock info
+name: Update Package Stock Info
 on:
+  workflow_dispatch:
   schedule:
     - cron: "0 0 * * 1"
   # push:
@@ -40,7 +41,7 @@ jobs:
             - name: Commit changes
               uses: EndBug/add-and-commit@v9
               with:
-                author_name: Ethan Dickinson
+                author_name: efromvt
                 author_email: ethan.dickinson@gmail.com
                 message: 'Automatic update of package stock info'
                 add: '-u'
