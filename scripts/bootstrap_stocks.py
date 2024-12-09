@@ -19,7 +19,7 @@ class StockInfoList(RootModel):
         return set([x.ticker for x in self.root])
 
 
-def divide_chunks(lst: list[str], n) -> Generator[list[list[str]]]:
+def divide_chunks(lst: list[str], n) -> Generator[List[str], None, None]:
     # looping till length l
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
