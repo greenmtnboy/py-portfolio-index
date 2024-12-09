@@ -313,25 +313,11 @@ class WebullProvider(BaseProvider):
         return True
 
     def get_unsettled_instruments(self) -> set[str]:
-        """We need to efficiently bypass
-        paginating all orders if possible
-        so just check the account info for if there
-        is any cash held for orders first"""
         orders = self._provider.get_current_orders()
         return set(item["ticker"]["symbol"] for item in orders)
 
     def _get_stock_info(self, ticker: str) -> dict:
         info = self._provider.get_ticker_info(ticker)
-        # matches = self._provider.find_instrument_data(ticker)
-        # for match in matches:
-        #     if match["symbol"] == ticker:
-        #         return {
-        #             "name": match["simple_name"],
-        #             "exchange": match["exchange"],
-        #             "market": match["market"],
-        #             "country": match["country"],
-        #             "tradable": bool(match["tradable"]),
-        #         }
         return info
 
     def get_portfolio(self) -> dict:
@@ -342,12 +328,20 @@ class WebullProvider(BaseProvider):
                 f"Could not fetch portfolio on {str(e)}; assuming session expired"
             )
 
+    def get_positions(self) -> list[dict]:
+        try:
+            return self._provider.get_positions()
+        except Exception as e:
+            raise ConfigurationError(
+                f"Could not fetch positions on {str(e)}; assuming session expired"
+            )
+
     def get_holdings(self) -> RealPortfolio:
         accounts_data = self._get_cached_value(
             ObjectKey.ACCOUNT, callable=self.get_portfolio
         )
         my_stocks = self._get_cached_value(
-            ObjectKey.POSITIONS, callable=self._provider.get_positions
+            ObjectKey.POSITIONS, callable=self.get_positions
         )
         unsettled = self._get_cached_value(
             ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments

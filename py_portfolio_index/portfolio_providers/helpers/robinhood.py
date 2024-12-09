@@ -35,8 +35,62 @@ def validate_login():
         raise ConfigurationError()
 
 
+def interactive_login(username: str, password: str):
+    try:
+        return login(username=username, password=password)
+    except ExtraAuthenticationStepException as e:
+        factor = input("Input factor: ")
+        return login(
+            username=username,
+            password=password,
+            challenge_response=factor,
+            prior_response=e.response,
+        )
+
+
+def _validate_sherrif_id(device_token: str, workflow_id: str, mfa_code: str):
+    from robin_stocks.robinhood.authentication import (
+        request_get,
+        request_post,
+    )
+
+    url = "https://api.robinhood.com/pathfinder/user_machine/"
+    payload = {
+        "device_id": device_token,
+        "flow": "suv",
+        "input": {"workflow_id": workflow_id},
+    }
+    data = request_post(url=url, payload=payload, json=True)
+    if "id" in data:
+        inquiries_url = (
+            f"https://api.robinhood.com/pathfinder/inquiries/{data['id']}/user_view/"
+        )
+        res = request_get(inquiries_url)
+        challenge_id = res["type_context"]["context"]["sheriff_challenge"]["id"]
+        challenge_url = f"https://api.robinhood.com/challenge/{challenge_id}/respond/"
+        challenge_payload = {"response": mfa_code}
+        challenge_response = request_post(
+            url=challenge_url, payload=challenge_payload, json=True
+        )
+        if challenge_response["status"] == "validated":
+            inquiries_payload = {"sequence": 0, "user_input": {"status": "continue"}}
+            inquiries_response = request_post(
+                url=inquiries_url, payload=inquiries_payload, json=True
+            )
+            if (
+                inquiries_response["type_context"]["result"]
+                == "workflow_status_approved"
+            ):
+                return
+            else:
+                raise Exception("workflow status not approved")
+        else:
+            raise Exception("Challenge not validated")
+    raise Exception("Id not returned in user-machine call")
+
+
 def login(
-    username=None,
+    username: str = None,
     password=None,
     expiresIn=86400,
     scope="internal",
@@ -114,6 +168,10 @@ def login(
         "username": username,
         "challenge_type": challenge_type,
         "device_token": device_token,
+        "try_passkeys": False,
+        "token_request_path": "/login",
+        "create_read_only_secondary_token": True,
+        # 'request_id': '848bd19e-02bc-45d9-99b5-01bce5a79ea7'
     }
 
     # If authentication has been stored in pickle file then load it. Stops login server from being pinged so much.
@@ -192,6 +250,18 @@ def login(
                     data={"challenge_id": challenge_id},
                 )
             )
+        elif "verification_workflow" in data:
+            if not challenge_response:
+                raise ExtraAuthenticationStepException(
+                    response=LoginResponse(status=LoginResponseStatus.MFA_REQUIRED)
+                )
+            workflow_id = data["verification_workflow"]["id"]
+            _validate_sherrif_id(
+                device_token=device_token,
+                workflow_id=workflow_id,
+                mfa_code=challenge_response,
+            )
+            data = request_post(url, payload)
         # Update Session data with authorization or raise exception with the information present in data.
         if "access_token" in data:
             token = "{0} {1}".format(data["token_type"], data["access_token"])
@@ -210,7 +280,7 @@ def login(
                         f,
                     )
         else:
-            raise Exception(data["detail"])
+            raise Exception(data.get("detail", str(data)))
     else:
         raise Exception(
             "Error: Trouble connecting to robinhood API. Check internet connection."

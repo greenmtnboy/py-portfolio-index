@@ -57,10 +57,7 @@ if __name__ == "__main__":
                 existing.root.append(info)
 
     target = (
-        Path(__file__).parent.parent
-        / "py_portfolio_index"
-        / "bin"
-        / "stock_info.json"
+        Path(__file__).parent.parent / "py_portfolio_index" / "bin" / "stock_info.json"
     )
     with open(target, "w", encoding="utf-8") as f:
         f.write(existing.model_dump_json(indent=4))

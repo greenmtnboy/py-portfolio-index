@@ -98,7 +98,7 @@ class RobinhoodProvider(BaseProvider):
             username = environ.get(ROBINHOOD_USERNAME_ENV, None)
         if not password:
             password = environ.get(ROBINHOOD_PASSWORD_ENV, None)
-        if not (username and password):
+        if not (username and password) and not external_auth:
             raise ConfigurationError(
                 "Must provide username and password arguments or set environment variables ROBINHOOD_USERNAME and ROBINHOOD_PASSWORD "
             )

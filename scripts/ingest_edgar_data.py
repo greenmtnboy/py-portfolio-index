@@ -77,10 +77,7 @@ if __name__ == "__main__":
                 ticker, provider=provider, sec_api=edgar, cik_mapping=mapping
             )
     target = (
-        Path(__file__).parent.parent
-        / "py_portfolio_index"
-        / "bin"
-        / "stock_info.json"
+        Path(__file__).parent.parent / "py_portfolio_index" / "bin" / "stock_info.json"
     )
     with open(target, "w") as f:
         f.write(existing.model_dump_json(indent=4))
