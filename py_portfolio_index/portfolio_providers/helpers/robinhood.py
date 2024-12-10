@@ -90,8 +90,8 @@ def _validate_sherrif_id(device_token: str, workflow_id: str, mfa_code: str):
 
 
 def login(
-    username: str = None,
-    password=None,
+    username: str | None = None,
+    password: str | None = None,
     expiresIn=86400,
     scope="internal",
     by_sms=True,
@@ -259,7 +259,7 @@ def login(
             _validate_sherrif_id(
                 device_token=device_token,
                 workflow_id=workflow_id,
-                mfa_code=challenge_response,
+                mfa_code=str(challenge_response),
             )
             data = request_post(url, payload)
         # Update Session data with authorization or raise exception with the information present in data.
