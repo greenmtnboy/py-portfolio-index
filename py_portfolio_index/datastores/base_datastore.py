@@ -11,9 +11,11 @@ class ResultProtocol(Protocol):
     values: List[Any]
     columns: List[str]
 
-    def fetchall(self) -> List[Any]: ...
+    def fetchall(self) -> List[Any]:
+        ...
 
-    def keys(self) -> List[str]: ...
+    def keys(self) -> List[str]:
+        ...
 
 
 class DBApiConnectionWrapper:
@@ -25,12 +27,10 @@ class DBApiConnectionWrapper:
 
 
 class BaseDatastore:
-
-    def __init__(self, duckdb_path: str, debug:bool = False):
+    def __init__(self, duckdb_path: str, debug: bool = False):
         self.duckdb_path = duckdb_path
         self.debug = debug
         self.executor: Executor = self.connect()
-        
 
         if not self.check_initialized():
             self.initialize()
@@ -40,6 +40,7 @@ class BaseDatastore:
         hooks = []
         if self.debug:
             from trilogy.hooks.query_debugger import DebuggingHook
+
             hooks.append(DebuggingHook())
         self.executor = Dialects.DUCK_DB.default_executor(
             environment=env, conf=DuckDBConfig(path=self.duckdb_path)

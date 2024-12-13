@@ -393,7 +393,7 @@ class RobinhoodProvider(BaseProvider):
                 }
         return {}
 
-    def get_holdings(self):
+    def get_holdings(self) -> RealPortfolio:
         accounts_data = self._get_cached_value(
             ObjectKey.ACCOUNT, callable=self._provider.load_account_profile
         )
@@ -486,15 +486,15 @@ class RobinhoodProvider(BaseProvider):
             ObjectKey.MISC,
             callable=self._process_cache_to_dict,
         )
-        divs:dict[str, Money] = self._get_cached_value(ObjectKey.DIVIDENDS, callable=self._get_dividends)
+        divs: dict[str, Money] = self._get_cached_value(
+            ObjectKey.DIVIDENDS, callable=self._get_dividends
+        )
         output = {}
+        prices = self.get_instrument_prices([x["symbol"] for x in my_stocks])
         for x in my_stocks:
             historical_value = Decimal(x["average_buy_price"]) * Decimal(x["quantity"])
             ticker = instrument_to_symbol_map[x["instrument"]]
-            try:
-                current_price = self.get_instrument_price(ticker) or Decimal(0.0)
-            except PriceFetchError:
-                current_price = Decimal(0.0)
+            current_price = prices.get(ticker) or Decimal(0.0)
             current_value = current_price * Decimal(x["quantity"])
             pl = Money(value=current_value - historical_value)
             output[ticker] = ProfitModel(
@@ -502,7 +502,9 @@ class RobinhoodProvider(BaseProvider):
             )
         for k, v in divs.items():
             if k not in output:
-                output[k] = ProfitModel(appreciation=Money(value=Decimal(0)), dividends=v)
+                output[k] = ProfitModel(
+                    appreciation=Money(value=Decimal(0)), dividends=v
+                )
         return output
 
     def _get_dividends(self) -> DefaultDict[str, Money]:

@@ -1,7 +1,7 @@
 from decimal import Decimal
 from datetime import date, datetime
 from typing import Optional, List, Dict, DefaultDict, Any
-from py_portfolio_index.constants import CACHE_DIR, UNKNOWN_TICKER
+from py_portfolio_index.constants import CACHE_DIR
 from py_portfolio_index.models import (
     RealPortfolio,
     RealPortfolioElement,
@@ -34,16 +34,17 @@ FRACTIONAL_SLEEP = 60
 CACHE_PATH = "schwab_tickers.json"
 CACHE_DESC_PATH = "schwab_desc_to_ticker.json"
 
-HARD_CODED_DESC_TO_TICKER:dict[str, str] = {
-    'AT&T INC': 'T',
-    'ALBERTSONS CO SHS CLASS CLASS A': 'ACI',
-    'ATLANTICA SUSTAINABLE F': 'AY',
-    'ATLANTICA SUSTAINABLE FMANDATORY MERGER': 'AY',
-    'EATON CORP PLC F': 'ETN',
-    'S&P GLOBAL INC': 'SPGI',
-    'INVESCO LTD F': 'IVZ',
-    'SCHWAB1 INT 10/30-11/26': 'SCHW',
+HARD_CODED_DESC_TO_TICKER: dict[str, str] = {
+    "AT&T INC": "T",
+    "ALBERTSONS CO SHS CLASS CLASS A": "ACI",
+    "ATLANTICA SUSTAINABLE F": "AY",
+    "ATLANTICA SUSTAINABLE FMANDATORY MERGER": "AY",
+    "EATON CORP PLC F": "ETN",
+    "S&P GLOBAL INC": "SPGI",
+    "INVESCO LTD F": "IVZ",
+    "SCHWAB1 INT 10/30-11/26": "SCHW",
 }
+
 
 def date_to_datetimes(at_day: date) -> tuple[datetime, datetime]:
     start_datetime = datetime(
@@ -149,7 +150,7 @@ class SchwabProvider(BaseProvider):
                 f"Authentication is expired: {str(e)}. Removed token."
             )
         self._utils = Utils(self._provider, account_hash=self._account_hash)
-        self._local_description_lookup_cache: dict[str,str] = []
+        self._local_description_lookup_cache: dict[str, str] = []
         if not skip_cache:
             self._load_local_description_lookup_cache()
 
@@ -260,19 +261,28 @@ class SchwabProvider(BaseProvider):
         return set(item["instrument"]["symbol"] for item in orders)
 
     def _get_stock_info(self, ticker: str) -> dict:
-        return api_helper(self._provider.get_instruments(symbols=[ticker], project=self._provider.Instrument.Projection.FUNDAMENTAL))
+        return api_helper(
+            self._provider.get_instruments(
+                symbols=[ticker],
+                project=self._provider.Instrument.Projection.FUNDAMENTAL,
+            )
+        )
 
-
-    def _get_stock_info_fuzzy(self, search:str) -> dict:
+    def _get_stock_info_fuzzy(self, search: str) -> dict:
         # do our best to match a description to a ticker
-        STRIP_VALUES = ['FCLASS', 'CLASS', 'CLASS EQUITY']
+        STRIP_VALUES = ["FCLASS", "CLASS", "CLASS EQUITY"]
         for strip in STRIP_VALUES:
-            search = search.replace(strip, '').strip()
+            search = search.replace(strip, "").strip()
         search = search.strip()
-        search = re.sub(r'\s+', r' ', search)
-        search = f'(?i){search[:20]}.*'
-        search = search.replace('&', '.')
-        return api_helper(self._provider.get_instruments(symbols=[search], projection=self._provider.Instrument.Projection.DESCRIPTION_REGEX))
+        search = re.sub(r"\s+", r" ", search)
+        search = f"(?i){search[:20]}.*"
+        search = search.replace("&", ".")
+        return api_helper(
+            self._provider.get_instruments(
+                symbols=[search],
+                projection=self._provider.Instrument.Projection.DESCRIPTION_REGEX,
+            )
+        )
 
     def get_portfolio(self) -> dict:
         from schwab.client import Client
@@ -385,7 +395,6 @@ class SchwabProvider(BaseProvider):
         )
 
         dividends = self._get_dividends()
-        
 
         first = {
             x["instrument"]["symbol"]: ProfitModel(
@@ -404,8 +413,8 @@ class SchwabProvider(BaseProvider):
             ObjectKey.DIVIDENDS_DETAIL, callable=self._get_dividends_wrapper
         )
         base = []
-        
-        changes:bool = False
+
+        changes: bool = False
         for item in dividends:
             lookup_desc = item["description"]
             ticker = self._local_description_lookup_cache.get(lookup_desc)
@@ -414,18 +423,15 @@ class SchwabProvider(BaseProvider):
             if not ticker:
                 fuzzy_search = self._get_stock_info_fuzzy(search=lookup_desc)
                 print(fuzzy_search)
-                if fuzzy_search.get('instruments'):
-                    match = fuzzy_search['instruments'][0]
-                    ticker = match['symbol']
+                if fuzzy_search.get("instruments"):
+                    match = fuzzy_search["instruments"][0]
+                    ticker = match["symbol"]
                     self._local_description_lookup_cache[lookup_desc] = ticker
                     changes = True
                 else:
                     ticker = lookup_desc
             base.append(
-                {
-                    "value": Money(value=Decimal(item["netAmount"])),
-                    "ticker": ticker
-                }
+                {"value": Money(value=Decimal(item["netAmount"])), "ticker": ticker}
             )
         if changes:
             self._save_local_description_lookup_cache()

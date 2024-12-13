@@ -320,7 +320,7 @@ class AlpacaProvider(BaseProvider):
         my_stocks = self._get_cached_value(
             ObjectKey.POSITIONS, callable=self.trading_client.get_all_positions
         )
-        raw_divs = self._get_dividends()
+        raw_divs = [x for x in self._get_dividends() if x["status"] == "executed"]
 
         divs: DefaultDict[str, Money] = defaultdict(lambda: Money(value=Decimal(0)))
         for z in raw_divs:
@@ -332,7 +332,12 @@ class AlpacaProvider(BaseProvider):
             )
             for o in my_stocks
         }
-
+        for x in raw_divs:
+            if x["symbol"] not in base:
+                base[x["symbol"]] = ProfitModel(
+                    appreciation=Money(value=Decimal(0)),
+                    dividends=Money(value=Decimal(x["net_amount"])),
+                )
         return base
 
     def _get_dividends(self) -> list[dict]:

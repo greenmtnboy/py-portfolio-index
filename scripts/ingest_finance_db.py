@@ -29,7 +29,6 @@ def divide_chunks(lst: list, n):
 
 
 if __name__ == "__main__":
-
     equities = fd.Equities()
 
     # Obtain all data available excluding international exchanges

@@ -1,8 +1,6 @@
 from enum import IntEnum, Enum
 
 
-
-
 class ProviderType(str, Enum):
     ALPACA = "alpaca"
     ALPACA_PAPER = "alpaca_paper"
