@@ -33,8 +33,8 @@ def map_provider(ptype: ProviderType):
 class DuckDBDatastore(BaseDatastore):
     EXPECTED_TABLES = ["providers", "dividends", "symbols", "ticker_holdings"]
 
-    def __init__(self, db_path: str):
-        super().__init__(duckdb_path=db_path)
+    def __init__(self, db_path: str, debug: bool = False):
+        super().__init__(duckdb_path=db_path, debug=debug)
         # from duckdb_engine import ConnectionWrapper
 
         # engine = sa.create_engine("duckdb://", creator=lambda: ConnectionWrapper(con))
@@ -155,7 +155,6 @@ class DuckDBDatastore(BaseDatastore):
         self, data: list[RealPortfolioElement], provider: ProviderType
     ):
         for x in data:
-
             self.executor.execute_raw_sql(
                 """INSERT INTO ticker_holdings
                                           SELECT 

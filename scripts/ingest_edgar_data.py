@@ -71,7 +71,6 @@ if __name__ == "__main__":
     edgar = EdgarClient(user_agent="ethan.dickinson@gmail.com")
 
     for chunk in divide_chunks(existing.root, 100):
-
         for ticker in chunk:
             process_ticker(
                 ticker, provider=provider, sec_api=edgar, cik_mapping=mapping

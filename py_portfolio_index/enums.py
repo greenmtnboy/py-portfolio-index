@@ -21,6 +21,7 @@ class ObjectKey(Enum):
     ACCOUNT = 3
     OPEN_ORDERS = 4
     MISC = 5
+    DIVIDENDS_DETAIL = 6
 
 
 class ProviderClass(Enum):

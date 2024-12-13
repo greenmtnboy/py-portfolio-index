@@ -25,12 +25,25 @@ from pathlib import Path
 from platformdirs import user_cache_dir
 from pytz import UTC
 from time import sleep
+import re
 
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
 FRACTIONAL_SLEEP = 60
 
 CACHE_PATH = "schwab_tickers.json"
+CACHE_DESC_PATH = "schwab_desc_to_ticker.json"
+
+HARD_CODED_DESC_TO_TICKER: dict[str, str] = {
+    "AT&T INC": "T",
+    "ALBERTSONS CO SHS CLASS CLASS A": "ACI",
+    "ATLANTICA SUSTAINABLE F": "AY",
+    "ATLANTICA SUSTAINABLE FMANDATORY MERGER": "AY",
+    "EATON CORP PLC F": "ETN",
+    "S&P GLOBAL INC": "SPGI",
+    "INVESCO LTD F": "IVZ",
+    "SCHWAB1 INT 10/30-11/26": "SCHW",
+}
 
 
 def date_to_datetimes(at_day: date) -> tuple[datetime, datetime]:
@@ -87,6 +100,7 @@ class SchwabProvider(BaseProvider):
         self,
         api_key: str | None = None,
         app_secret: str | None = None,
+        skip_cache: bool = False,
         external_auth: bool = False,
     ):
         if not api_key:
@@ -136,6 +150,32 @@ class SchwabProvider(BaseProvider):
                 f"Authentication is expired: {str(e)}. Removed token."
             )
         self._utils = Utils(self._provider, account_hash=self._account_hash)
+        self._local_description_lookup_cache: dict[str, str] = {}
+        if not skip_cache:
+            self._load_local_description_lookup_cache()
+
+    def _load_local_description_lookup_cache(self):
+        from platformdirs import user_cache_dir
+        from pathlib import Path
+        import json
+
+        path = Path(user_cache_dir("py_portfolio_index", ensure_exists=True))
+        file = path / CACHE_DESC_PATH
+        if not file.exists():
+            self._local_description_lookup_cache = {}
+            return
+        with open(file, "r") as f:
+            self._local_description_lookup_cache = json.load(f)
+
+    def _save_local_description_lookup_cache(self):
+        from platformdirs import user_cache_dir
+        from pathlib import Path
+        import json
+
+        path = Path(user_cache_dir("py_portfolio_index", ensure_exists=True))
+        file = path / CACHE_DESC_PATH
+        with open(file, "w") as f:
+            json.dump(self._local_description_lookup_cache, f)
 
     @lru_cache(maxsize=None)
     def _get_instrument_price(
@@ -221,9 +261,28 @@ class SchwabProvider(BaseProvider):
         return set(item["instrument"]["symbol"] for item in orders)
 
     def _get_stock_info(self, ticker: str) -> dict:
-        return {}
-        # info = self._provider.get_ticker_info(ticker)
-        # return info
+        return api_helper(
+            self._provider.get_instruments(
+                symbols=[ticker],
+                project=self._provider.Instrument.Projection.FUNDAMENTAL,
+            )
+        )
+
+    def _get_stock_info_fuzzy(self, search: str) -> dict:
+        # do our best to match a description to a ticker
+        STRIP_VALUES = ["FCLASS", "CLASS", "CLASS EQUITY"]
+        for strip in STRIP_VALUES:
+            search = search.replace(strip, "").strip()
+        search = search.strip()
+        search = re.sub(r"\s+", r" ", search)
+        search = f"(?i){search[:20]}.*"
+        search = search.replace("&", ".")
+        return api_helper(
+            self._provider.get_instruments(
+                symbols=[search],
+                projection=self._provider.Instrument.Projection.DESCRIPTION_REGEX,
+            )
+        )
 
     def get_portfolio(self) -> dict:
         from schwab.client import Client
@@ -336,26 +395,44 @@ class SchwabProvider(BaseProvider):
         )
 
         dividends = self._get_dividends()
-        return {
+
+        first = {
             x["instrument"]["symbol"]: ProfitModel(
                 appreciation=Money(value=Decimal(x["longOpenProfitLoss"])),
                 dividends=dividends[x["instrument"]["symbol"]],
             )
             for x in account_info["positions"]
         }
+        for k, v in dividends.items():
+            if k not in first:
+                first[k] = ProfitModel(appreciation=Money(value=0), dividends=v)
+        return first
 
     def _get_dividends(self) -> defaultdict[str, Money]:
         dividends: dict = self._get_cached_value(
-            ObjectKey.DIVIDENDS, callable=self._get_dividends_wrapper
+            ObjectKey.DIVIDENDS_DETAIL, callable=self._get_dividends_wrapper
         )
         base = []
+
+        changes: bool = False
         for item in dividends:
+            lookup_desc = item["description"]
+            ticker = self._local_description_lookup_cache.get(lookup_desc)
+            if not ticker:
+                ticker = HARD_CODED_DESC_TO_TICKER.get(lookup_desc)
+            if not ticker:
+                fuzzy_search = self._get_stock_info_fuzzy(search=lookup_desc)
+                if fuzzy_search.get("instruments"):
+                    match = fuzzy_search["instruments"][0]
+                    self._local_description_lookup_cache[lookup_desc] = match["symbol"]
+                    changes = True
+                else:
+                    ticker = lookup_desc
             base.append(
-                {
-                    "value": Money(value=Decimal(item["netAmount"])),
-                    "ticker": item["transferItems"][0]["instrument"]["symbol"],
-                }
+                {"value": Money(value=Decimal(item["netAmount"])), "ticker": ticker}
             )
+        if changes:
+            self._save_local_description_lookup_cache()
         final: DefaultDict[str, Money] = defaultdict(lambda: Money(value=0))
         for item in base:
             final[item["ticker"]] += item["value"]

@@ -457,13 +457,17 @@ class WebullProvider(BaseProvider):
             ObjectKey.POSITIONS, callable=self._provider.get_positions
         )
         dividends = self._get_dividends()
-        return {
+        base = {
             x["ticker"]["symbol"]: ProfitModel(
                 appreciation=Money(value=Decimal(x["unrealizedProfitLoss"])),
                 dividends=dividends[x["ticker"]["symbol"]],
             )
             for x in my_stocks
         }
+        for k, v in dividends.items():
+            if k not in base:
+                base[k] = ProfitModel(appreciation=Money(value=0), dividends=v)
+        return base
 
     def _get_dividends(self) -> defaultdict[str, Money]:
         dividends: dict = self._get_cached_value(
