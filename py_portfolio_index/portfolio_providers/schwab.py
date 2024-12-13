@@ -150,7 +150,7 @@ class SchwabProvider(BaseProvider):
                 f"Authentication is expired: {str(e)}. Removed token."
             )
         self._utils = Utils(self._provider, account_hash=self._account_hash)
-        self._local_description_lookup_cache: dict[str, str] = []
+        self._local_description_lookup_cache: dict[str, str] = {}
         if not skip_cache:
             self._load_local_description_lookup_cache()
 
@@ -422,11 +422,9 @@ class SchwabProvider(BaseProvider):
                 ticker = HARD_CODED_DESC_TO_TICKER.get(lookup_desc)
             if not ticker:
                 fuzzy_search = self._get_stock_info_fuzzy(search=lookup_desc)
-                print(fuzzy_search)
                 if fuzzy_search.get("instruments"):
                     match = fuzzy_search["instruments"][0]
-                    ticker = match["symbol"]
-                    self._local_description_lookup_cache[lookup_desc] = ticker
+                    self._local_description_lookup_cache[lookup_desc] = match["symbol"]
                     changes = True
                 else:
                     ticker = lookup_desc
