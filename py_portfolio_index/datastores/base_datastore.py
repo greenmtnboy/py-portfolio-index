@@ -26,15 +26,21 @@ class DBApiConnectionWrapper:
 
 class BaseDatastore:
 
-    def __init__(self, duckdb_path: str):
+    def __init__(self, duckdb_path: str, debug:bool = False):
         self.duckdb_path = duckdb_path
+        self.debug = debug
         self.executor: Executor = self.connect()
+        
 
         if not self.check_initialized():
             self.initialize()
 
     def connect(self):
         env = Environment(working_path=Path(__file__).parent)
+        hooks = []
+        if self.debug:
+            from trilogy.hooks.query_debugger import DebuggingHook
+            hooks.append(DebuggingHook())
         self.executor = Dialects.DUCK_DB.default_executor(
             environment=env, conf=DuckDBConfig(path=self.duckdb_path)
         )
@@ -57,7 +63,9 @@ class BaseDatastore:
         raise NotImplementedError
 
     def query(self, query: str) -> ResultProtocol:
-        return self.executor.execute_text(query)[-1]
+        if isinstance(query, str):
+            return self.executor.execute_text(query)[-1]
+        return self.executor.execute_query(query)
 
     def get_watermarks(
         self, object_key: ObjectKey, provider_type: ProviderType | None = None

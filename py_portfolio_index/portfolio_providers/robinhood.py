@@ -486,7 +486,7 @@ class RobinhoodProvider(BaseProvider):
             ObjectKey.MISC,
             callable=self._process_cache_to_dict,
         )
-        divs = self._get_cached_value(ObjectKey.DIVIDENDS, callable=self._get_dividends)
+        divs:dict[str, Money] = self._get_cached_value(ObjectKey.DIVIDENDS, callable=self._get_dividends)
         output = {}
         for x in my_stocks:
             historical_value = Decimal(x["average_buy_price"]) * Decimal(x["quantity"])
@@ -500,6 +500,9 @@ class RobinhoodProvider(BaseProvider):
             output[ticker] = ProfitModel(
                 appreciation=pl, dividends=divs.get(ticker, Money(value=Decimal(0)))
             )
+        for k, v in divs.items():
+            if k not in output:
+                output[k] = ProfitModel(appreciation=Money(value=Decimal(0)), dividends=v)
         return output
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
