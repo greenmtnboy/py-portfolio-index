@@ -45,6 +45,8 @@ portfolio balance may not have updated to reflect your last order.
 
 Remember that the stock markets are not always open! Providers may vary in their treatment of market hours. 
 
+
+
 #### Basic Example
 
 This example shows a basic example using the Alpaca API in paper trading mode.
@@ -167,6 +169,37 @@ to create an app on the schwab website and follow the authorization path from th
 ```python
 
 from py_portfolio_index import SchwabProvider
+
+```
+
+## Composite Portfolios
+
+To purchase a 'composite' portfolio - where you build an index across multiple providers - use the composite helpers. 
+
+
+An example of purchasing across both Webull and Alpaca. 
+
+```python
+
+from py_portfolio_index import  CompositePortfolio, generate_composite_order_plan, purchase_composite_order_plan, WebullProvider, AlpacaProvider, INDEXES
+
+ideal_portfolio = INDEXES['small_cap']
+
+TARGET_SIZE = 100_000
+
+providers = [AlpacaProvider(), WebullProvider()]
+
+holdings = [p.get_holdings() for p in providers]
+
+composite = CompositePortfolio(holdings)
+
+planned_orders = generate_composite_order_plan(ideal=ideal_port, composite = composite,
+                                    buy_order=PurchaseStrategy.LARGEST_DIFF_FIRST,
+                                    target_size=TARGET_SIZE)
+
+print(planned_orders)
+# uncomment to purchase
+# purchase_composite_order_plan(planned_orders, providers)
 
 ```
 
