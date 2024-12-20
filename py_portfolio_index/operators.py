@@ -458,3 +458,12 @@ def generate_composite_order_plan(
         orders += purchase_plan.all_orders
         output[provider.PROVIDER] += purchase_plan
     return output
+
+
+def purchase_composite_order_plan(orders:Mapping[ProviderType, OrderPlan], providers:list[BaseProvider]):
+    for provider in providers:
+        if provider.PROVIDER in orders:
+            provider.purchase_order_plan(orders[provider.PROVIDER])
+        else:
+            Logger.info(f"Provider {provider.PROVIDER} has no orders to execute")
+    return True
