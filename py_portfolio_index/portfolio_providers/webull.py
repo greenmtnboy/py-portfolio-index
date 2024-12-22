@@ -14,7 +14,7 @@ from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
     ObjectKey,
 )
-from py_portfolio_index.exceptions import ConfigurationError
+from py_portfolio_index.exceptions import ConfigurationError, PriceFetchError
 from py_portfolio_index.models import DividendResult
 from collections import defaultdict
 import uuid
@@ -401,7 +401,10 @@ class WebullProvider(BaseProvider):
                 webull_id = self._local_instrument_cache.get(ticker)
                 if not webull_id:
                     # skip the call
-                    webull_id = str(self._provider.get_ticker(lookup_ticker))
+                    try:
+                        webull_id = str(self._provider.get_ticker(lookup_ticker))
+                    except Exception as e:
+                        raise PriceFetchError([ticker], e)
                     self._local_instrument_cache[ticker] = webull_id
                     new_ids = True
 

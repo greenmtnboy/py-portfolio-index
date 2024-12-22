@@ -8,8 +8,8 @@ from typing import (
     Collection,
     runtime_checkable,
 )
-from pydantic import BaseModel, Field, validator
-from py_portfolio_index.enums import Currency, ProviderType
+from pydantic import BaseModel, Field, field_validator
+from py_portfolio_index.enums import Currency, ProviderType, OrderType
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.exceptions import PriceFetchError
 from decimal import Decimal
@@ -57,7 +57,7 @@ class Money(BaseModel):
     def is_zero(self):
         return self.value == Decimal(0)
 
-    @validator("value", pre=True)
+    @field_validator("value", mode="before")
     def coerce_to_decimal(cls, v) -> Decimal:
         if isinstance(v, (int, float)):
             return Decimal(v)
@@ -333,7 +333,7 @@ class RealPortfolioElement(IdealPortfolioElement):
     dividends: Money = Money(value=0, currency=Currency.USD)
     appreciation: Money = Money(value=0, currency=Currency.USD)
 
-    @validator("value", pre=True)
+    @field_validator("value", mode="before")
     def value_coercion(cls, v) -> Money:
         return Money.parse(v)
 
@@ -461,11 +461,6 @@ class CompositePortfolio:
             if port.provider and port.provider.PROVIDER == provider:
                 return port
         raise ValueError(f"Could not find provider {provider}")
-
-
-class OrderType(Enum):
-    BUY = "BUY"
-    SELL = "SELL"
 
 
 class OrderElement(BaseModel):

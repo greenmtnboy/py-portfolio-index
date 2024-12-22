@@ -10,7 +10,7 @@ from py_portfolio_index.common import (
     get_basic_stock_info,
 )
 from py_portfolio_index.constants import Logger
-from py_portfolio_index.enums import RoundingStrategy, ProviderType
+from py_portfolio_index.enums import RoundingStrategy, ProviderType, OrderType
 from py_portfolio_index.exceptions import OrderError
 from py_portfolio_index.models import (
     Money,
@@ -214,6 +214,8 @@ class BaseProvider(object):
         )
 
     def handle_order_element(self, element: OrderElement, dry_run: bool = False):
+        if element.order_type == OrderType.SELL:
+            raise NotImplementedError
         raw_price = self.get_instrument_price(element.ticker)
 
         if not raw_price:
@@ -258,9 +260,10 @@ class BaseProvider(object):
     def purchase_order_plan(
         self,
         plan: OrderPlan,
-        skip_errored_stocks=False,
+        skip_errored_stocks: bool = False,
         ignore_unsettled: bool = True,
         plan_only: bool = False,
+        include_sell_orders: bool = False,
     ):
         if ignore_unsettled:
             unsettled = self.get_unsettled_instruments()
@@ -271,9 +274,11 @@ class BaseProvider(object):
                 Logger.info(f"Skipping {item.ticker} with unsettled orders.")
                 continue
             try:
+                if item.order_type == OrderType.SELL and not include_sell_orders:
+                    continue
                 self.handle_order_element(item, dry_run=plan_only)
             except Exception as e:
-                print(e)
+                Logger.error(f"Failed to purchase {item.ticker}:{str(e)}.")
                 if not skip_errored_stocks:
                     raise e
 
