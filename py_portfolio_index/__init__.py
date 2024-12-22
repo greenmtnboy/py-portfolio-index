@@ -5,7 +5,7 @@ from py_portfolio_index.operators import (
     compare_portfolios,
     generate_order_plan,
     generate_composite_order_plan,
-    purchase_composite_order_plan
+    purchase_composite_order_plan,
 )
 from py_portfolio_index.portfolio_providers.robinhood import RobinhoodProvider
 from py_portfolio_index.portfolio_providers.alpaca_v2 import (

@@ -194,7 +194,7 @@ holdings = [p.get_holdings() for p in providers]
 composite = CompositePortfolio(holdings)
 
 planned_orders = generate_composite_order_plan(ideal=ideal_port, composite = composite,
-                                    buy_order=PurchaseStrategy.LARGEST_DIFF_FIRST,
+                                    purchase_order_maps=PurchaseStrategy.LARGEST_DIFF_FIRST,
                                     target_size=TARGET_SIZE)
 
 print(planned_orders)
