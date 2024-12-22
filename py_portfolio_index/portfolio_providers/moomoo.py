@@ -28,6 +28,8 @@ BATCH_SIZE = 50
 
 CACHE_PATH = "moo_moo_tickers.json"
 
+DEFAULT_PORT = 11111
+
 
 def nearest_value(all_historicals, pivot) -> Optional[dict]:
     filtered = [z for z in all_historicals if z]
@@ -91,6 +93,7 @@ class MooMooProvider(BaseProvider):
     def __init__(
         self,
         skip_cache: bool = False,
+        opend_path: str | None = None,
     ):
         from moomoo import (
             OpenSecTradeContext,
@@ -102,10 +105,10 @@ class MooMooProvider(BaseProvider):
         self._trade_provider = OpenSecTradeContext(
             filter_trdmarket=TrdMarket.US,
             host="localhost",
-            port=11111,
+            port=DEFAULT_PORT,
             security_firm=SecurityFirm.FUTUINC,
         )
-        self._quote_provider = OpenQuoteContext(host="localhost", port=11111)
+        self._quote_provider = OpenQuoteContext(host="localhost", port=DEFAULT_PORT)
         BaseProvider.__init__(self)
         self._local_latest_price_cache: Dict[str, Decimal | None] = defaultdict(
             lambda: None

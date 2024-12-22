@@ -14,6 +14,11 @@ class ProviderType(str, Enum):
     SCHWAB = "schwab"
 
 
+class OrderType(Enum):
+    BUY = "BUY"
+    SELL = "SELL"
+
+
 class ObjectKey(Enum):
     POSITIONS = 0
     DIVIDENDS = 1
