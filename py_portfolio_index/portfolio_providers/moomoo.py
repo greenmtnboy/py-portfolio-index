@@ -22,13 +22,28 @@ from py_portfolio_index.enums import ProviderType
 from functools import lru_cache
 from os import environ
 from collections import defaultdict
-
+import socket
+import re
+import sys
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
 
 CACHE_PATH = "moo_moo_tickers.json"
 
 DEFAULT_PORT = 11111
+
+
+def check_listening(port:int):
+    # Create a TCP socket
+    address = 'localhost'
+    s = socket.socket()
+    try:
+        s.connect((address, port))
+        return True
+    except socket.error:
+        return False
+    finally:
+        s.close()
 
 
 def nearest_value(all_historicals, pivot) -> Optional[dict]:
@@ -77,6 +92,20 @@ class InstrumentDict(dict):
             return self[key]
         raise ValueError(f"Could not find instrument {key} after refresh")
 
+def start_proxy(path:str, login_account:str, login_pwd:str, lang:str = 'en'):
+    #run this command in a subprocess
+    # -login_account=100000 -login_pwd=123456 -lang=en
+    from time import sleep
+    import subprocess
+    process = subprocess.Popen([path, f'-login_account={login_account}', f'-login_pwd={login_pwd}', f'-lang={lang}'])
+    for _ in range(0,10):
+        print('checking if process is active')
+        print(process.stdout)
+        if check_listening(DEFAULT_PORT):
+            return process
+        sleep(5)
+
+    raise ConfigurationError(f'Could not start moomoo proxy; {process.stderror}')
 
 class MooMooProvider(BaseProvider):
     """Provider for interacting with stocks held in
@@ -86,22 +115,43 @@ class MooMooProvider(BaseProvider):
     PROVIDER = ProviderType.MOOMOO
     SUPPORTS_BATCH_HISTORY = 0
     PASSWORD_ENV = "MOOMOO_PASSWORD"
-    USERNAME_ENV = "MOOMOO_USERNAME"
+    ACCOUNT_ENV = "MOOMOO_ACCOUNT"
     TRADE_TOKEN_ENV = "MOOMOO_TRADE_TOKEN"
     DEVICE_ID_ENV = "MOOMOO_DEVICE_ID"
+    OPEND_ENV = "MOOMOO_OPEND_PATH"
 
     def __init__(
         self,
         skip_cache: bool = False,
         opend_path: str | None = None,
+        account: str | None = None,
+        password: str | None = None,
+        trade_token: str | None = None,
     ):
         from moomoo import (
             OpenSecTradeContext,
             OpenQuoteContext,
             SecurityFirm,
             TrdMarket,
+            RET_OK
         )
-
+        if not account:
+            account = environ.get(self.ACCOUNT_ENV, None)
+        if not password:
+            password = environ.get(self.PASSWORD_ENV, None)
+        if not trade_token:
+            trade_token = environ.get(self.TRADE_TOKEN_ENV, 'ABC')
+        if not opend_path:
+            opend_path = environ.get(self.OPEND_ENV, None)
+        # if not device_id:
+        #     device_id = environ.get(self.DEVICE_ID_ENV, None)
+        if not (account and password and trade_token):
+            raise ConfigurationError(
+                "Must provide ALL OF account, password, trade_token, and arguments or set environment variables MOOMOO_ACCOUNT, MOOMOO_PASSWORD, MOOMOO_TRADE_TOKEN, and MOOMOO_DEVICE_ID "
+            )
+        self._trade_token = trade_token
+        if not check_listening(DEFAULT_PORT):
+            self.process = start_proxy(opend_path, account, password)
         self._trade_provider = OpenSecTradeContext(
             filter_trdmarket=TrdMarket.US,
             host="localhost",
