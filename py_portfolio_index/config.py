@@ -36,4 +36,9 @@ def get_providers() -> List[ProviderType]:
         providers.append(ProviderType.SCHWAB)
     except ImportError:
         pass
+    try:
+        from moomoo import OpenSecTradeContext  # noqa: F401
+        providers.append(ProviderType.MOOMOO)
+    except ImportError:
+        pass
     return providers
