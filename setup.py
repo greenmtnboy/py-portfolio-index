@@ -49,6 +49,7 @@ setuptools.setup(
         "robinhood": ["robin-stocks"],
         "webull": ["webull"],
         "schwab": ["schwab-py"],
+        "moomoo": ["moomoo-api"],
     },
     classifiers=[
         "Programming Language :: Python",

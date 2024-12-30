@@ -33,6 +33,7 @@ __all__ = [
     "compare_portfolios",
     "generate_order_plan",
     "generate_composite_order_plan",
+    "purchase_composite_order_plan",
     "PaperAlpacaProvider",
     "AlpacaProvider",
     "WebullProvider",
