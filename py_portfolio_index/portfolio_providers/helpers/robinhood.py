@@ -72,7 +72,10 @@ def _validate_sherrif_id(device_token: str, workflow_id: str, mfa_code: str):
         challenge_response = request_post(
             url=challenge_url, payload=challenge_payload, json=True
         )
-        if challenge_response["status"] == "validated":
+        if (
+            "status" in challenge_response
+            and challenge_response["status"] == "validated"
+        ):
             inquiries_payload = {"sequence": 0, "user_input": {"status": "continue"}}
             inquiries_response = request_post(
                 url=inquiries_url, payload=inquiries_payload, json=True
@@ -83,9 +86,11 @@ def _validate_sherrif_id(device_token: str, workflow_id: str, mfa_code: str):
             ):
                 return
             else:
-                raise Exception("workflow status not approved")
+                raise Exception(
+                    f"workflow status not approved; is {challenge_response}"
+                )
         else:
-            raise Exception("Challenge not validated")
+            raise Exception(f"Challenge not validated: {challenge_response}")
     raise Exception("Id not returned in user-machine call")
 
 

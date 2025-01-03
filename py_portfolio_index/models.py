@@ -7,6 +7,7 @@ from typing import (
     TYPE_CHECKING,
     Collection,
     runtime_checkable,
+    Protocol
 )
 from pydantic import BaseModel, Field, field_validator
 from py_portfolio_index.enums import Currency, ProviderType, OrderType
@@ -14,7 +15,6 @@ from py_portfolio_index.constants import Logger
 from py_portfolio_index.exceptions import PriceFetchError
 from decimal import Decimal
 from enum import Enum
-from typing import Protocol
 from dataclasses import dataclass, field
 
 if TYPE_CHECKING:

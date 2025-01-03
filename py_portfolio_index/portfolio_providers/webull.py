@@ -30,53 +30,6 @@ DEFAULT_WEBULL_TIMEOUT = 60
 CACHE_PATH = "webull_tickers.json"
 
 
-def nearest_value(all_historicals, pivot) -> Optional[dict]:
-    filtered = [z for z in all_historicals if z]
-    if not filtered:
-        return None
-    return min(
-        filtered,
-        key=lambda x: abs(
-            datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - pivot
-        ),
-    )
-
-
-def nearest_multi_value(
-    symbol: str, all_historicals, pivot: Optional[date] = None
-) -> Optional[Decimal]:
-    filtered = [z for z in all_historicals if z and z["symbol"] == symbol]
-    if not filtered:
-        return None
-    if pivot is not None:
-        lpivot = pivot or date.today()
-        closest = min(
-            filtered,
-            key=lambda x: abs(
-                datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - lpivot
-            ),
-        )
-    else:
-        closest = filtered[0]
-    if closest:
-        value = closest.get("last_trade_price", closest.get("high_price", None))
-        return Decimal(value)
-    return None
-
-
-class InstrumentDict(dict):
-    def __init__(self, refresher, *args):
-        super().__init__(*args)
-        self.refresher = refresher
-
-    def __missing__(self, key):
-        mapping = self.refresher()
-        self.update(mapping)
-        if key in self:
-            return self[key]
-        raise ValueError(f"Could not find instrument {key} after refresh")
-
-
 class WebullProvider(BaseProvider):
     """Provider for interacting with stocks held in
     Webull
