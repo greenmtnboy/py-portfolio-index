@@ -56,6 +56,7 @@ class MooMooProvider(BaseProvider):
         account: str | None = None,
         password: str | None = None,
         trade_token: str | None = None,
+        quote_provider: BaseProvider | None = None
     ):
         from moomoo import (
             OpenSecTradeContext,
@@ -91,12 +92,15 @@ class MooMooProvider(BaseProvider):
         self._local_latest_price_cache: Dict[str, Decimal | None] = defaultdict(
             lambda: None
         )
+        self._quote_provider = quote_provider
 
     @lru_cache(maxsize=None)
     def _get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
     ) -> Optional[Decimal]:
         # TODO: determine if there is a bulk API
+        if self._quote_provider:
+            return self._quote_provider.get_instrument_price(ticker, at_day=at_day)
         from moomoo import RET_OK, SubType
 
         if at_day:
@@ -280,11 +284,12 @@ class MooMooProvider(BaseProvider):
     def _get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
     ) -> Dict[str, Optional[Decimal]]:
+        if self._quote_provider:
+            return self._quote_provider.get_instrument_prices(tickers, at_day=at_day)
         batches: List[Dict[str, Optional[Decimal]]] = []
         for list_batch in divide_into_batches(tickers, 1):
             # TODO: determine if there is a bulk API
             ticker: str = list_batch[0]
-            # webull_id = self._local_instrument_cache.get(ticker)
             rval = self._get_instrument_price(ticker, at_day=at_day)
             batches.append({ticker: rval})
         prices: Dict[str, Optional[Decimal]] = {}
