@@ -1,3 +1,4 @@
+from __future__ import annotations
 from math import floor, ceil
 from typing import Dict, Union, Optional, Set, List, Callable, Any
 from decimal import Decimal
@@ -41,19 +42,22 @@ class BaseProvider(object):
     SUPPORTS_BATCH_HISTORY = 0
     SUPPORTS_FRACTIONAL_SHARES = True
 
-    def __init__(self) -> None:
+    def __init__(self, quote_provider: BaseProvider | None = None) -> None:
         self.stock_info_cache: Dict[str, StockInfo] = {}
         self._price_cache: PriceCache = PriceCache(
             fetcher=self._get_instrument_prices,
             single_fetcher=self._get_instrument_price,
         )
         self.CACHE: dict[str, CachedValue] = {}
+        self._quote_provider = quote_provider
 
     def clear_cache(self, skip_clearing: List[str]):
         for value in self.CACHE.values():
             if value in skip_clearing:
                 continue
             value.value = None
+        if self._quote_provider:
+            self._quote_provider.clear_cache(skip_clearing)
 
     def _get_cached_value(
         self,
@@ -108,11 +112,15 @@ class BaseProvider(object):
     def get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
     ) -> Dict[str, Optional[Decimal]]:
+        if self._quote_provider:
+            return self._quote_provider.get_instrument_prices(tickers, at_day)
         return self._price_cache.get_prices(tickers=tickers, date=at_day)
 
     def get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
     ) -> Optional[Decimal]:
+        if self._quote_provider:
+            return self._quote_provider.get_instrument_price(ticker, at_day)
         return self._price_cache.get_price(ticker=ticker, date=at_day)
 
     def buy_instrument(
