@@ -1,7 +1,6 @@
 import socket as socket
 import subprocess
 from time import sleep
-import subprocess
 from py_portfolio_index.models import LoginResponse, LoginResponseStatus
 from py_portfolio_index.exceptions import (
     ConfigurationError,
@@ -25,7 +24,6 @@ def check_listening(port: int):
 
 
 class MooMooProxy:
-
     def __init__(self, opend_path: str | None = None):
         self.opend_path = opend_path
         self.connection: subprocess.Popen | None = None

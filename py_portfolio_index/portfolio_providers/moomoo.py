@@ -1,5 +1,5 @@
 from decimal import Decimal
-from datetime import date, datetime
+from datetime import date
 from typing import Optional, List, Dict, DefaultDict, Any
 from py_portfolio_index.models import (
     RealPortfolio,
@@ -17,8 +17,7 @@ from py_portfolio_index.exceptions import (
     PriceFetchError,
     OrderError,
 )
-from py_portfolio_index.constants import CACHE_DIR
-from py_portfolio_index.enums import ProviderType, ObjectKey
+
 from py_portfolio_index.portfolio_providers.helpers.moomoo import (
     DEFAULT_PORT,
     MooMooProxy,
@@ -56,14 +55,13 @@ class MooMooProvider(BaseProvider):
         account: str | None = None,
         password: str | None = None,
         trade_token: str | None = None,
-        quote_provider: BaseProvider | None = None
+        quote_provider: BaseProvider | None = None,
     ):
         from moomoo import (
             OpenSecTradeContext,
             OpenQuoteContext,
             SecurityFirm,
             TrdMarket,
-            RET_OK,
         )
 
         if not account:
@@ -87,20 +85,17 @@ class MooMooProvider(BaseProvider):
             port=DEFAULT_PORT,
             security_firm=SecurityFirm.FUTUINC,
         )
-        self._quote_provider = OpenQuoteContext(host="localhost", port=DEFAULT_PORT)
-        BaseProvider.__init__(self)
+        self._quote_context = OpenQuoteContext(host="localhost", port=DEFAULT_PORT)
+        BaseProvider.__init__(self, quote_provider=quote_provider)
         self._local_latest_price_cache: Dict[str, Decimal | None] = defaultdict(
             lambda: None
         )
-        self._quote_provider = quote_provider
 
     @lru_cache(maxsize=None)
     def _get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
     ) -> Optional[Decimal]:
         # TODO: determine if there is a bulk API
-        if self._quote_provider:
-            return self._quote_provider.get_instrument_price(ticker, at_day=at_day)
         from moomoo import RET_OK, SubType
 
         if at_day:
@@ -119,12 +114,12 @@ class MooMooProvider(BaseProvider):
             # )
             # return Decimal(value=list(historicals.itertuples())[0].vwap)
         else:
-            ret_sub, err_message = self._quote_provider.subscribe(
+            ret_sub, err_message = self._quote_context.subscribe(
                 ["US." + ticker], [SubType.TICKER], subscribe_push=False
             )
             # Subscribe to the K line type first. After the subscription is successful, moomoo OpenD will continue to receive pushes from the server, False means that there is no need to push to the script temporarily
             if ret_sub == RET_OK:  # Subscription successful
-                ret, data = self._quote_provider.get_stock_quote(
+                ret, data = self._quote_context.get_stock_quote(
                     ["US." + ticker]
                 )  # Get real-time data of subscription stock quotes
                 if ret == RET_OK:
@@ -278,14 +273,9 @@ class MooMooProvider(BaseProvider):
             profit_and_loss=self.get_profit_or_loss(),
         )
 
-    def get_instrument_prices(self, tickers: List[str], at_day: Optional[date] = None):
-        return self._price_cache.get_prices(tickers=tickers, date=at_day)
-
     def _get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
     ) -> Dict[str, Optional[Decimal]]:
-        if self._quote_provider:
-            return self._quote_provider.get_instrument_prices(tickers, at_day=at_day)
         batches: List[Dict[str, Optional[Decimal]]] = []
         for list_batch in divide_into_batches(tickers, 1):
             # TODO: determine if there is a bulk API
@@ -321,6 +311,6 @@ class MooMooProvider(BaseProvider):
 
     def _shutdown(self):
         self._trade_provider.close()
-        self._quote_provider.close()
+        self._quote_context.close()
         if self.proxy:
             self.proxy.close()

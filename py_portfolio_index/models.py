@@ -7,7 +7,7 @@ from typing import (
     TYPE_CHECKING,
     Collection,
     runtime_checkable,
-    Protocol
+    Protocol,
 )
 from pydantic import BaseModel, Field, field_validator
 from py_portfolio_index.enums import Currency, ProviderType, OrderType

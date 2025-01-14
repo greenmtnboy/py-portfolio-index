@@ -454,9 +454,6 @@ class RobinhoodProvider(BaseProvider):
         )
         return RealPortfolio(holdings=out, cash=Money(value=cash), provider=self)
 
-    def get_instrument_prices(self, tickers: List[str], at_day: Optional[date] = None):
-        return self._price_cache.get_prices(tickers=tickers, date=at_day)
-
     def _get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
     ) -> Dict[str, Optional[Decimal]]:

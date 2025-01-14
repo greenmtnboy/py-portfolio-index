@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Dict, Union, Mapping, List
+from typing import Optional, Dict, Union, Mapping, List, Callable
 from decimal import Decimal
 from math import floor, ceil
 from collections import defaultdict
@@ -8,7 +8,6 @@ from py_portfolio_index.common import print_per
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import PurchaseStrategy, RoundingStrategy
 from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
-from py_portfolio_index.portfolio_providers.common import PriceCache
 from py_portfolio_index.exceptions import PriceFetchError
 from py_portfolio_index.models import (
     Money,
@@ -275,7 +274,7 @@ def gen_diff_and_scaling(
 def generate_order_plan(
     real: PortfolioProtocol,
     ideal: IdealPortfolio,
-    price_cache: PriceCache,
+    price_cache: Callable,
     buy_order=PurchaseStrategy.LARGEST_DIFF_FIRST,
     target_size: Optional[Money | float | int] = None,
     purchase_power: Optional[Money | float | int] = None,
@@ -344,13 +343,14 @@ def generate_order_plan(
     to_sell: list[OrderElement] = []
     price_missing: set[str] = set()
     try:
-        prices = price_cache.get_prices([*diff_output.keys()])
+        prices = price_cache([*diff_output.keys()])
     except PriceFetchError as e:
         for x in e.tickers:
             price_missing.add(x)
         Logger.info(
             f"Was unable to fetch prices for {price_missing} tickers, adding to skipped."
         )
+        raise e
         if not skip_invalid:
             raise e
         return generate_order_plan(
@@ -477,7 +477,7 @@ def generate_composite_order_plan(
             min_order_value=min_order_value,
             skip_tickers=skip_tickers,
             fractional_shares=provider.SUPPORTS_FRACTIONAL_SHARES,
-            price_cache=provider._price_cache,
+            price_cache=provider.get_instrument_prices,
             provider=provider.PROVIDER,
             existing_orders=orders,
             include_sell_orders=include_sell_orders,
