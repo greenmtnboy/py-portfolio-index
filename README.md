@@ -1,3 +1,5 @@
+[![Discord](https://img.shields.io/badge/DISCORD-CHAT-red?logo=discord)](https://discord.gg/bNsx3cF7V4)
+
 ## Customized Index Funds
 
 `py-portfolio-index` is a python library to make it easier to mantain a broad, index-based approach to stock investing while being able to layer in personal preferences, such as to exclude or reweight certain kinds of stocks.
