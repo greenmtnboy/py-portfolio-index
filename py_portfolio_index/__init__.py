@@ -23,7 +23,7 @@ from py_portfolio_index.enums import ProviderType
 
 AVAILABLE_PROVIDERS = get_providers()
 
-__version__ = "0.1.20"
+__version__ = "0.1.21"
 
 __all__ = [
     "INDEXES",
