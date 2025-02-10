@@ -56,6 +56,7 @@ class MooMooProvider(BaseProvider):
         password: str | None = None,
         trade_token: str | None = None,
         quote_provider: BaseProvider | None = None,
+        _external_auth: bool = False
     ):
         from moomoo import (
             OpenSecTradeContext,
@@ -72,7 +73,7 @@ class MooMooProvider(BaseProvider):
             trade_token = environ.get(self.TRADE_TOKEN_ENV, "ABC")
         # if not device_id:
         #     device_id = environ.get(self.DEVICE_ID_ENV, None)
-        if not (account and password and trade_token):
+        if not (account and password and trade_token) and not _external_auth:
             raise ConfigurationError(
                 "Must provide ALL OF account, password, trade_token, and arguments or set environment variables MOOMOO_ACCOUNT, MOOMOO_PASSWORD, MOOMOO_TRADE_TOKEN"
             )
