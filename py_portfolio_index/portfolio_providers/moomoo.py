@@ -56,7 +56,7 @@ class MooMooProvider(BaseProvider):
         password: str | None = None,
         trade_token: str | None = None,
         quote_provider: BaseProvider | None = None,
-        _external_auth: bool = False
+        _external_auth: bool = False,
     ):
         from moomoo import (
             OpenSecTradeContext,
