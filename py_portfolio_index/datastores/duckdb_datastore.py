@@ -149,7 +149,7 @@ class DuckDBDatastore(BaseDatastore):
                     "dividend_date": x.date,
                 },
             )
-        self.executor.connection.commit()
+        self.executor.connection.commit()  # type: ignore
 
     def persist_holding_data(
         self, data: list[RealPortfolioElement], provider: ProviderType
@@ -175,4 +175,4 @@ class DuckDBDatastore(BaseDatastore):
                     "value": x.value.value,
                 },
             )
-        self.executor.connection.commit()
+        self.executor.connection.commit()  # type: ignore
