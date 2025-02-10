@@ -1,7 +1,6 @@
 import socket as socket
 import subprocess
 from time import sleep
-from py_portfolio_index.models import LoginResponse, LoginResponseStatus
 from py_portfolio_index.exceptions import (
     ConfigurationError,
     ExtraAuthenticationStepException,
@@ -23,7 +22,10 @@ def check_listening(port: int):
     finally:
         s.close()
 
-def interactive_login(opend_path: str, account: str, pwd: str, lang: str = "en") -> bool:
+
+def interactive_login(
+    opend_path: str, account: str, pwd: str, lang: str = "en"
+) -> bool:
     proxy = MooMooProxy(opend_path)
     try:
         proxy.start_proxy(opend_path, account, pwd, lang)
@@ -73,7 +75,7 @@ class MooMooProxy:
                 f"-lang={lang}",
                 f"-telnet_ip={self.telnet_ip}",
                 f"-telnet_port={self.telnet_port}",
-                "-console=1"
+                "-console=1",
             ],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -85,24 +87,25 @@ class MooMooProxy:
         #     response=LoginResponse(status=LoginResponseStatus.MFA_REQUIRED)
         # )
         self.validate(login_account, login_pwd)
-    
 
     def send_command(self, command: str):
-        with Telnet(self.telnet_ip, self.telnet_port) as tn:  # Telnet address is: 127.0.0.1, Telnet port is: 22222
-            tn.write(command.encode()+b'\r\n')
-            reply = b''
+        with Telnet(
+            self.telnet_ip, self.telnet_port
+        ) as tn:  # Telnet address is: 127.0.0.1, Telnet port is: 22222
+            tn.write(command.encode() + b"\r\n")
+            reply = b""
             while True:
-                msg = tn.read_until(b'\r\n', timeout=0.5)
+                msg = tn.read_until(b"\r\n", timeout=0.5)
                 reply += msg
-                if msg == b'':
+                if msg == b"":
                     break
-            output = reply.decode('gb2312')
+            output = reply.decode("gb2312")
             print(output)
         return output
-    
+
     def close(self):
         if self.process:
-            self.send_command('exit')
+            self.send_command("exit")
             self.process = None
 
     def connect(self, account: str, pwd: str):
