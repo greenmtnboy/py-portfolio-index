@@ -14,7 +14,7 @@ from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
     ObjectKey,
 )
-from py_portfolio_index.exceptions import ConfigurationError
+from py_portfolio_index.exceptions import ConfigurationError, PriceFetchError
 from py_portfolio_index.models import DividendResult
 from collections import defaultdict
 import uuid
@@ -28,53 +28,6 @@ BATCH_SIZE = 50
 
 DEFAULT_WEBULL_TIMEOUT = 60
 CACHE_PATH = "webull_tickers.json"
-
-
-def nearest_value(all_historicals, pivot) -> Optional[dict]:
-    filtered = [z for z in all_historicals if z]
-    if not filtered:
-        return None
-    return min(
-        filtered,
-        key=lambda x: abs(
-            datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - pivot
-        ),
-    )
-
-
-def nearest_multi_value(
-    symbol: str, all_historicals, pivot: Optional[date] = None
-) -> Optional[Decimal]:
-    filtered = [z for z in all_historicals if z and z["symbol"] == symbol]
-    if not filtered:
-        return None
-    if pivot is not None:
-        lpivot = pivot or date.today()
-        closest = min(
-            filtered,
-            key=lambda x: abs(
-                datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - lpivot
-            ),
-        )
-    else:
-        closest = filtered[0]
-    if closest:
-        value = closest.get("last_trade_price", closest.get("high_price", None))
-        return Decimal(value)
-    return None
-
-
-class InstrumentDict(dict):
-    def __init__(self, refresher, *args):
-        super().__init__(*args)
-        self.refresher = refresher
-
-    def __missing__(self, key):
-        mapping = self.refresher()
-        self.update(mapping)
-        if key in self:
-            return self[key]
-        raise ValueError(f"Could not find instrument {key} after refresh")
 
 
 class WebullProvider(BaseProvider):
@@ -401,7 +354,10 @@ class WebullProvider(BaseProvider):
                 webull_id = self._local_instrument_cache.get(ticker)
                 if not webull_id:
                     # skip the call
-                    webull_id = str(self._provider.get_ticker(lookup_ticker))
+                    try:
+                        webull_id = str(self._provider.get_ticker(lookup_ticker))
+                    except Exception as e:
+                        raise PriceFetchError([ticker], e)
                     self._local_instrument_cache[ticker] = webull_id
                     new_ids = True
 
