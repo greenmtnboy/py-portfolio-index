@@ -1,2726 +1,2626 @@
 {
   "name": "Core Growth",
-  "as_of": "2024-09-30",
+  "as_of": "2024-12-31",
   "components": [
     {
       "ticker": "AAPL",
-      "weight": "0.116672250501"
+      "weight": "0.122467294077"
     },
     {
       "ticker": "MSFT",
-      "weight": "0.110882751941"
+      "weight": "0.101270242595"
     },
     {
       "ticker": "NVDA",
-      "weight": "0.098389045068"
+      "weight": "0.100849881993"
     },
     {
       "ticker": "AMZN",
-      "weight": "0.061017929722"
+      "weight": "0.066730607618"
     },
     {
       "ticker": "META",
-      "weight": "0.043356456502"
-    },
-    {
-      "ticker": "GOOGL",
-      "weight": "0.033687225864"
-    },
-    {
-      "ticker": "GOOG",
-      "weight": "0.027515580237"
-    },
-    {
-      "ticker": "LLY",
-      "weight": "0.026271889045"
+      "weight": "0.041665192383"
     },
     {
       "ticker": "TSLA",
-      "weight": "0.024629450520"
+      "weight": "0.035968833532"
+    },
+    {
+      "ticker": "GOOGL",
+      "weight": "0.035518871940"
+    },
+    {
+      "ticker": "GOOG",
+      "weight": "0.028766625363"
+    },
+    {
+      "ticker": "LLY",
+      "weight": "0.021534645755"
     },
     {
       "ticker": "V",
-      "weight": "0.015922533466"
+      "weight": "0.017832591596"
     },
     {
       "ticker": "MA",
-      "weight": "0.014123818073"
+      "weight": "0.014094892459"
     },
     {
       "ticker": "COST",
-      "weight": "0.013625324517"
+      "weight": "0.013257296357"
     },
     {
       "ticker": "NFLX",
-      "weight": "0.010552655761"
-    },
-    {
-      "ticker": "AMD",
-      "weight": "0.009206398173"
+      "weight": "0.012442578362"
     },
     {
       "ticker": "CRM",
-      "weight": "0.008735028404"
-    },
-    {
-      "ticker": "ADBE",
-      "weight": "0.007959159986"
-    },
-    {
-      "ticker": "LIN",
-      "weight": "0.007893925698"
+      "weight": "0.009917583117"
     },
     {
       "ticker": "ACN",
-      "weight": "0.007675948665"
-    },
-    {
-      "ticker": "MCD",
-      "weight": "0.007572771420"
-    },
-    {
-      "ticker": "TXN",
-      "weight": "0.006538620995"
+      "weight": "0.007199816085"
     },
     {
       "ticker": "NOW",
-      "weight": "0.006387345814"
+      "weight": "0.007135207715"
     },
     {
-      "ticker": "ISRG",
-      "weight": "0.006052125737"
+      "ticker": "MCD",
+      "weight": "0.006788067705"
     },
     {
       "ticker": "DIS",
-      "weight": "0.006047761895"
+      "weight": "0.006589273301"
     },
     {
-      "ticker": "AMAT",
-      "weight": "0.005774644669"
+      "ticker": "LIN",
+      "weight": "0.006514270542"
     },
     {
-      "ticker": "SPGI",
-      "weight": "0.005734807139"
+      "ticker": "AMD",
+      "weight": "0.006405398288"
+    },
+    {
+      "ticker": "ADBE",
+      "weight": "0.006396650740"
+    },
+    {
+      "ticker": "ISRG",
+      "weight": "0.006075455416"
+    },
+    {
+      "ticker": "TXN",
+      "weight": "0.005590754786"
     },
     {
       "ticker": "INTU",
-      "weight": "0.005717370229"
-    },
-    {
-      "ticker": "UBER",
-      "weight": "0.005200555413"
+      "weight": "0.005462291382"
     },
     {
       "ticker": "BKNG",
-      "weight": "0.004895396447"
+      "weight": "0.005374709189"
     },
     {
-      "ticker": "TJX",
-      "weight": "0.004605191835"
-    },
-    {
-      "ticker": "SYK",
-      "weight": "0.004295359671"
-    },
-    {
-      "ticker": "BSX",
-      "weight": "0.004278216880"
-    },
-    {
-      "ticker": "VRTX",
-      "weight": "0.004161459283"
-    },
-    {
-      "ticker": "ADP",
-      "weight": "0.003912232264"
-    },
-    {
-      "ticker": "PANW",
-      "weight": "0.003836853148"
-    },
-    {
-      "ticker": "SBUX",
-      "weight": "0.003829948293"
-    },
-    {
-      "ticker": "BX",
-      "weight": "0.003822657025"
-    },
-    {
-      "ticker": "AMT",
-      "weight": "0.003765772724"
-    },
-    {
-      "ticker": "LRCX",
-      "weight": "0.003698743392"
-    },
-    {
-      "ticker": "KLAC",
-      "weight": "0.003608920732"
-    },
-    {
-      "ticker": "FI",
-      "weight": "0.003585656874"
-    },
-    {
-      "ticker": "GE",
-      "weight": "0.003367203665"
-    },
-    {
-      "ticker": "ANET",
-      "weight": "0.003344143470"
-    },
-    {
-      "ticker": "TMUS",
-      "weight": "0.003338891166"
-    },
-    {
-      "ticker": "BA",
-      "weight": "0.003247750714"
-    },
-    {
-      "ticker": "SHW",
-      "weight": "0.003004008243"
-    },
-    {
-      "ticker": "EQIX",
-      "weight": "0.002921664327"
-    },
-    {
-      "ticker": "ZTS",
-      "weight": "0.002761823833"
-    },
-    {
-      "ticker": "CMG",
-      "weight": "0.002735608561"
-    },
-    {
-      "ticker": "APH",
-      "weight": "0.002720432772"
-    },
-    {
-      "ticker": "WELL",
-      "weight": "0.002703712496"
-    },
-    {
-      "ticker": "SNPS",
-      "weight": "0.002696754857"
-    },
-    {
-      "ticker": "TDG",
-      "weight": "0.002637329928"
+      "ticker": "SPGI",
+      "weight": "0.005168910247"
     },
     {
       "ticker": "PLTR",
-      "weight": "0.002624689060"
+      "weight": "0.005121841225"
     },
     {
-      "ticker": "CDNS",
-      "weight": "0.002572816461"
+      "ticker": "TJX",
+      "weight": "0.004455168201"
     },
     {
-      "ticker": "MCO",
-      "weight": "0.002546676197"
+      "ticker": "AMAT",
+      "weight": "0.004383616693"
     },
     {
-      "ticker": "AON",
-      "weight": "0.002475469278"
+      "ticker": "BA",
+      "weight": "0.004324671250"
     },
     {
-      "ticker": "CTAS",
-      "weight": "0.002445378000"
+      "ticker": "BSX",
+      "weight": "0.004304568064"
     },
     {
-      "ticker": "GEV",
-      "weight": "0.002429138818"
+      "ticker": "BX",
+      "weight": "0.004070684420"
     },
     {
-      "ticker": "ORLY",
-      "weight": "0.002315785516"
+      "ticker": "SYK",
+      "weight": "0.004039708856"
     },
     {
-      "ticker": "ECL",
-      "weight": "0.002266784931"
+      "ticker": "UBER",
+      "weight": "0.003946335182"
     },
     {
-      "ticker": "CRWD",
-      "weight": "0.002244940903"
+      "ticker": "PANW",
+      "weight": "0.003904398128"
+    },
+    {
+      "ticker": "ADP",
+      "weight": "0.003900964632"
+    },
+    {
+      "ticker": "FI",
+      "weight": "0.003822522936"
+    },
+    {
+      "ticker": "ANET",
+      "weight": "0.003643630877"
+    },
+    {
+      "ticker": "VRTX",
+      "weight": "0.003391784305"
+    },
+    {
+      "ticker": "SBUX",
+      "weight": "0.003384806844"
+    },
+    {
+      "ticker": "TMUS",
+      "weight": "0.003352327192"
     },
     {
       "ticker": "MRVL",
-      "weight": "0.002164209207"
+      "weight": "0.003130595674"
     },
     {
-      "ticker": "ROP",
-      "weight": "0.002067921237"
+      "ticker": "LRCX",
+      "weight": "0.003040885204"
     },
     {
-      "ticker": "ADSK",
-      "weight": "0.002058167808"
+      "ticker": "EQIX",
+      "weight": "0.002977377661"
     },
     {
-      "ticker": "REGN",
-      "weight": "0.001975591170"
+      "ticker": "GEV",
+      "weight": "0.002967522579"
     },
     {
-      "ticker": "HLT",
-      "weight": "0.001969181129"
+      "ticker": "GE",
+      "weight": "0.002806807131"
     },
     {
-      "ticker": "MAR",
-      "weight": "0.001941024008"
+      "ticker": "AMT",
+      "weight": "0.002805042977"
     },
     {
-      "ticker": "AZO",
-      "weight": "0.001865527493"
+      "ticker": "KLAC",
+      "weight": "0.002758782253"
     },
     {
-      "ticker": "NKE",
-      "weight": "0.001841019854"
+      "ticker": "APH",
+      "weight": "0.002740447075"
     },
     {
-      "ticker": "WDAY",
-      "weight": "0.001796309251"
+      "ticker": "CDNS",
+      "weight": "0.002697461231"
     },
     {
-      "ticker": "ABNB",
-      "weight": "0.001740913006"
+      "ticker": "CMG",
+      "weight": "0.002689379068"
     },
     {
-      "ticker": "ROST",
-      "weight": "0.001740543984"
+      "ticker": "CRWD",
+      "weight": "0.002618974876"
     },
     {
-      "ticker": "APO",
-      "weight": "0.001726399834"
+      "ticker": "WELL",
+      "weight": "0.002569367847"
     },
     {
-      "ticker": "TTD",
-      "weight": "0.001701696876"
+      "ticker": "SHW",
+      "weight": "0.002522498243"
     },
     {
-      "ticker": "FTNT",
-      "weight": "0.001645156654"
+      "ticker": "SNPS",
+      "weight": "0.002441221034"
     },
     {
-      "ticker": "DASH",
-      "weight": "0.001605344187"
+      "ticker": "AON",
+      "weight": "0.002416613028"
     },
     {
-      "ticker": "WCN",
-      "weight": "0.001599562409"
-    },
-    {
-      "ticker": "GWW",
-      "weight": "0.001582535327"
-    },
-    {
-      "ticker": "CPRT",
-      "weight": "0.001573292510"
-    },
-    {
-      "ticker": "FICO",
-      "weight": "0.001569398992"
-    },
-    {
-      "ticker": "PWR",
-      "weight": "0.001522830707"
-    },
-    {
-      "ticker": "MSCI",
-      "weight": "0.001509958143"
-    },
-    {
-      "ticker": "PAYX",
-      "weight": "0.001507802687"
-    },
-    {
-      "ticker": "A",
-      "weight": "0.001501831751"
-    },
-    {
-      "ticker": "MPWR",
-      "weight": "0.001484394143"
-    },
-    {
-      "ticker": "CL",
-      "weight": "0.001470292859"
-    },
-    {
-      "ticker": "IDXX",
-      "weight": "0.001441576741"
-    },
-    {
-      "ticker": "IQV",
-      "weight": "0.001422754333"
-    },
-    {
-      "ticker": "HWM",
-      "weight": "0.001418491855"
-    },
-    {
-      "ticker": "FAST",
-      "weight": "0.001417856997"
-    },
-    {
-      "ticker": "EW",
-      "weight": "0.001378127396"
-    },
-    {
-      "ticker": "YUM",
-      "weight": "0.001361805325"
-    },
-    {
-      "ticker": "ODFL",
-      "weight": "0.001328160850"
-    },
-    {
-      "ticker": "VRSK",
-      "weight": "0.001323057934"
-    },
-    {
-      "ticker": "HES",
-      "weight": "0.001305513199"
-    },
-    {
-      "ticker": "MSI",
-      "weight": "0.001300332271"
-    },
-    {
-      "ticker": "IT",
-      "weight": "0.001286111072"
-    },
-    {
-      "ticker": "EFX",
-      "weight": "0.001260562062"
-    },
-    {
-      "ticker": "RMD",
-      "weight": "0.001243501684"
-    },
-    {
-      "ticker": "MNST",
-      "weight": "0.001240135347"
-    },
-    {
-      "ticker": "VRT",
-      "weight": "0.001229225786"
-    },
-    {
-      "ticker": "ALNY",
-      "weight": "0.001224067734"
-    },
-    {
-      "ticker": "SNOW",
-      "weight": "0.001199839196"
-    },
-    {
-      "ticker": "COIN",
-      "weight": "0.001190911086"
-    },
-    {
-      "ticker": "DDOG",
-      "weight": "0.001178931910"
-    },
-    {
-      "ticker": "VMC",
-      "weight": "0.001146526174"
-    },
-    {
-      "ticker": "FANG",
-      "weight": "0.001137267579"
-    },
-    {
-      "ticker": "TRGP",
-      "weight": "0.001124137663"
-    },
-    {
-      "ticker": "MTD",
-      "weight": "0.001110397403"
-    },
-    {
-      "ticker": "CSGP",
-      "weight": "0.001071809897"
-    },
-    {
-      "ticker": "LULU",
-      "weight": "0.001071395033"
-    },
-    {
-      "ticker": "VEEV",
-      "weight": "0.001058520959"
-    },
-    {
-      "ticker": "SLB",
-      "weight": "0.001032447619"
-    },
-    {
-      "ticker": "MSTR",
-      "weight": "0.001021005654"
+      "ticker": "MCO",
+      "weight": "0.002387608937"
     },
     {
       "ticker": "APP",
-      "weight": "0.001008329329"
+      "weight": "0.002375388234"
     },
     {
-      "ticker": "AXON",
-      "weight": "0.000994602958"
+      "ticker": "ORLY",
+      "weight": "0.002242138849"
     },
     {
-      "ticker": "HSY",
-      "weight": "0.000981825785"
+      "ticker": "TDG",
+      "weight": "0.002217683787"
     },
     {
-      "ticker": "ANSS",
-      "weight": "0.000965290427"
+      "ticker": "ZTS",
+      "weight": "0.002167109175"
     },
     {
-      "ticker": "O",
-      "weight": "0.000957358624"
+      "ticker": "APO",
+      "weight": "0.002142738462"
     },
     {
-      "ticker": "ARES",
-      "weight": "0.000953893611"
+      "ticker": "ADSK",
+      "weight": "0.002082115430"
     },
     {
-      "ticker": "DXCM",
-      "weight": "0.000931340941"
+      "ticker": "CTAS",
+      "weight": "0.002051348166"
     },
     {
-      "ticker": "HUBS",
-      "weight": "0.000899011964"
+      "ticker": "MAR",
+      "weight": "0.002031913213"
     },
     {
-      "ticker": "SBAC",
-      "weight": "0.000896808192"
+      "ticker": "HLT",
+      "weight": "0.001974677531"
     },
     {
-      "ticker": "CHD",
-      "weight": "0.000888779160"
+      "ticker": "ECL",
+      "weight": "0.001956847096"
     },
     {
-      "ticker": "TTWO",
-      "weight": "0.000887342411"
-    },
-    {
-      "ticker": "TEAM",
-      "weight": "0.000881076385"
-    },
-    {
-      "ticker": "FSLR",
-      "weight": "0.000879407416"
-    },
-    {
-      "ticker": "BR",
-      "weight": "0.000870019616"
-    },
-    {
-      "ticker": "TYL",
-      "weight": "0.000863536312"
-    },
-    {
-      "ticker": "DECK",
-      "weight": "0.000842784403"
-    },
-    {
-      "ticker": "RBLX",
-      "weight": "0.000826502838"
-    },
-    {
-      "ticker": "BRO",
-      "weight": "0.000819631067"
-    },
-    {
-      "ticker": "NET",
-      "weight": "0.000809011452"
-    },
-    {
-      "ticker": "MRNA",
-      "weight": "0.000801528813"
-    },
-    {
-      "ticker": "COO",
-      "weight": "0.000761682322"
-    },
-    {
-      "ticker": "TER",
-      "weight": "0.000757636115"
-    },
-    {
-      "ticker": "WST",
-      "weight": "0.000754859595"
-    },
-    {
-      "ticker": "EQT",
-      "weight": "0.000754542838"
-    },
-    {
-      "ticker": "WAT",
-      "weight": "0.000740634681"
-    },
-    {
-      "ticker": "ILMN",
-      "weight": "0.000720199715"
-    },
-    {
-      "ticker": "SMCI",
-      "weight": "0.000718507378"
-    },
-    {
-      "ticker": "PTC",
-      "weight": "0.000714796260"
-    },
-    {
-      "ticker": "CVNA",
-      "weight": "0.000710033323"
-    },
-    {
-      "ticker": "PINS",
-      "weight": "0.000677320620"
+      "ticker": "FTNT",
+      "weight": "0.001898761926"
     },
     {
       "ticker": "RCL",
-      "weight": "0.000672688102"
+      "weight": "0.001829859703"
     },
     {
-      "ticker": "LII",
-      "weight": "0.000671861773"
+      "ticker": "ROP",
+      "weight": "0.001827343657"
     },
     {
-      "ticker": "APTV",
-      "weight": "0.000663450997"
+      "ticker": "WDAY",
+      "weight": "0.001801462077"
     },
     {
-      "ticker": "MDB",
-      "weight": "0.000653101196"
+      "ticker": "MSTR",
+      "weight": "0.001799836291"
     },
     {
-      "ticker": "ULTA",
-      "weight": "0.000643690619"
+      "ticker": "DASH",
+      "weight": "0.001797791527"
     },
     {
-      "ticker": "LVS",
-      "weight": "0.000642601864"
+      "ticker": "AZO",
+      "weight": "0.001774586733"
     },
     {
-      "ticker": "EXPE",
-      "weight": "0.000639675702"
+      "ticker": "TTD",
+      "weight": "0.001732037828"
     },
     {
-      "ticker": "DKNG",
-      "weight": "0.000626833760"
+      "ticker": "ABNB",
+      "weight": "0.001706654817"
     },
     {
-      "ticker": "BKR",
-      "weight": "0.000622499615"
+      "ticker": "ROST",
+      "weight": "0.001646258970"
     },
     {
-      "ticker": "LYV",
-      "weight": "0.000616736458"
+      "ticker": "CPRT",
+      "weight": "0.001632125011"
     },
     {
-      "ticker": "FDS",
-      "weight": "0.000606433031"
+      "ticker": "COIN",
+      "weight": "0.001584142315"
     },
     {
-      "ticker": "LPLA",
-      "weight": "0.000602945525"
+      "ticker": "PWR",
+      "weight": "0.001530423002"
     },
     {
-      "ticker": "TPL",
-      "weight": "0.000599132122"
+      "ticker": "GWW",
+      "weight": "0.001515635235"
     },
     {
-      "ticker": "MANH",
-      "weight": "0.000597443509"
+      "ticker": "FICO",
+      "weight": "0.001510725517"
     },
     {
-      "ticker": "WSO",
-      "weight": "0.000593241540"
+      "ticker": "SNOW",
+      "weight": "0.001504703751"
     },
     {
-      "ticker": "ENTG",
-      "weight": "0.000588991963"
+      "ticker": "PAYX",
+      "weight": "0.001490645288"
+    },
+    {
+      "ticker": "MSCI",
+      "weight": "0.001466144163"
+    },
+    {
+      "ticker": "HWM",
+      "weight": "0.001458288601"
+    },
+    {
+      "ticker": "WCN",
+      "weight": "0.001453217664"
+    },
+    {
+      "ticker": "AXON",
+      "weight": "0.001412930183"
+    },
+    {
+      "ticker": "LULU",
+      "weight": "0.001403218527"
+    },
+    {
+      "ticker": "VRT",
+      "weight": "0.001399544144"
+    },
+    {
+      "ticker": "DDOG",
+      "weight": "0.001395221838"
+    },
+    {
+      "ticker": "FAST",
+      "weight": "0.001352236827"
+    },
+    {
+      "ticker": "TEAM",
+      "weight": "0.001290862223"
+    },
+    {
+      "ticker": "TRGP",
+      "weight": "0.001278580618"
+    },
+    {
+      "ticker": "VRSK",
+      "weight": "0.001277562151"
+    },
+    {
+      "ticker": "MSI",
+      "weight": "0.001268916120"
+    },
+    {
+      "ticker": "YUM",
+      "weight": "0.001230237370"
+    },
+    {
+      "ticker": "CL",
+      "weight": "0.001220151651"
+    },
+    {
+      "ticker": "HES",
+      "weight": "0.001212047946"
+    },
+    {
+      "ticker": "MNST",
+      "weight": "0.001176216457"
+    },
+    {
+      "ticker": "IT",
+      "weight": "0.001166757134"
+    },
+    {
+      "ticker": "HUBS",
+      "weight": "0.001123078165"
+    },
+    {
+      "ticker": "VMC",
+      "weight": "0.001116546749"
+    },
+    {
+      "ticker": "ODFL",
+      "weight": "0.001113614857"
+    },
+    {
+      "ticker": "IDXX",
+      "weight": "0.001112975708"
+    },
+    {
+      "ticker": "RMD",
+      "weight": "0.001103504704"
+    },
+    {
+      "ticker": "ARES",
+      "weight": "0.001097208514"
+    },
+    {
+      "ticker": "RBLX",
+      "weight": "0.001040425198"
+    },
+    {
+      "ticker": "EFX",
+      "weight": "0.001038739485"
+    },
+    {
+      "ticker": "NET",
+      "weight": "0.001028302734"
+    },
+    {
+      "ticker": "DECK",
+      "weight": "0.001015026651"
+    },
+    {
+      "ticker": "TTWO",
+      "weight": "0.001010636983"
+    },
+    {
+      "ticker": "VEEV",
+      "weight": "0.001007803157"
+    },
+    {
+      "ticker": "DXCM",
+      "weight": "0.000999737749"
+    },
+    {
+      "ticker": "ALNY",
+      "weight": "0.000998506803"
+    },
+    {
+      "ticker": "ANSS",
+      "weight": "0.000970975467"
+    },
+    {
+      "ticker": "CSGP",
+      "weight": "0.000966027814"
+    },
+    {
+      "ticker": "EQT",
+      "weight": "0.000906648380"
+    },
+    {
+      "ticker": "MPWR",
+      "weight": "0.000902761420"
+    },
+    {
+      "ticker": "SLB",
+      "weight": "0.000891731719"
     },
     {
       "ticker": "HOOD",
-      "weight": "0.000588451330"
+      "weight": "0.000889571827"
     },
     {
-      "ticker": "SUI",
-      "weight": "0.000584122435"
+      "ticker": "BR",
+      "weight": "0.000870726574"
     },
     {
-      "ticker": "CTRA",
-      "weight": "0.000583124236"
+      "ticker": "MTD",
+      "weight": "0.000850970063"
     },
     {
-      "ticker": "BURL",
-      "weight": "0.000583004222"
+      "ticker": "CHD",
+      "weight": "0.000845516778"
     },
     {
-      "ticker": "MLM",
-      "weight": "0.000570220363"
+      "ticker": "BRO",
+      "weight": "0.000817564531"
     },
     {
-      "ticker": "FWONK",
-      "weight": "0.000566271006"
+      "ticker": "CVNA",
+      "weight": "0.000816968683"
     },
     {
-      "ticker": "PODD",
-      "weight": "0.000565756937"
+      "ticker": "TYL",
+      "weight": "0.000813374363"
     },
     {
-      "ticker": "VRSN",
-      "weight": "0.000546332679"
+      "ticker": "LPLA",
+      "weight": "0.000806210721"
     },
     {
-      "ticker": "TSCO",
-      "weight": "0.000543977493"
+      "ticker": "WST",
+      "weight": "0.000782413854"
     },
     {
-      "ticker": "ON",
-      "weight": "0.000539135201"
+      "ticker": "O",
+      "weight": "0.000770983526"
     },
     {
-      "ticker": "PSTG",
-      "weight": "0.000538140977"
+      "ticker": "EXPE",
+      "weight": "0.000755526705"
     },
     {
-      "ticker": "ZS",
-      "weight": "0.000537435997"
+      "ticker": "WAT",
+      "weight": "0.000727192242"
     },
     {
-      "ticker": "HEI.A",
-      "weight": "0.000531875271"
+      "ticker": "SBAC",
+      "weight": "0.000723316728"
     },
     {
-      "ticker": "ROK",
-      "weight": "0.000528015782"
+      "ticker": "EW",
+      "weight": "0.000720849116"
     },
     {
-      "ticker": "DT",
-      "weight": "0.000524612307"
+      "ticker": "ILMN",
+      "weight": "0.000699491658"
     },
     {
-      "ticker": "GWRE",
-      "weight": "0.000524261196"
+      "ticker": "LYV",
+      "weight": "0.000695268386"
     },
     {
-      "ticker": "DPZ",
-      "weight": "0.000521520104"
+      "ticker": "PTC",
+      "weight": "0.000692639457"
+    },
+    {
+      "ticker": "TER",
+      "weight": "0.000677514586"
+    },
+    {
+      "ticker": "TPL",
+      "weight": "0.000671096253"
+    },
+    {
+      "ticker": "BKR",
+      "weight": "0.000670642357"
     },
     {
       "ticker": "NTRA",
-      "weight": "0.000517114944"
+      "weight": "0.000655828525"
     },
     {
-      "ticker": "NTNX",
-      "weight": "0.000514174306"
+      "ticker": "FWONK",
+      "weight": "0.000645383228"
     },
     {
-      "ticker": "RBA",
-      "weight": "0.000514144434"
+      "ticker": "LII",
+      "weight": "0.000645289203"
     },
     {
-      "ticker": "GGG",
-      "weight": "0.000512500415"
+      "ticker": "A",
+      "weight": "0.000638105916"
     },
     {
-      "ticker": "ROL",
-      "weight": "0.000509545806"
+      "ticker": "PSTG",
+      "weight": "0.000631934917"
     },
     {
-      "ticker": "ENPH",
-      "weight": "0.000504074718"
-    },
-    {
-      "ticker": "TW",
-      "weight": "0.000498589318"
-    },
-    {
-      "ticker": "JBHT",
-      "weight": "0.000487438659"
-    },
-    {
-      "ticker": "CASY",
-      "weight": "0.000483378171"
-    },
-    {
-      "ticker": "ERIE",
-      "weight": "0.000475419668"
-    },
-    {
-      "ticker": "FTAI",
-      "weight": "0.000470923758"
-    },
-    {
-      "ticker": "NDSN",
-      "weight": "0.000468563996"
-    },
-    {
-      "ticker": "BMRN",
-      "weight": "0.000463924788"
-    },
-    {
-      "ticker": "PCVX",
-      "weight": "0.000458398418"
-    },
-    {
-      "ticker": "VLTO",
-      "weight": "0.000455175306"
-    },
-    {
-      "ticker": "JKHY",
-      "weight": "0.000446217380"
-    },
-    {
-      "ticker": "DOCU",
-      "weight": "0.000440656796"
-    },
-    {
-      "ticker": "TECH",
-      "weight": "0.000439481287"
-    },
-    {
-      "ticker": "FND",
-      "weight": "0.000438241281"
-    },
-    {
-      "ticker": "CW",
-      "weight": "0.000436419385"
-    },
-    {
-      "ticker": "EXAS",
-      "weight": "0.000436347054"
-    },
-    {
-      "ticker": "INSM",
-      "weight": "0.000434907006"
-    },
-    {
-      "ticker": "BLD",
-      "weight": "0.000425440346"
-    },
-    {
-      "ticker": "WING",
-      "weight": "0.000422703617"
-    },
-    {
-      "ticker": "WMS",
-      "weight": "0.000422378002"
-    },
-    {
-      "ticker": "OKTA",
-      "weight": "0.000414801689"
-    },
-    {
-      "ticker": "STE",
-      "weight": "0.000414600964"
-    },
-    {
-      "ticker": "TXRH",
-      "weight": "0.000408216679"
-    },
-    {
-      "ticker": "TOST",
-      "weight": "0.000407201697"
-    },
-    {
-      "ticker": "CLH",
-      "weight": "0.000407039624"
-    },
-    {
-      "ticker": "NBIX",
-      "weight": "0.000403341937"
-    },
-    {
-      "ticker": "SAIA",
-      "weight": "0.000403072289"
-    },
-    {
-      "ticker": "HAL",
-      "weight": "0.000400093299"
-    },
-    {
-      "ticker": "STX",
-      "weight": "0.000399072904"
-    },
-    {
-      "ticker": "SRPT",
-      "weight": "0.000392258743"
-    },
-    {
-      "ticker": "SNAP",
-      "weight": "0.000390976800"
-    },
-    {
-      "ticker": "GDDY",
-      "weight": "0.000383108554"
-    },
-    {
-      "ticker": "EL",
-      "weight": "0.000382787263"
-    },
-    {
-      "ticker": "INCY",
-      "weight": "0.000375144422"
-    },
-    {
-      "ticker": "AOS",
-      "weight": "0.000373577265"
-    },
-    {
-      "ticker": "HEI",
-      "weight": "0.000372852192"
-    },
-    {
-      "ticker": "FTI",
-      "weight": "0.000370058173"
-    },
-    {
-      "ticker": "KNSL",
-      "weight": "0.000357057083"
-    },
-    {
-      "ticker": "REXR",
-      "weight": "0.000355739991"
-    },
-    {
-      "ticker": "ONTO",
-      "weight": "0.000355347146"
-    },
-    {
-      "ticker": "OWL",
-      "weight": "0.000349373996"
-    },
-    {
-      "ticker": "DUOL",
-      "weight": "0.000347717876"
-    },
-    {
-      "ticker": "BWXT",
-      "weight": "0.000344506345"
-    },
-    {
-      "ticker": "MTCH",
-      "weight": "0.000338314292"
-    },
-    {
-      "ticker": "EXP",
-      "weight": "0.000335254820"
-    },
-    {
-      "ticker": "ROKU",
-      "weight": "0.000329639471"
-    },
-    {
-      "ticker": "OLED",
-      "weight": "0.000328033508"
-    },
-    {
-      "ticker": "IOT",
-      "weight": "0.000326971499"
-    },
-    {
-      "ticker": "TWLO",
-      "weight": "0.000326809524"
-    },
-    {
-      "ticker": "LW",
-      "weight": "0.000322454910"
-    },
-    {
-      "ticker": "AFRM",
-      "weight": "0.000321689478"
-    },
-    {
-      "ticker": "DAY",
-      "weight": "0.000318924470"
-    },
-    {
-      "ticker": "MKTX",
-      "weight": "0.000318543450"
-    },
-    {
-      "ticker": "WYNN",
-      "weight": "0.000313590894"
-    },
-    {
-      "ticker": "CHE",
-      "weight": "0.000313559160"
-    },
-    {
-      "ticker": "ALGN",
-      "weight": "0.000312826790"
-    },
-    {
-      "ticker": "TTC",
-      "weight": "0.000312322214"
-    },
-    {
-      "ticker": "LBRDK",
-      "weight": "0.000312050999"
-    },
-    {
-      "ticker": "CHDN",
-      "weight": "0.000309721785"
-    },
-    {
-      "ticker": "MORN",
-      "weight": "0.000308056410"
-    },
-    {
-      "ticker": "SKX",
-      "weight": "0.000307495300"
-    },
-    {
-      "ticker": "RBC",
-      "weight": "0.000303372240"
-    },
-    {
-      "ticker": "PAYC",
-      "weight": "0.000298485236"
-    },
-    {
-      "ticker": "FN",
-      "weight": "0.000296324618"
-    },
-    {
-      "ticker": "TKO",
-      "weight": "0.000295366258"
-    },
-    {
-      "ticker": "CAVA",
-      "weight": "0.000294508587"
-    },
-    {
-      "ticker": "HLI",
-      "weight": "0.000291002043"
-    },
-    {
-      "ticker": "ATI",
-      "weight": "0.000288709058"
-    },
-    {
-      "ticker": "MEDP",
-      "weight": "0.000287004669"
-    },
-    {
-      "ticker": "ENSG",
-      "weight": "0.000284764520"
-    },
-    {
-      "ticker": "CROX",
-      "weight": "0.000283221459"
-    },
-    {
-      "ticker": "BFAM",
-      "weight": "0.000281973573"
-    },
-    {
-      "ticker": "BSY",
-      "weight": "0.000281555557"
-    },
-    {
-      "ticker": "GMED",
-      "weight": "0.000280077435"
-    },
-    {
-      "ticker": "SSD",
-      "weight": "0.000279577320"
-    },
-    {
-      "ticker": "LNW",
-      "weight": "0.000279073845"
-    },
-    {
-      "ticker": "RGEN",
-      "weight": "0.000274504581"
-    },
-    {
-      "ticker": "BRBR",
-      "weight": "0.000272059091"
-    },
-    {
-      "ticker": "LNTH",
-      "weight": "0.000264169080"
-    },
-    {
-      "ticker": "SOFI",
-      "weight": "0.000261412324"
-    },
-    {
-      "ticker": "ITCI",
-      "weight": "0.000254637288"
-    },
-    {
-      "ticker": "BRKR",
-      "weight": "0.000253723573"
-    },
-    {
-      "ticker": "LSCC",
-      "weight": "0.000253476127"
-    },
-    {
-      "ticker": "SPSC",
-      "weight": "0.000252432095"
-    },
-    {
-      "ticker": "HALO",
-      "weight": "0.000251378458"
-    },
-    {
-      "ticker": "TREX",
-      "weight": "0.000250914850"
+      "ticker": "PODD",
+      "weight": "0.000605948107"
     },
     {
       "ticker": "IBKR",
-      "weight": "0.000249763621"
+      "weight": "0.000604649012"
     },
     {
-      "ticker": "PEN",
-      "weight": "0.000248581188"
+      "ticker": "FDS",
+      "weight": "0.000603674435"
     },
     {
-      "ticker": "BF.B",
-      "weight": "0.000247541669"
+      "ticker": "DOCU",
+      "weight": "0.000603448343"
     },
     {
-      "ticker": "HQY",
-      "weight": "0.000246897631"
+      "ticker": "BURL",
+      "weight": "0.000598768031"
     },
     {
-      "ticker": "EXEL",
-      "weight": "0.000243789795"
+      "ticker": "FSLR",
+      "weight": "0.000592815617"
     },
     {
-      "ticker": "AAON",
-      "weight": "0.000242299014"
+      "ticker": "CTRA",
+      "weight": "0.000592000153"
     },
     {
-      "ticker": "FIX",
-      "weight": "0.000241398101"
+      "ticker": "DKNG",
+      "weight": "0.000570052657"
     },
     {
-      "ticker": "CGNX",
-      "weight": "0.000240795040"
+      "ticker": "IQV",
+      "weight": "0.000561268164"
     },
     {
-      "ticker": "PCTY",
-      "weight": "0.000238347727"
+      "ticker": "VRSN",
+      "weight": "0.000560599215"
     },
     {
-      "ticker": "PLNT",
-      "weight": "0.000238150216"
+      "ticker": "LVS",
+      "weight": "0.000554886602"
     },
     {
-      "ticker": "GNTX",
-      "weight": "0.000236959588"
-    },
-    {
-      "ticker": "RVMD",
-      "weight": "0.000236354464"
-    },
-    {
-      "ticker": "COHR",
-      "weight": "0.000236259965"
-    },
-    {
-      "ticker": "SITE",
-      "weight": "0.000236061533"
-    },
-    {
-      "ticker": "GKOS",
-      "weight": "0.000235233055"
-    },
-    {
-      "ticker": "AZEK",
-      "weight": "0.000234761862"
-    },
-    {
-      "ticker": "WSC",
-      "weight": "0.000233414590"
-    },
-    {
-      "ticker": "CVLT",
-      "weight": "0.000233151270"
-    },
-    {
-      "ticker": "ESTC",
-      "weight": "0.000232403664"
-    },
-    {
-      "ticker": "VKTX",
-      "weight": "0.000231018659"
-    },
-    {
-      "ticker": "COKE",
-      "weight": "0.000230072358"
-    },
-    {
-      "ticker": "FRPT",
-      "weight": "0.000229894916"
-    },
-    {
-      "ticker": "S",
-      "weight": "0.000229256972"
-    },
-    {
-      "ticker": "MOD",
-      "weight": "0.000229223466"
-    },
-    {
-      "ticker": "HR",
-      "weight": "0.000228426096"
-    },
-    {
-      "ticker": "MTN",
-      "weight": "0.000227333739"
-    },
-    {
-      "ticker": "H",
-      "weight": "0.000225211336"
-    },
-    {
-      "ticker": "MTSI",
-      "weight": "0.000222761238"
-    },
-    {
-      "ticker": "NOVT",
-      "weight": "0.000222704648"
-    },
-    {
-      "ticker": "BMI",
-      "weight": "0.000222699487"
-    },
-    {
-      "ticker": "MASI",
-      "weight": "0.000222440503"
-    },
-    {
-      "ticker": "RYAN",
-      "weight": "0.000221600746"
-    },
-    {
-      "ticker": "PCOR",
-      "weight": "0.000221200835"
-    },
-    {
-      "ticker": "INSP",
-      "weight": "0.000218194666"
-    },
-    {
-      "ticker": "NOV",
-      "weight": "0.000217973751"
-    },
-    {
-      "ticker": "U",
-      "weight": "0.000217847126"
-    },
-    {
-      "ticker": "WFRD",
-      "weight": "0.000215377796"
-    },
-    {
-      "ticker": "CYTK",
-      "weight": "0.000215371128"
-    },
-    {
-      "ticker": "ELF",
-      "weight": "0.000213137925"
-    },
-    {
-      "ticker": "CWST",
-      "weight": "0.000212622134"
-    },
-    {
-      "ticker": "RHP",
-      "weight": "0.000211560083"
-    },
-    {
-      "ticker": "CSWI",
-      "weight": "0.000211242541"
-    },
-    {
-      "ticker": "CUBE",
-      "weight": "0.000210129290"
-    },
-    {
-      "ticker": "ETSY",
-      "weight": "0.000209864413"
-    },
-    {
-      "ticker": "VRNS",
-      "weight": "0.000208743173"
-    },
-    {
-      "ticker": "ELS",
-      "weight": "0.000207583962"
-    },
-    {
-      "ticker": "EPRT",
-      "weight": "0.000207574496"
-    },
-    {
-      "ticker": "OLLI",
-      "weight": "0.000206248822"
-    },
-    {
-      "ticker": "IBP",
-      "weight": "0.000204897299"
-    },
-    {
-      "ticker": "LAMR",
-      "weight": "0.000203516880"
-    },
-    {
-      "ticker": "BPMC",
-      "weight": "0.000203134428"
-    },
-    {
-      "ticker": "EXLS",
-      "weight": "0.000202796673"
-    },
-    {
-      "ticker": "EXPO",
-      "weight": "0.000202745341"
-    },
-    {
-      "ticker": "KRG",
-      "weight": "0.000202263013"
-    },
-    {
-      "ticker": "GTLB",
-      "weight": "0.000201539667"
-    },
-    {
-      "ticker": "FOUR",
-      "weight": "0.000200252314"
-    },
-    {
-      "ticker": "CHX",
-      "weight": "0.000199117105"
-    },
-    {
-      "ticker": "AWI",
-      "weight": "0.000199114476"
-    },
-    {
-      "ticker": "FSS",
-      "weight": "0.000198116485"
-    },
-    {
-      "ticker": "BCPC",
-      "weight": "0.000197956485"
-    },
-    {
-      "ticker": "IONS",
-      "weight": "0.000197125118"
-    },
-    {
-      "ticker": "AVAV",
-      "weight": "0.000195555486"
-    },
-    {
-      "ticker": "MTDR",
-      "weight": "0.000192460842"
-    },
-    {
-      "ticker": "MMSI",
-      "weight": "0.000189463410"
-    },
-    {
-      "ticker": "ZETA",
-      "weight": "0.000187555233"
-    },
-    {
-      "ticker": "ALTR",
-      "weight": "0.000186933458"
-    },
-    {
-      "ticker": "LINE",
-      "weight": "0.000186205402"
-    },
-    {
-      "ticker": "BILL",
-      "weight": "0.000185378407"
-    },
-    {
-      "ticker": "PATH",
-      "weight": "0.000184943495"
-    },
-    {
-      "ticker": "ACIW",
-      "weight": "0.000184677253"
-    },
-    {
-      "ticker": "GTLS",
-      "weight": "0.000184222371"
-    },
-    {
-      "ticker": "W",
-      "weight": "0.000180905565"
-    },
-    {
-      "ticker": "PI",
-      "weight": "0.000179389563"
-    },
-    {
-      "ticker": "ROIV",
-      "weight": "0.000177514702"
-    },
-    {
-      "ticker": "CELH",
-      "weight": "0.000177370895"
-    },
-    {
-      "ticker": "WWD",
-      "weight": "0.000177363125"
-    },
-    {
-      "ticker": "NXT",
-      "weight": "0.000177057986"
-    },
-    {
-      "ticker": "BOOT",
-      "weight": "0.000176897881"
-    },
-    {
-      "ticker": "HXL",
-      "weight": "0.000175227736"
-    },
-    {
-      "ticker": "CIVI",
-      "weight": "0.000172762694"
-    },
-    {
-      "ticker": "TMDX",
-      "weight": "0.000172491335"
-    },
-    {
-      "ticker": "SKY",
-      "weight": "0.000170402411"
-    },
-    {
-      "ticker": "HCP",
-      "weight": "0.000170024604"
-    },
-    {
-      "ticker": "APPF",
-      "weight": "0.000168990377"
-    },
-    {
-      "ticker": "RARE",
-      "weight": "0.000168616808"
-    },
-    {
-      "ticker": "NE",
-      "weight": "0.000167209120"
-    },
-    {
-      "ticker": "ITRI",
-      "weight": "0.000166491294"
-    },
-    {
-      "ticker": "RIVN",
-      "weight": "0.000165387567"
-    },
-    {
-      "ticker": "KRYS",
-      "weight": "0.000163172371"
-    },
-    {
-      "ticker": "DOCS",
-      "weight": "0.000160700474"
-    },
-    {
-      "ticker": "FIVE",
-      "weight": "0.000160243223"
-    },
-    {
-      "ticker": "RDNT",
-      "weight": "0.000160120333"
-    },
-    {
-      "ticker": "IRT",
-      "weight": "0.000159990947"
-    },
-    {
-      "ticker": "RGLD",
-      "weight": "0.000159878220"
-    },
-    {
-      "ticker": "ALKS",
-      "weight": "0.000159786194"
-    },
-    {
-      "ticker": "TENB",
-      "weight": "0.000158953140"
-    },
-    {
-      "ticker": "VNOM",
-      "weight": "0.000158649367"
-    },
-    {
-      "ticker": "QTWO",
-      "weight": "0.000158374612"
-    },
-    {
-      "ticker": "RMBS",
-      "weight": "0.000157608724"
-    },
-    {
-      "ticker": "TLN",
-      "weight": "0.000157573788"
-    },
-    {
-      "ticker": "MARA",
-      "weight": "0.000157307201"
-    },
-    {
-      "ticker": "HRI",
-      "weight": "0.000156939194"
-    },
-    {
-      "ticker": "BOX",
-      "weight": "0.000156935782"
-    },
-    {
-      "ticker": "QLYS",
-      "weight": "0.000155738370"
-    },
-    {
-      "ticker": "HLNE",
-      "weight": "0.000153802405"
-    },
-    {
-      "ticker": "MGY",
-      "weight": "0.000151330631"
-    },
-    {
-      "ticker": "VRRM",
-      "weight": "0.000150811703"
-    },
-    {
-      "ticker": "CRDO",
-      "weight": "0.000150677949"
-    },
-    {
-      "ticker": "CFLT",
-      "weight": "0.000150178799"
-    },
-    {
-      "ticker": "WEX",
-      "weight": "0.000149358520"
-    },
-    {
-      "ticker": "CZR",
-      "weight": "0.000148697987"
-    },
-    {
-      "ticker": "CNM",
-      "weight": "0.000148475050"
-    },
-    {
-      "ticker": "EEFT",
-      "weight": "0.000146783439"
-    },
-    {
-      "ticker": "LOPE",
-      "weight": "0.000144860614"
-    },
-    {
-      "ticker": "HAE",
-      "weight": "0.000142611757"
-    },
-    {
-      "ticker": "FELE",
-      "weight": "0.000141072100"
-    },
-    {
-      "ticker": "CWAN",
-      "weight": "0.000140481137"
-    },
-    {
-      "ticker": "WMG",
-      "weight": "0.000138289405"
-    },
-    {
-      "ticker": "NEU",
-      "weight": "0.000137671735"
-    },
-    {
-      "ticker": "WHD",
-      "weight": "0.000137522184"
-    },
-    {
-      "ticker": "PRCT",
-      "weight": "0.000137033914"
-    },
-    {
-      "ticker": "OSCR",
-      "weight": "0.000136586798"
-    },
-    {
-      "ticker": "SHAK",
-      "weight": "0.000135908022"
-    },
-    {
-      "ticker": "MTZ",
-      "weight": "0.000135233552"
-    },
-    {
-      "ticker": "WK",
-      "weight": "0.000133922153"
-    },
-    {
-      "ticker": "MSGS",
-      "weight": "0.000133217881"
-    },
-    {
-      "ticker": "RUN",
-      "weight": "0.000132960387"
-    },
-    {
-      "ticker": "SLAB",
-      "weight": "0.000129368278"
-    },
-    {
-      "ticker": "AXSM",
-      "weight": "0.000127116820"
-    },
-    {
-      "ticker": "POWI",
-      "weight": "0.000126326247"
-    },
-    {
-      "ticker": "FUN",
-      "weight": "0.000126118959"
-    },
-    {
-      "ticker": "RKLB",
-      "weight": "0.000125644129"
-    },
-    {
-      "ticker": "BBIO",
-      "weight": "0.000124474219"
-    },
-    {
-      "ticker": "FORM",
-      "weight": "0.000123414316"
-    },
-    {
-      "ticker": "CHWY",
-      "weight": "0.000121947616"
-    },
-    {
-      "ticker": "WDFC",
-      "weight": "0.000121124933"
-    },
-    {
-      "ticker": "BROS",
-      "weight": "0.000120066817"
-    },
-    {
-      "ticker": "VAL",
-      "weight": "0.000119516343"
-    },
-    {
-      "ticker": "SMTC",
-      "weight": "0.000119079746"
-    },
-    {
-      "ticker": "PEGA",
-      "weight": "0.000119029291"
-    },
-    {
-      "ticker": "ACLS",
-      "weight": "0.000118562279"
-    },
-    {
-      "ticker": "LANC",
-      "weight": "0.000117950595"
-    },
-    {
-      "ticker": "TDW",
-      "weight": "0.000117576825"
-    },
-    {
-      "ticker": "CHH",
-      "weight": "0.000117302500"
-    },
-    {
-      "ticker": "NOG",
-      "weight": "0.000116821889"
-    },
-    {
-      "ticker": "RIG",
-      "weight": "0.000116091141"
-    },
-    {
-      "ticker": "CCOI",
-      "weight": "0.000116080142"
-    },
-    {
-      "ticker": "BWIN",
-      "weight": "0.000115231644"
-    },
-    {
-      "ticker": "NEOG",
-      "weight": "0.000113653904"
-    },
-    {
-      "ticker": "LCID",
-      "weight": "0.000113512686"
-    },
-    {
-      "ticker": "TGTX",
-      "weight": "0.000112988662"
-    },
-    {
-      "ticker": "SG",
-      "weight": "0.000112567057"
-    },
-    {
-      "ticker": "IRDM",
-      "weight": "0.000112471937"
-    },
-    {
-      "ticker": "CBZ",
-      "weight": "0.000111166024"
-    },
-    {
-      "ticker": "SITM",
-      "weight": "0.000110033350"
-    },
-    {
-      "ticker": "FOLD",
-      "weight": "0.000109813414"
-    },
-    {
-      "ticker": "DNLI",
-      "weight": "0.000108434050"
-    },
-    {
-      "ticker": "EVH",
-      "weight": "0.000108311126"
-    },
-    {
-      "ticker": "BL",
-      "weight": "0.000106967521"
-    },
-    {
-      "ticker": "CRVL",
-      "weight": "0.000106777119"
-    },
-    {
-      "ticker": "HIMS",
-      "weight": "0.000106618611"
-    },
-    {
-      "ticker": "YOU",
-      "weight": "0.000105985089"
-    },
-    {
-      "ticker": "UPST",
-      "weight": "0.000105536510"
-    },
-    {
-      "ticker": "APLS",
-      "weight": "0.000103482680"
-    },
-    {
-      "ticker": "CALM",
-      "weight": "0.000103296151"
-    },
-    {
-      "ticker": "ALGM",
-      "weight": "0.000101816751"
-    },
-    {
-      "ticker": "ALTM",
-      "weight": "0.000100940177"
-    },
-    {
-      "ticker": "PJT",
-      "weight": "0.000098991723"
-    },
-    {
-      "ticker": "PTCT",
-      "weight": "0.000098937972"
-    },
-    {
-      "ticker": "LBRT",
-      "weight": "0.000098476489"
-    },
-    {
-      "ticker": "ACVA",
-      "weight": "0.000096527745"
-    },
-    {
-      "ticker": "TNDM",
-      "weight": "0.000096250514"
-    },
-    {
-      "ticker": "NCNO",
-      "weight": "0.000094916755"
-    },
-    {
-      "ticker": "DY",
-      "weight": "0.000094462911"
-    },
-    {
-      "ticker": "POST",
-      "weight": "0.000093783139"
-    },
-    {
-      "ticker": "AI",
-      "weight": "0.000093244595"
-    },
-    {
-      "ticker": "GH",
-      "weight": "0.000092945067"
-    },
-    {
-      "ticker": "OPCH",
-      "weight": "0.000092789073"
-    },
-    {
-      "ticker": "CNS",
-      "weight": "0.000092483706"
-    },
-    {
-      "ticker": "VCYT",
-      "weight": "0.000090645365"
-    },
-    {
-      "ticker": "AMR",
-      "weight": "0.000090587062"
-    },
-    {
-      "ticker": "HGV",
-      "weight": "0.000089460221"
-    },
-    {
-      "ticker": "FROG",
-      "weight": "0.000088936508"
-    },
-    {
-      "ticker": "AGIO",
-      "weight": "0.000087631938"
-    },
-    {
-      "ticker": "OII",
-      "weight": "0.000087496103"
-    },
-    {
-      "ticker": "TWST",
-      "weight": "0.000087174539"
-    },
-    {
-      "ticker": "SAM",
-      "weight": "0.000087035965"
-    },
-    {
-      "ticker": "RPD",
-      "weight": "0.000086754973"
-    },
-    {
-      "ticker": "CARG",
-      "weight": "0.000086410415"
-    },
-    {
-      "ticker": "SGRY",
-      "weight": "0.000085251081"
-    },
-    {
-      "ticker": "ASTH",
-      "weight": "0.000084685060"
-    },
-    {
-      "ticker": "FRSH",
-      "weight": "0.000084223713"
-    },
-    {
-      "ticker": "JOE",
-      "weight": "0.000082634548"
-    },
-    {
-      "ticker": "INTA",
-      "weight": "0.000080511491"
-    },
-    {
-      "ticker": "IRTC",
-      "weight": "0.000080393455"
-    },
-    {
-      "ticker": "KVYO",
-      "weight": "0.000080134579"
-    },
-    {
-      "ticker": "DV",
-      "weight": "0.000079418510"
-    },
-    {
-      "ticker": "ARWR",
-      "weight": "0.000079305625"
-    },
-    {
-      "ticker": "SM",
-      "weight": "0.000079273192"
-    },
-    {
-      "ticker": "KYMR",
-      "weight": "0.000079255530"
-    },
-    {
-      "ticker": "TXG",
-      "weight": "0.000079151033"
-    },
-    {
-      "ticker": "IPAR",
-      "weight": "0.000079062589"
-    },
-    {
-      "ticker": "VERX",
-      "weight": "0.000078534012"
-    },
-    {
-      "ticker": "DRS",
-      "weight": "0.000077396138"
-    },
-    {
-      "ticker": "DOCN",
-      "weight": "0.000077345209"
-    },
-    {
-      "ticker": "YELP",
-      "weight": "0.000077302277"
-    },
-    {
-      "ticker": "CNMD",
-      "weight": "0.000076866907"
-    },
-    {
-      "ticker": "ORA",
-      "weight": "0.000076593330"
-    },
-    {
-      "ticker": "MQ",
-      "weight": "0.000076457262"
-    },
-    {
-      "ticker": "AMBA",
-      "weight": "0.000076136833"
-    },
-    {
-      "ticker": "FIVN",
-      "weight": "0.000074437593"
-    },
-    {
-      "ticker": "SWTX",
-      "weight": "0.000074249310"
-    },
-    {
-      "ticker": "ROG",
-      "weight": "0.000072868698"
-    },
-    {
-      "ticker": "CORT",
-      "weight": "0.000071251424"
-    },
-    {
-      "ticker": "LITE",
-      "weight": "0.000070971018"
-    },
-    {
-      "ticker": "BE",
-      "weight": "0.000070837647"
-    },
-    {
-      "ticker": "MP",
-      "weight": "0.000070837097"
-    },
-    {
-      "ticker": "NARI",
-      "weight": "0.000070808371"
-    },
-    {
-      "ticker": "RIOT",
-      "weight": "0.000070269331"
-    },
-    {
-      "ticker": "JJSF",
-      "weight": "0.000069541054"
-    },
-    {
-      "ticker": "LTH",
-      "weight": "0.000069437787"
-    },
-    {
-      "ticker": "PLUG",
-      "weight": "0.000068918802"
-    },
-    {
-      "ticker": "NTLA",
-      "weight": "0.000068749009"
-    },
-    {
-      "ticker": "RELY",
-      "weight": "0.000067937055"
-    },
-    {
-      "ticker": "QS",
-      "weight": "0.000067493672"
-    },
-    {
-      "ticker": "GSHD",
-      "weight": "0.000067450231"
-    },
-    {
-      "ticker": "CRNX",
-      "weight": "0.000067347898"
-    },
-    {
-      "ticker": "FLYW",
-      "weight": "0.000066605209"
-    },
-    {
-      "ticker": "NVAX",
-      "weight": "0.000066592805"
-    },
-    {
-      "ticker": "RXO",
-      "weight": "0.000066423557"
-    },
-    {
-      "ticker": "ACAD",
-      "weight": "0.000066332682"
-    },
-    {
-      "ticker": "IIPR",
-      "weight": "0.000066102215"
-    },
-    {
-      "ticker": "SPR",
-      "weight": "0.000065718534"
-    },
-    {
-      "ticker": "NEO",
-      "weight": "0.000065533676"
-    },
-    {
-      "ticker": "VECO",
-      "weight": "0.000065219895"
-    },
-    {
-      "ticker": "BRZE",
-      "weight": "0.000065126344"
-    },
-    {
-      "ticker": "MGNI",
-      "weight": "0.000064383003"
-    },
-    {
-      "ticker": "FTDR",
-      "weight": "0.000063657229"
-    },
-    {
-      "ticker": "STAA",
-      "weight": "0.000063349927"
-    },
-    {
-      "ticker": "BEAM",
-      "weight": "0.000063000557"
-    },
-    {
-      "ticker": "IDCC",
-      "weight": "0.000061693576"
-    },
-    {
-      "ticker": "KNTK",
-      "weight": "0.000060924130"
-    },
-    {
-      "ticker": "LRN",
-      "weight": "0.000060798220"
-    },
-    {
-      "ticker": "YETI",
-      "weight": "0.000060205339"
+      "ticker": "RBA",
+      "weight": "0.000550997050"
     },
     {
       "ticker": "RDDT",
-      "weight": "0.000059672392"
+      "weight": "0.000550971192"
     },
     {
-      "ticker": "FWONA",
-      "weight": "0.000059478801"
+      "ticker": "ZS",
+      "weight": "0.000549542823"
     },
     {
-      "ticker": "XPRO",
-      "weight": "0.000059433087"
+      "ticker": "WSO",
+      "weight": "0.000546468738"
     },
     {
-      "ticker": "NVCR",
-      "weight": "0.000058638481"
+      "ticker": "MANH",
+      "weight": "0.000546320080"
     },
     {
-      "ticker": "SHOO",
-      "weight": "0.000058581924"
+      "ticker": "PINS",
+      "weight": "0.000541225865"
     },
     {
-      "ticker": "CVCO",
-      "weight": "0.000058201376"
+      "ticker": "MDB",
+      "weight": "0.000540544445"
     },
     {
-      "ticker": "KTOS",
-      "weight": "0.000057936298"
+      "ticker": "TOST",
+      "weight": "0.000540266498"
     },
     {
-      "ticker": "AVPT",
-      "weight": "0.000057143350"
+      "ticker": "SOFI",
+      "weight": "0.000525853589"
     },
     {
-      "ticker": "AMC",
-      "weight": "0.000056999584"
-    },
-    {
-      "ticker": "STEP",
-      "weight": "0.000056766040"
-    },
-    {
-      "ticker": "RXRX",
-      "weight": "0.000056558358"
-    },
-    {
-      "ticker": "ZI",
-      "weight": "0.000055541906"
-    },
-    {
-      "ticker": "PD",
-      "weight": "0.000055331273"
-    },
-    {
-      "ticker": "STR",
-      "weight": "0.000055277580"
-    },
-    {
-      "ticker": "PTON",
-      "weight": "0.000055222445"
-    },
-    {
-      "ticker": "RAMP",
-      "weight": "0.000054362742"
-    },
-    {
-      "ticker": "ALKT",
-      "weight": "0.000054116411"
-    },
-    {
-      "ticker": "PACS",
-      "weight": "0.000054091097"
-    },
-    {
-      "ticker": "ARVN",
-      "weight": "0.000052754738"
-    },
-    {
-      "ticker": "IONQ",
-      "weight": "0.000051891471"
-    },
-    {
-      "ticker": "MSGE",
-      "weight": "0.000051622039"
-    },
-    {
-      "ticker": "DORM",
-      "weight": "0.000050954498"
-    },
-    {
-      "ticker": "PRKS",
-      "weight": "0.000050829060"
-    },
-    {
-      "ticker": "FLNC",
-      "weight": "0.000050777766"
-    },
-    {
-      "ticker": "TRIP",
-      "weight": "0.000050570325"
-    },
-    {
-      "ticker": "LCII",
-      "weight": "0.000050541358"
-    },
-    {
-      "ticker": "RDFN",
-      "weight": "0.000050252359"
-    },
-    {
-      "ticker": "AVDX",
-      "weight": "0.000049671463"
-    },
-    {
-      "ticker": "WRBY",
-      "weight": "0.000048436991"
-    },
-    {
-      "ticker": "SPT",
-      "weight": "0.000048271976"
-    },
-    {
-      "ticker": "XNCR",
-      "weight": "0.000047734245"
-    },
-    {
-      "ticker": "RLJ",
-      "weight": "0.000046869673"
-    },
-    {
-      "ticker": "HP",
-      "weight": "0.000046866110"
-    },
-    {
-      "ticker": "SABR",
-      "weight": "0.000046618840"
-    },
-    {
-      "ticker": "APPN",
-      "weight": "0.000046271663"
-    },
-    {
-      "ticker": "PCT",
-      "weight": "0.000046179678"
-    },
-    {
-      "ticker": "JAMF",
-      "weight": "0.000046064729"
-    },
-    {
-      "ticker": "TRUP",
-      "weight": "0.000046022397"
-    },
-    {
-      "ticker": "AESI",
-      "weight": "0.000045669350"
-    },
-    {
-      "ticker": "ENVX",
-      "weight": "0.000045664400"
-    },
-    {
-      "ticker": "UPWK",
-      "weight": "0.000045432022"
-    },
-    {
-      "ticker": "ATRC",
-      "weight": "0.000044971213"
-    },
-    {
-      "ticker": "PGNY",
-      "weight": "0.000044585394"
-    },
-    {
-      "ticker": "RKT",
-      "weight": "0.000044420518"
-    },
-    {
-      "ticker": "LBRDA",
-      "weight": "0.000043709626"
-    },
-    {
-      "ticker": "HRMY",
-      "weight": "0.000043347382"
-    },
-    {
-      "ticker": "AMRC",
-      "weight": "0.000042987026"
-    },
-    {
-      "ticker": "WOLF",
-      "weight": "0.000042663333"
+      "ticker": "MLM",
+      "weight": "0.000523050712"
     },
     {
       "ticker": "ALAB",
-      "weight": "0.000042354646"
+      "weight": "0.000522874568"
     },
     {
-      "ticker": "AGL",
-      "weight": "0.000042046690"
+      "ticker": "FANG",
+      "weight": "0.000515947773"
     },
     {
-      "ticker": "OPEN",
-      "weight": "0.000041431757"
+      "ticker": "NTNX",
+      "weight": "0.000515781051"
     },
     {
-      "ticker": "PLMR",
-      "weight": "0.000040820548"
+      "ticker": "DT",
+      "weight": "0.000511162329"
     },
     {
-      "ticker": "WAY",
-      "weight": "0.000040285171"
+      "ticker": "TW",
+      "weight": "0.000504829297"
     },
     {
-      "ticker": "PYCR",
-      "weight": "0.000039586072"
+      "ticker": "SMCI",
+      "weight": "0.000502660205"
     },
     {
-      "ticker": "KW",
-      "weight": "0.000039479736"
+      "ticker": "FIX",
+      "weight": "0.000500394560"
     },
     {
-      "ticker": "ALHC",
-      "weight": "0.000039194814"
+      "ticker": "ENTG",
+      "weight": "0.000495743556"
     },
     {
-      "ticker": "SDGR",
-      "weight": "0.000038875115"
+      "ticker": "TWLO",
+      "weight": "0.000495165688"
     },
     {
-      "ticker": "FIZZ",
-      "weight": "0.000038083548"
+      "ticker": "FTAI",
+      "weight": "0.000491333773"
     },
     {
-      "ticker": "NOVA",
-      "weight": "0.000037946049"
+      "ticker": "CASY",
+      "weight": "0.000487827390"
     },
     {
-      "ticker": "RLAY",
-      "weight": "0.000037882036"
+      "ticker": "COHR",
+      "weight": "0.000485833872"
     },
     {
-      "ticker": "GBTG",
-      "weight": "0.000037851553"
+      "ticker": "MRNA",
+      "weight": "0.000478514378"
     },
     {
-      "ticker": "PLAY",
-      "weight": "0.000037358690"
+      "ticker": "GGG",
+      "weight": "0.000472666499"
     },
     {
-      "ticker": "CACC",
-      "weight": "0.000037235547"
+      "ticker": "TSCO",
+      "weight": "0.000470588955"
     },
     {
-      "ticker": "IAS",
-      "weight": "0.000036283767"
+      "ticker": "GWRE",
+      "weight": "0.000467680406"
     },
     {
-      "ticker": "BF.A",
-      "weight": "0.000035237428"
+      "ticker": "AFRM",
+      "weight": "0.000466566985"
     },
     {
-      "ticker": "PAYO",
-      "weight": "0.000034885531"
+      "ticker": "HEI.A",
+      "weight": "0.000461781570"
+    },
+    {
+      "ticker": "GDDY",
+      "weight": "0.000460115846"
+    },
+    {
+      "ticker": "NBIX",
+      "weight": "0.000459390845"
+    },
+    {
+      "ticker": "JBHT",
+      "weight": "0.000457323471"
+    },
+    {
+      "ticker": "DPZ",
+      "weight": "0.000457271541"
+    },
+    {
+      "ticker": "CW",
+      "weight": "0.000447643801"
+    },
+    {
+      "ticker": "ROL",
+      "weight": "0.000447600606"
+    },
+    {
+      "ticker": "OWL",
+      "weight": "0.000439508258"
+    },
+    {
+      "ticker": "JKHY",
+      "weight": "0.000425661439"
+    },
+    {
+      "ticker": "OKTA",
+      "weight": "0.000425400663"
+    },
+    {
+      "ticker": "BMRN",
+      "weight": "0.000417016167"
+    },
+    {
+      "ticker": "HSY",
+      "weight": "0.000416252186"
+    },
+    {
+      "ticker": "INSM",
+      "weight": "0.000410922989"
+    },
+    {
+      "ticker": "FTI",
+      "weight": "0.000409879681"
+    },
+    {
+      "ticker": "SAIA",
+      "weight": "0.000402709768"
+    },
+    {
+      "ticker": "TXRH",
+      "weight": "0.000400922222"
+    },
+    {
+      "ticker": "VLTO",
+      "weight": "0.000398707238"
+    },
+    {
+      "ticker": "DUOL",
+      "weight": "0.000388625762"
+    },
+    {
+      "ticker": "SNAP",
+      "weight": "0.000383201261"
+    },
+    {
+      "ticker": "TECH",
+      "weight": "0.000381524022"
+    },
+    {
+      "ticker": "CLH",
+      "weight": "0.000372382740"
+    },
+    {
+      "ticker": "SRPT",
+      "weight": "0.000368178404"
+    },
+    {
+      "ticker": "DAY",
+      "weight": "0.000363008514"
+    },
+    {
+      "ticker": "NDSN",
+      "weight": "0.000359245087"
+    },
+    {
+      "ticker": "INCY",
+      "weight": "0.000355738715"
+    },
+    {
+      "ticker": "PAYC",
+      "weight": "0.000354512511"
+    },
+    {
+      "ticker": "ERIE",
+      "weight": "0.000349900393"
+    },
+    {
+      "ticker": "KNSL",
+      "weight": "0.000343759436"
+    },
+    {
+      "ticker": "ULTA",
+      "weight": "0.000342971845"
+    },
+    {
+      "ticker": "BWXT",
+      "weight": "0.000340319088"
+    },
+    {
+      "ticker": "FND",
+      "weight": "0.000339149140"
+    },
+    {
+      "ticker": "RIVN",
+      "weight": "0.000337294832"
+    },
+    {
+      "ticker": "EXAS",
+      "weight": "0.000330212563"
+    },
+    {
+      "ticker": "TKO",
+      "weight": "0.000327983160"
+    },
+    {
+      "ticker": "BRBR",
+      "weight": "0.000324809316"
+    },
+    {
+      "ticker": "CAVA",
+      "weight": "0.000324004064"
+    },
+    {
+      "ticker": "PCVX",
+      "weight": "0.000323948845"
+    },
+    {
+      "ticker": "HEI",
+      "weight": "0.000322289774"
+    },
+    {
+      "ticker": "RKLB",
+      "weight": "0.000319739053"
+    },
+    {
+      "ticker": "LW",
+      "weight": "0.000317806508"
+    },
+    {
+      "ticker": "ROKU",
+      "weight": "0.000317747006"
+    },
+    {
+      "ticker": "CRDO",
+      "weight": "0.000317669636"
+    },
+    {
+      "ticker": "GMED",
+      "weight": "0.000315307738"
+    },
+    {
+      "ticker": "RBC",
+      "weight": "0.000314449363"
+    },
+    {
+      "ticker": "MORN",
+      "weight": "0.000314413127"
+    },
+    {
+      "ticker": "HLI",
+      "weight": "0.000311270687"
+    },
+    {
+      "ticker": "BLD",
+      "weight": "0.000307471323"
+    },
+    {
+      "ticker": "COO",
+      "weight": "0.000306894710"
+    },
+    {
+      "ticker": "STX",
+      "weight": "0.000305560786"
+    },
+    {
+      "ticker": "EXEL",
+      "weight": "0.000302873267"
+    },
+    {
+      "ticker": "WMS",
+      "weight": "0.000300461781"
+    },
+    {
+      "ticker": "SKX",
+      "weight": "0.000297010886"
+    },
+    {
+      "ticker": "CHDN",
+      "weight": "0.000296761688"
+    },
+    {
+      "ticker": "ENPH",
+      "weight": "0.000295519146"
+    },
+    {
+      "ticker": "IOT",
+      "weight": "0.000295332339"
+    },
+    {
+      "ticker": "ESTC",
+      "weight": "0.000292563479"
+    },
+    {
+      "ticker": "LBRDK",
+      "weight": "0.000290969752"
+    },
+    {
+      "ticker": "PEN",
+      "weight": "0.000290606256"
+    },
+    {
+      "ticker": "ITCI",
+      "weight": "0.000282562422"
+    },
+    {
+      "ticker": "HQY",
+      "weight": "0.000282261202"
+    },
+    {
+      "ticker": "PCOR",
+      "weight": "0.000280550010"
+    },
+    {
+      "ticker": "PCTY",
+      "weight": "0.000280395924"
+    },
+    {
+      "ticker": "BILL",
+      "weight": "0.000279922210"
+    },
+    {
+      "ticker": "PLNT",
+      "weight": "0.000279749353"
+    },
+    {
+      "ticker": "WING",
+      "weight": "0.000278984336"
+    },
+    {
+      "ticker": "EXP",
+      "weight": "0.000277882219"
+    },
+    {
+      "ticker": "MEDP",
+      "weight": "0.000277580791"
+    },
+    {
+      "ticker": "ONTO",
+      "weight": "0.000276756151"
+    },
+    {
+      "ticker": "GTLS",
+      "weight": "0.000274761836"
+    },
+    {
+      "ticker": "AOS",
+      "weight": "0.000273208943"
+    },
+    {
+      "ticker": "REXR",
+      "weight": "0.000272741331"
+    },
+    {
+      "ticker": "MKTX",
+      "weight": "0.000272288872"
+    },
+    {
+      "ticker": "MTSI",
+      "weight": "0.000268776927"
+    },
+    {
+      "ticker": "FN",
+      "weight": "0.000268194766"
+    },
+    {
+      "ticker": "MASI",
+      "weight": "0.000267896852"
+    },
+    {
+      "ticker": "CHE",
+      "weight": "0.000267499295"
+    },
+    {
+      "ticker": "GKOS",
+      "weight": "0.000264891297"
+    },
+    {
+      "ticker": "ATI",
+      "weight": "0.000264559951"
+    },
+    {
+      "ticker": "SUI",
+      "weight": "0.000264001012"
+    },
+    {
+      "ticker": "LSCC",
+      "weight": "0.000262634727"
+    },
+    {
+      "ticker": "RGEN",
+      "weight": "0.000257646895"
+    },
+    {
+      "ticker": "AAON",
+      "weight": "0.000257380887"
+    },
+    {
+      "ticker": "LNW",
+      "weight": "0.000256994931"
+    },
+    {
+      "ticker": "ENSG",
+      "weight": "0.000256373522"
+    },
+    {
+      "ticker": "RVMD",
+      "weight": "0.000255390824"
+    },
+    {
+      "ticker": "WYNN",
+      "weight": "0.000254869935"
+    },
+    {
+      "ticker": "BSY",
+      "weight": "0.000251739052"
+    },
+    {
+      "ticker": "TREX",
+      "weight": "0.000248898010"
+    },
+    {
+      "ticker": "IONQ",
+      "weight": "0.000243959621"
+    },
+    {
+      "ticker": "FRPT",
+      "weight": "0.000243076715"
+    },
+    {
+      "ticker": "FOUR",
+      "weight": "0.000240953984"
+    },
+    {
+      "ticker": "APTV",
+      "weight": "0.000240703199"
+    },
+    {
+      "ticker": "ELF",
+      "weight": "0.000238599278"
+    },
+    {
+      "ticker": "MTN",
+      "weight": "0.000237468876"
+    },
+    {
+      "ticker": "SSD",
+      "weight": "0.000236000633"
+    },
+    {
+      "ticker": "GTLB",
+      "weight": "0.000233896070"
+    },
+    {
+      "ticker": "SPSC",
+      "weight": "0.000233326147"
+    },
+    {
+      "ticker": "AZEK",
+      "weight": "0.000231697401"
+    },
+    {
+      "ticker": "EXLS",
+      "weight": "0.000229511548"
+    },
+    {
+      "ticker": "OLLI",
+      "weight": "0.000227683204"
+    },
+    {
+      "ticker": "CWST",
+      "weight": "0.000223533654"
+    },
+    {
+      "ticker": "OLED",
+      "weight": "0.000222980548"
+    },
+    {
+      "ticker": "CVLT",
+      "weight": "0.000222938978"
+    },
+    {
+      "ticker": "ALTR",
+      "weight": "0.000221403287"
+    },
+    {
+      "ticker": "GNTX",
+      "weight": "0.000221273932"
+    },
+    {
+      "ticker": "BFAM",
+      "weight": "0.000219063677"
+    },
+    {
+      "ticker": "RYAN",
+      "weight": "0.000217877319"
+    },
+    {
+      "ticker": "COKE",
+      "weight": "0.000215727949"
+    },
+    {
+      "ticker": "MTDR",
+      "weight": "0.000214636003"
+    },
+    {
+      "ticker": "U",
+      "weight": "0.000214412443"
+    },
+    {
+      "ticker": "H",
+      "weight": "0.000214155737"
+    },
+    {
+      "ticker": "BRKR",
+      "weight": "0.000211499917"
+    },
+    {
+      "ticker": "BMI",
+      "weight": "0.000211412730"
+    },
+    {
+      "ticker": "LNTH",
+      "weight": "0.000211067453"
+    },
+    {
+      "ticker": "CGNX",
+      "weight": "0.000208931125"
+    },
+    {
+      "ticker": "AWI",
+      "weight": "0.000208897324"
+    },
+    {
+      "ticker": "S",
+      "weight": "0.000208065044"
+    },
+    {
+      "ticker": "CFLT",
+      "weight": "0.000207640827"
+    },
+    {
+      "ticker": "HALO",
+      "weight": "0.000206744324"
+    },
+    {
+      "ticker": "HR",
+      "weight": "0.000204137584"
+    },
+    {
+      "ticker": "SITE",
+      "weight": "0.000201901548"
+    },
+    {
+      "ticker": "RHP",
+      "weight": "0.000201655162"
+    },
+    {
+      "ticker": "CSWI",
+      "weight": "0.000201391550"
+    },
+    {
+      "ticker": "WSC",
+      "weight": "0.000199282190"
+    },
+    {
+      "ticker": "DOCS",
+      "weight": "0.000198252413"
+    },
+    {
+      "ticker": "QTWO",
+      "weight": "0.000196539120"
+    },
+    {
+      "ticker": "MOD",
+      "weight": "0.000196308136"
+    },
+    {
+      "ticker": "BROS",
+      "weight": "0.000193121683"
+    },
+    {
+      "ticker": "FSS",
+      "weight": "0.000192325720"
+    },
+    {
+      "ticker": "ETSY",
+      "weight": "0.000191722659"
+    },
+    {
+      "ticker": "RMBS",
+      "weight": "0.000191457132"
+    },
+    {
+      "ticker": "ROIV",
+      "weight": "0.000190826429"
+    },
+    {
+      "ticker": "INSP",
+      "weight": "0.000189432346"
+    },
+    {
+      "ticker": "CYTK",
+      "weight": "0.000189410035"
+    },
+    {
+      "ticker": "HLNE",
+      "weight": "0.000189216606"
+    },
+    {
+      "ticker": "KRG",
+      "weight": "0.000189069223"
+    },
+    {
+      "ticker": "BPMC",
+      "weight": "0.000188388775"
+    },
+    {
+      "ticker": "FIVE",
+      "weight": "0.000187354311"
+    },
+    {
+      "ticker": "EPRT",
+      "weight": "0.000186994332"
+    },
+    {
+      "ticker": "NOVT",
+      "weight": "0.000186810737"
+    },
+    {
+      "ticker": "LITE",
+      "weight": "0.000186709483"
+    },
+    {
+      "ticker": "ACIW",
+      "weight": "0.000185770576"
+    },
+    {
+      "ticker": "HRI",
+      "weight": "0.000183632425"
+    },
+    {
+      "ticker": "WK",
+      "weight": "0.000183375007"
+    },
+    {
+      "ticker": "MMSI",
+      "weight": "0.000182935744"
+    },
+    {
+      "ticker": "PATH",
+      "weight": "0.000182173258"
+    },
+    {
+      "ticker": "BCPC",
+      "weight": "0.000180835352"
+    },
+    {
+      "ticker": "SMTC",
+      "weight": "0.000179062443"
+    },
+    {
+      "ticker": "IONS",
+      "weight": "0.000178906571"
+    },
+    {
+      "ticker": "WFRD",
+      "weight": "0.000178205271"
+    },
+    {
+      "ticker": "CHX",
+      "weight": "0.000177302555"
+    },
+    {
+      "ticker": "QLYS",
+      "weight": "0.000175484676"
+    },
+    {
+      "ticker": "TLN",
+      "weight": "0.000175377985"
+    },
+    {
+      "ticker": "APPF",
+      "weight": "0.000175145617"
+    },
+    {
+      "ticker": "HCP",
+      "weight": "0.000174894592"
+    },
+    {
+      "ticker": "CHWY",
+      "weight": "0.000174234046"
+    },
+    {
+      "ticker": "HXL",
+      "weight": "0.000173998753"
+    },
+    {
+      "ticker": "VNOM",
+      "weight": "0.000173082115"
+    },
+    {
+      "ticker": "MARA",
+      "weight": "0.000173035587"
+    },
+    {
+      "ticker": "SHAK",
+      "weight": "0.000169487647"
+    },
+    {
+      "ticker": "WWD",
+      "weight": "0.000168642271"
+    },
+    {
+      "ticker": "CNM",
+      "weight": "0.000168232083"
+    },
+    {
+      "ticker": "ITRI",
+      "weight": "0.000167919555"
+    },
+    {
+      "ticker": "CWAN",
+      "weight": "0.000167117958"
+    },
+    {
+      "ticker": "PRMB",
+      "weight": "0.000166255331"
+    },
+    {
+      "ticker": "CUBE",
+      "weight": "0.000166002565"
+    },
+    {
+      "ticker": "SKY",
+      "weight": "0.000164092770"
+    },
+    {
+      "ticker": "LOPE",
+      "weight": "0.000164053271"
+    },
+    {
+      "ticker": "VRNS",
+      "weight": "0.000162803975"
+    },
+    {
+      "ticker": "TENB",
+      "weight": "0.000162326119"
+    },
+    {
+      "ticker": "UPST",
+      "weight": "0.000162022114"
+    },
+    {
+      "ticker": "BOOT",
+      "weight": "0.000159767770"
+    },
+    {
+      "ticker": "ALKS",
+      "weight": "0.000159692642"
+    },
+    {
+      "ticker": "RDNT",
+      "weight": "0.000159490226"
+    },
+    {
+      "ticker": "EXPO",
+      "weight": "0.000155563130"
+    },
+    {
+      "ticker": "CRNX",
+      "weight": "0.000154735583"
+    },
+    {
+      "ticker": "CIVI",
+      "weight": "0.000153010563"
+    },
+    {
+      "ticker": "PEGA",
+      "weight": "0.000151524147"
+    },
+    {
+      "ticker": "FUN",
+      "weight": "0.000150423981"
+    },
+    {
+      "ticker": "AVAV",
+      "weight": "0.000149507330"
+    },
+    {
+      "ticker": "RGLD",
+      "weight": "0.000149121842"
+    },
+    {
+      "ticker": "CELH",
+      "weight": "0.000148963101"
+    },
+    {
+      "ticker": "BOX",
+      "weight": "0.000148566864"
+    },
+    {
+      "ticker": "BE",
+      "weight": "0.000148329720"
+    },
+    {
+      "ticker": "MGY",
+      "weight": "0.000146545400"
+    },
+    {
+      "ticker": "VKTX",
+      "weight": "0.000146236271"
+    },
+    {
+      "ticker": "TGTX",
+      "weight": "0.000145124790"
+    },
+    {
+      "ticker": "IBP",
+      "weight": "0.000144442677"
+    },
+    {
+      "ticker": "MSGS",
+      "weight": "0.000144319140"
+    },
+    {
+      "ticker": "W",
+      "weight": "0.000144250770"
+    },
+    {
+      "ticker": "BBIO",
+      "weight": "0.000143646951"
+    },
+    {
+      "ticker": "PRCT",
+      "weight": "0.000143398970"
+    },
+    {
+      "ticker": "MTCH",
+      "weight": "0.000142686094"
+    },
+    {
+      "ticker": "TTC",
+      "weight": "0.000141978157"
+    },
+    {
+      "ticker": "CALM",
+      "weight": "0.000141798330"
+    },
+    {
+      "ticker": "MTZ",
+      "weight": "0.000140356848"
+    },
+    {
+      "ticker": "NE",
+      "weight": "0.000140150491"
+    },
+    {
+      "ticker": "KRYS",
+      "weight": "0.000140092655"
+    },
+    {
+      "ticker": "SLAB",
+      "weight": "0.000139602425"
+    },
+    {
+      "ticker": "CRS",
+      "weight": "0.000139360833"
+    },
+    {
+      "ticker": "HIMS",
+      "weight": "0.000139138355"
+    },
+    {
+      "ticker": "LINE",
+      "weight": "0.000139076982"
+    },
+    {
+      "ticker": "SITM",
+      "weight": "0.000138075324"
+    },
+    {
+      "ticker": "WMG",
+      "weight": "0.000137974395"
+    },
+    {
+      "ticker": "HAE",
+      "weight": "0.000135938891"
+    },
+    {
+      "ticker": "CBZ",
+      "weight": "0.000135710780"
+    },
+    {
+      "ticker": "WHD",
+      "weight": "0.000134895389"
+    },
+    {
+      "ticker": "RXO",
+      "weight": "0.000132625991"
+    },
+    {
+      "ticker": "NEU",
+      "weight": "0.000132283679"
+    },
+    {
+      "ticker": "VRRM",
+      "weight": "0.000131991419"
+    },
+    {
+      "ticker": "AI",
+      "weight": "0.000131646731"
+    },
+    {
+      "ticker": "FELE",
+      "weight": "0.000131345636"
+    },
+    {
+      "ticker": "PI",
+      "weight": "0.000128902775"
+    },
+    {
+      "ticker": "RARE",
+      "weight": "0.000128277077"
+    },
+    {
+      "ticker": "LCID",
+      "weight": "0.000127885387"
+    },
+    {
+      "ticker": "CHH",
+      "weight": "0.000127720713"
+    },
+    {
+      "ticker": "FRSH",
+      "weight": "0.000124859206"
+    },
+    {
+      "ticker": "GH",
+      "weight": "0.000124362409"
+    },
+    {
+      "ticker": "PJT",
+      "weight": "0.000124246673"
+    },
+    {
+      "ticker": "NOG",
+      "weight": "0.000123080932"
+    },
+    {
+      "ticker": "POWI",
+      "weight": "0.000122436962"
+    },
+    {
+      "ticker": "PTCT",
+      "weight": "0.000121649455"
+    },
+    {
+      "ticker": "INTA",
+      "weight": "0.000121450475"
+    },
+    {
+      "ticker": "CCOI",
+      "weight": "0.000119667553"
+    },
+    {
+      "ticker": "FORM",
+      "weight": "0.000119606560"
+    },
+    {
+      "ticker": "BL",
+      "weight": "0.000119399714"
+    },
+    {
+      "ticker": "RELY",
+      "weight": "0.000118109253"
+    },
+    {
+      "ticker": "APLS",
+      "weight": "0.000117842352"
+    },
+    {
+      "ticker": "LANC",
+      "weight": "0.000116684283"
+    },
+    {
+      "ticker": "NCNO",
+      "weight": "0.000115580993"
+    },
+    {
+      "ticker": "WDFC",
+      "weight": "0.000115023891"
+    },
+    {
+      "ticker": "AXSM",
+      "weight": "0.000114624466"
+    },
+    {
+      "ticker": "ZETA",
+      "weight": "0.000113475439"
+    },
+    {
+      "ticker": "NVCR",
+      "weight": "0.000112997453"
+    },
+    {
+      "ticker": "VERX",
+      "weight": "0.000111721721"
+    },
+    {
+      "ticker": "CRVL",
+      "weight": "0.000110577428"
+    },
+    {
+      "ticker": "ACVA",
+      "weight": "0.000108987518"
+    },
+    {
+      "ticker": "VCYT",
+      "weight": "0.000108000537"
+    },
+    {
+      "ticker": "CARG",
+      "weight": "0.000107867598"
+    },
+    {
+      "ticker": "FIVN",
+      "weight": "0.000107705715"
+    },
+    {
+      "ticker": "CROX",
+      "weight": "0.000107172271"
+    },
+    {
+      "ticker": "RIOT",
+      "weight": "0.000105774743"
+    },
+    {
+      "ticker": "IRDM",
+      "weight": "0.000105306517"
+    },
+    {
+      "ticker": "RIG",
+      "weight": "0.000105012804"
+    },
+    {
+      "ticker": "PTON",
+      "weight": "0.000104884271"
+    },
+    {
+      "ticker": "SG",
+      "weight": "0.000104856032"
+    },
+    {
+      "ticker": "BRZE",
+      "weight": "0.000103594145"
+    },
+    {
+      "ticker": "KVYO",
+      "weight": "0.000103444695"
+    },
+    {
+      "ticker": "RH",
+      "weight": "0.000102961124"
+    },
+    {
+      "ticker": "AMBA",
+      "weight": "0.000101324425"
+    },
+    {
+      "ticker": "NOV",
+      "weight": "0.000101083249"
+    },
+    {
+      "ticker": "IRTC",
+      "weight": "0.000100350196"
+    },
+    {
+      "ticker": "FOLD",
+      "weight": "0.000099828523"
+    },
+    {
+      "ticker": "VAL",
+      "weight": "0.000095866564"
+    },
+    {
+      "ticker": "HGV",
+      "weight": "0.000095708777"
+    },
+    {
+      "ticker": "POST",
+      "weight": "0.000095620388"
+    },
+    {
+      "ticker": "OII",
+      "weight": "0.000094641870"
+    },
+    {
+      "ticker": "NEOG",
+      "weight": "0.000094226648"
+    },
+    {
+      "ticker": "ALTM",
+      "weight": "0.000094019734"
+    },
+    {
+      "ticker": "TWST",
+      "weight": "0.000093548927"
+    },
+    {
+      "ticker": "FROG",
+      "weight": "0.000093546297"
+    },
+    {
+      "ticker": "BWIN",
+      "weight": "0.000093457861"
+    },
+    {
+      "ticker": "DV",
+      "weight": "0.000092898226"
+    },
+    {
+      "ticker": "TDW",
+      "weight": "0.000092790296"
+    },
+    {
+      "ticker": "OSCR",
+      "weight": "0.000091919942"
+    },
+    {
+      "ticker": "CNS",
+      "weight": "0.000091748346"
+    },
+    {
+      "ticker": "RPD",
+      "weight": "0.000091605499"
+    },
+    {
+      "ticker": "DRS",
+      "weight": "0.000091484902"
+    },
+    {
+      "ticker": "SWTX",
+      "weight": "0.000091337470"
+    },
+    {
+      "ticker": "SAM",
+      "weight": "0.000091123473"
+    },
+    {
+      "ticker": "NARI",
+      "weight": "0.000090510502"
+    },
+    {
+      "ticker": "YOU",
+      "weight": "0.000090093186"
+    },
+    {
+      "ticker": "NXT",
+      "weight": "0.000089895280"
+    },
+    {
+      "ticker": "IDCC",
+      "weight": "0.000088388234"
+    },
+    {
+      "ticker": "STRL",
+      "weight": "0.000088180198"
+    },
+    {
+      "ticker": "RXRX",
+      "weight": "0.000087949244"
+    },
+    {
+      "ticker": "YELP",
+      "weight": "0.000087129309"
     },
     {
       "ticker": "LOAR",
-      "weight": "0.000034773502"
+      "weight": "0.000087083774"
     },
     {
-      "ticker": "ASAN",
-      "weight": "0.000034382275"
+      "ticker": "DY",
+      "weight": "0.000086950334"
     },
     {
-      "ticker": "VICR",
-      "weight": "0.000034054682"
+      "ticker": "FLYW",
+      "weight": "0.000086368133"
+    },
+    {
+      "ticker": "TNDM",
+      "weight": "0.000086006962"
+    },
+    {
+      "ticker": "GSHD",
+      "weight": "0.000084658299"
+    },
+    {
+      "ticker": "DNLI",
+      "weight": "0.000083921094"
+    },
+    {
+      "ticker": "IPAR",
+      "weight": "0.000083854523"
+    },
+    {
+      "ticker": "ACAD",
+      "weight": "0.000083550596"
+    },
+    {
+      "ticker": "AVPT",
+      "weight": "0.000083276721"
+    },
+    {
+      "ticker": "ACLS",
+      "weight": "0.000081932253"
+    },
+    {
+      "ticker": "CORT",
+      "weight": "0.000080873102"
+    },
+    {
+      "ticker": "IRT",
+      "weight": "0.000080709606"
+    },
+    {
+      "ticker": "SM",
+      "weight": "0.000080707970"
+    },
+    {
+      "ticker": "KNTK",
+      "weight": "0.000080329128"
+    },
+    {
+      "ticker": "ARWR",
+      "weight": "0.000079590750"
+    },
+    {
+      "ticker": "LRN",
+      "weight": "0.000078311758"
+    },
+    {
+      "ticker": "EEFT",
+      "weight": "0.000078124979"
+    },
+    {
+      "ticker": "CNMD",
+      "weight": "0.000077034083"
+    },
+    {
+      "ticker": "NEO",
+      "weight": "0.000076891493"
+    },
+    {
+      "ticker": "WRBY",
+      "weight": "0.000076612368"
+    },
+    {
+      "ticker": "AMR",
+      "weight": "0.000075912270"
+    },
+    {
+      "ticker": "UPWK",
+      "weight": "0.000075783310"
+    },
+    {
+      "ticker": "FTDR",
+      "weight": "0.000075578699"
+    },
+    {
+      "ticker": "ALKT",
+      "weight": "0.000074012834"
+    },
+    {
+      "ticker": "SPR",
+      "weight": "0.000073623006"
+    },
+    {
+      "ticker": "KTOS",
+      "weight": "0.000073129172"
     },
     {
       "ticker": "PRVA",
-      "weight": "0.000033966649"
+      "weight": "0.000072944951"
     },
     {
-      "ticker": "SHLS",
-      "weight": "0.000033144425"
+      "ticker": "TMDX",
+      "weight": "0.000072814709"
     },
     {
-      "ticker": "OS",
-      "weight": "0.000033112342"
+      "ticker": "ROAD",
+      "weight": "0.000072116208"
     },
     {
-      "ticker": "FSLY",
-      "weight": "0.000032736172"
+      "ticker": "RUN",
+      "weight": "0.000072028232"
     },
     {
-      "ticker": "GSAT",
-      "weight": "0.000032670934"
-    },
-    {
-      "ticker": "EXTR",
-      "weight": "0.000032258753"
-    },
-    {
-      "ticker": "KNSA",
-      "weight": "0.000031663363"
-    },
-    {
-      "ticker": "PGRE",
-      "weight": "0.000031526793"
-    },
-    {
-      "ticker": "LMND",
-      "weight": "0.000030453517"
-    },
-    {
-      "ticker": "DFH",
-      "weight": "0.000030317751"
-    },
-    {
-      "ticker": "COUR",
-      "weight": "0.000030235159"
-    },
-    {
-      "ticker": "CXM",
-      "weight": "0.000029877126"
-    },
-    {
-      "ticker": "ALGT",
-      "weight": "0.000029686333"
-    },
-    {
-      "ticker": "NFE",
-      "weight": "0.000029080278"
-    },
-    {
-      "ticker": "CENX",
-      "weight": "0.000028713643"
-    },
-    {
-      "ticker": "VIR",
-      "weight": "0.000028384064"
+      "ticker": "KYMR",
+      "weight": "0.000071729305"
     },
     {
       "ticker": "XMTR",
-      "weight": "0.000028205550"
+      "weight": "0.000071601903"
     },
     {
-      "ticker": "CRK",
-      "weight": "0.000028192383"
+      "ticker": "LMND",
+      "weight": "0.000071242552"
     },
     {
-      "ticker": "HLX",
-      "weight": "0.000027793154"
+      "ticker": "PLUG",
+      "weight": "0.000070583248"
     },
     {
-      "ticker": "PRO",
-      "weight": "0.000027277830"
+      "ticker": "WAY",
+      "weight": "0.000070351035"
     },
     {
-      "ticker": "BCRX",
-      "weight": "0.000027254664"
+      "ticker": "ROG",
+      "weight": "0.000070048532"
     },
     {
-      "ticker": "TDOC",
-      "weight": "0.000027245102"
+      "ticker": "RAMP",
+      "weight": "0.000069415152"
     },
     {
-      "ticker": "CDNA",
-      "weight": "0.000027118305"
+      "ticker": "DOCN",
+      "weight": "0.000069111965"
     },
     {
-      "ticker": "LZ",
-      "weight": "0.000027061515"
+      "ticker": "JOE",
+      "weight": "0.000068032850"
     },
     {
-      "ticker": "SEMR",
-      "weight": "0.000026875636"
+      "ticker": "AGIO",
+      "weight": "0.000067710077"
     },
     {
-      "ticker": "RSI",
-      "weight": "0.000026571624"
+      "ticker": "BEAM",
+      "weight": "0.000067575996"
     },
     {
-      "ticker": "PTLO",
-      "weight": "0.000025970904"
+      "ticker": "ENVX",
+      "weight": "0.000067318240"
     },
     {
-      "ticker": "SHEN",
-      "weight": "0.000025360086"
+      "ticker": "JJSF",
+      "weight": "0.000067029939"
     },
     {
-      "ticker": "THRM",
-      "weight": "0.000025282884"
+      "ticker": "AVDX",
+      "weight": "0.000066745165"
     },
     {
-      "ticker": "INFN",
-      "weight": "0.000024827738"
+      "ticker": "NFE",
+      "weight": "0.000066419875"
     },
     {
-      "ticker": "HSTM",
-      "weight": "0.000024322093"
+      "ticker": "QS",
+      "weight": "0.000066332154"
     },
     {
-      "ticker": "YEXT",
-      "weight": "0.000024208730"
+      "ticker": "STEP",
+      "weight": "0.000066119633"
     },
     {
-      "ticker": "JBI",
-      "weight": "0.000024193744"
+      "ticker": "MP",
+      "weight": "0.000065267087"
     },
     {
-      "ticker": "LFST",
-      "weight": "0.000023213202"
+      "ticker": "CVCO",
+      "weight": "0.000063963277"
     },
     {
-      "ticker": "AMPL",
-      "weight": "0.000022491228"
+      "ticker": "FWONA",
+      "weight": "0.000063225743"
     },
     {
-      "ticker": "IBRX",
-      "weight": "0.000022456971"
+      "ticker": "ASAN",
+      "weight": "0.000063072626"
     },
     {
-      "ticker": "RCKT",
-      "weight": "0.000021844927"
+      "ticker": "DORM",
+      "weight": "0.000062908707"
     },
     {
-      "ticker": "MCW",
-      "weight": "0.000021789815"
+      "ticker": "MQ",
+      "weight": "0.000062894953"
     },
     {
-      "ticker": "PHR",
-      "weight": "0.000021540721"
+      "ticker": "SARO",
+      "weight": "0.000062196664"
     },
     {
-      "ticker": "LPRO",
-      "weight": "0.000021506237"
-    },
-    {
-      "ticker": "RES",
-      "weight": "0.000021333026"
-    },
-    {
-      "ticker": "PUBM",
-      "weight": "0.000021249611"
-    },
-    {
-      "ticker": "MTTR",
-      "weight": "0.000021159084"
-    },
-    {
-      "ticker": "SYM",
-      "weight": "0.000020961127"
-    },
-    {
-      "ticker": "MAX",
-      "weight": "0.000020616564"
-    },
-    {
-      "ticker": "CTKB",
-      "weight": "0.000020205530"
-    },
-    {
-      "ticker": "IRWD",
-      "weight": "0.000019393374"
-    },
-    {
-      "ticker": "SANA",
-      "weight": "0.000019250161"
-    },
-    {
-      "ticker": "CHPT",
-      "weight": "0.000019189763"
-    },
-    {
-      "ticker": "MLNK",
-      "weight": "0.000018916637"
-    },
-    {
-      "ticker": "EXPI",
-      "weight": "0.000018773508"
-    },
-    {
-      "ticker": "NRDS",
-      "weight": "0.000018647110"
-    },
-    {
-      "ticker": "TR",
-      "weight": "0.000017699522"
-    },
-    {
-      "ticker": "PX",
-      "weight": "0.000017033361"
-    },
-    {
-      "ticker": "INVX",
-      "weight": "0.000016859175"
-    },
-    {
-      "ticker": "ULCC",
-      "weight": "0.000016654208"
-    },
-    {
-      "ticker": "RVLV",
-      "weight": "0.000016335216"
-    },
-    {
-      "ticker": "GETY",
-      "weight": "0.000016262827"
-    },
-    {
-      "ticker": "RUM",
-      "weight": "0.000015358737"
-    },
-    {
-      "ticker": "TFIN",
-      "weight": "0.000015300872"
-    },
-    {
-      "ticker": "IBTA",
-      "weight": "0.000015060975"
-    },
-    {
-      "ticker": "NABL",
-      "weight": "0.000014680732"
-    },
-    {
-      "ticker": "EVGO",
-      "weight": "0.000014565490"
-    },
-    {
-      "ticker": "GRC",
-      "weight": "0.000014166132"
-    },
-    {
-      "ticker": "KIND",
-      "weight": "0.000013734700"
-    },
-    {
-      "ticker": "RCUS",
-      "weight": "0.000013327335"
-    },
-    {
-      "ticker": "UDMY",
-      "weight": "0.000012604386"
-    },
-    {
-      "ticker": "ADPT",
-      "weight": "0.000012433689"
-    },
-    {
-      "ticker": "BJRI",
-      "weight": "0.000012414810"
-    },
-    {
-      "ticker": "PAY",
-      "weight": "0.000012409002"
-    },
-    {
-      "ticker": "ANAB",
-      "weight": "0.000012269407"
-    },
-    {
-      "ticker": "HGTY",
-      "weight": "0.000011082689"
-    },
-    {
-      "ticker": "ARHS",
-      "weight": "0.000010837070"
-    },
-    {
-      "ticker": "SNCY",
-      "weight": "0.000010261104"
-    },
-    {
-      "ticker": "ZIP",
-      "weight": "0.000010104956"
-    },
-    {
-      "ticker": "CRSR",
-      "weight": "0.000010051704"
-    },
-    {
-      "ticker": "ENFN",
-      "weight": "0.000009199827"
-    },
-    {
-      "ticker": "HPK",
-      "weight": "0.000009194007"
-    },
-    {
-      "ticker": "OLO",
-      "weight": "0.000008993726"
-    },
-    {
-      "ticker": "LASR",
-      "weight": "0.000008471773"
-    },
-    {
-      "ticker": "RGNX",
-      "weight": "0.000008088072"
-    },
-    {
-      "ticker": "PL",
-      "weight": "0.000007816371"
+      "ticker": "ACLX",
+      "weight": "0.000061955974"
     },
     {
       "ticker": "DJT",
-      "weight": "0.000007615747"
+      "weight": "0.000061821026"
     },
     {
-      "ticker": "DH",
-      "weight": "0.000007259996"
+      "ticker": "TRIP",
+      "weight": "0.000061002391"
     },
     {
-      "ticker": "OPK",
-      "weight": "0.000007204595"
+      "ticker": "YETI",
+      "weight": "0.000060879618"
+    },
+    {
+      "ticker": "GSAT",
+      "weight": "0.000060248622"
+    },
+    {
+      "ticker": "LTH",
+      "weight": "0.000060201360"
+    },
+    {
+      "ticker": "XNCR",
+      "weight": "0.000060160261"
+    },
+    {
+      "ticker": "PD",
+      "weight": "0.000058831809"
+    },
+    {
+      "ticker": "PRKS",
+      "weight": "0.000058583444"
+    },
+    {
+      "ticker": "VECO",
+      "weight": "0.000057662986"
+    },
+    {
+      "ticker": "TRUP",
+      "weight": "0.000057453654"
+    },
+    {
+      "ticker": "ALGT",
+      "weight": "0.000057296269"
+    },
+    {
+      "ticker": "PYCR",
+      "weight": "0.000056700916"
+    },
+    {
+      "ticker": "PCT",
+      "weight": "0.000056670398"
+    },
+    {
+      "ticker": "LBRT",
+      "weight": "0.000056645061"
+    },
+    {
+      "ticker": "AMC",
+      "weight": "0.000056629676"
+    },
+    {
+      "ticker": "RLJ",
+      "weight": "0.000056601043"
+    },
+    {
+      "ticker": "HRMY",
+      "weight": "0.000056592242"
+    },
+    {
+      "ticker": "SPT",
+      "weight": "0.000055864243"
+    },
+    {
+      "ticker": "SHOO",
+      "weight": "0.000055805058"
+    },
+    {
+      "ticker": "TXG",
+      "weight": "0.000055796433"
+    },
+    {
+      "ticker": "HP",
+      "weight": "0.000054644530"
+    },
+    {
+      "ticker": "ATRC",
+      "weight": "0.000054307015"
+    },
+    {
+      "ticker": "PGNY",
+      "weight": "0.000052932473"
+    },
+    {
+      "ticker": "AESI",
+      "weight": "0.000052124736"
+    },
+    {
+      "ticker": "SABR",
+      "weight": "0.000051374032"
+    },
+    {
+      "ticker": "PLMR",
+      "weight": "0.000051266178"
+    },
+    {
+      "ticker": "RUM",
+      "weight": "0.000051211429"
+    },
+    {
+      "ticker": "APPN",
+      "weight": "0.000051016685"
+    },
+    {
+      "ticker": "ALGM",
+      "weight": "0.000050942792"
+    },
+    {
+      "ticker": "ASTH",
+      "weight": "0.000050837583"
+    },
+    {
+      "ticker": "XPRO",
+      "weight": "0.000050048603"
+    },
+    {
+      "ticker": "MSGE",
+      "weight": "0.000049738553"
+    },
+    {
+      "ticker": "RVLV",
+      "weight": "0.000049519300"
+    },
+    {
+      "ticker": "EVH",
+      "weight": "0.000049312939"
+    },
+    {
+      "ticker": "PAYO",
+      "weight": "0.000049073582"
+    },
+    {
+      "ticker": "NVAX",
+      "weight": "0.000047401251"
+    },
+    {
+      "ticker": "ARVN",
+      "weight": "0.000047084250"
+    },
+    {
+      "ticker": "STAA",
+      "weight": "0.000047047732"
+    },
+    {
+      "ticker": "OS",
+      "weight": "0.000046156437"
+    },
+    {
+      "ticker": "FSLY",
+      "weight": "0.000045870056"
+    },
+    {
+      "ticker": "LZ",
+      "weight": "0.000045810072"
+    },
+    {
+      "ticker": "SDGR",
+      "weight": "0.000045646795"
+    },
+    {
+      "ticker": "IBTA",
+      "weight": "0.000045447130"
+    },
+    {
+      "ticker": "VICR",
+      "weight": "0.000044500360"
+    },
+    {
+      "ticker": "NTLA",
+      "weight": "0.000044246238"
+    },
+    {
+      "ticker": "RSI",
+      "weight": "0.000043980615"
+    },
+    {
+      "ticker": "SYM",
+      "weight": "0.000043904194"
+    },
+    {
+      "ticker": "ALHC",
+      "weight": "0.000043878787"
+    },
+    {
+      "ticker": "JAMF",
+      "weight": "0.000043145653"
+    },
+    {
+      "ticker": "MGNI",
+      "weight": "0.000042756776"
+    },
+    {
+      "ticker": "EXTR",
+      "weight": "0.000042016127"
+    },
+    {
+      "ticker": "IAS",
+      "weight": "0.000041610379"
+    },
+    {
+      "ticker": "KW",
+      "weight": "0.000041394534"
+    },
+    {
+      "ticker": "FLNC",
+      "weight": "0.000041219510"
+    },
+    {
+      "ticker": "LBRDA",
+      "weight": "0.000040786689"
+    },
+    {
+      "ticker": "TFIN",
+      "weight": "0.000040766143"
+    },
+    {
+      "ticker": "FIZZ",
+      "weight": "0.000040261667"
+    },
+    {
+      "ticker": "COUR",
+      "weight": "0.000038791331"
+    },
+    {
+      "ticker": "OPEN",
+      "weight": "0.000038744320"
+    },
+    {
+      "ticker": "PLAY",
+      "weight": "0.000038352877"
+    },
+    {
+      "ticker": "PGRE",
+      "weight": "0.000038154868"
+    },
+    {
+      "ticker": "CENX",
+      "weight": "0.000038115653"
+    },
+    {
+      "ticker": "RDFN",
+      "weight": "0.000037739625"
+    },
+    {
+      "ticker": "IESC",
+      "weight": "0.000037321268"
+    },
+    {
+      "ticker": "GBTG",
+      "weight": "0.000036990880"
+    },
+    {
+      "ticker": "PRO",
+      "weight": "0.000036480050"
+    },
+    {
+      "ticker": "CORZ",
+      "weight": "0.000036141012"
+    },
+    {
+      "ticker": "WOLF",
+      "weight": "0.000034854752"
+    },
+    {
+      "ticker": "SGRY",
+      "weight": "0.000034765953"
+    },
+    {
+      "ticker": "VIR",
+      "weight": "0.000034744416"
+    },
+    {
+      "ticker": "CXM",
+      "weight": "0.000034039934"
+    },
+    {
+      "ticker": "BCRX",
+      "weight": "0.000033814314"
+    },
+    {
+      "ticker": "AMPL",
+      "weight": "0.000033608957"
+    },
+    {
+      "ticker": "HSTM",
+      "weight": "0.000033571081"
+    },
+    {
+      "ticker": "AMRC",
+      "weight": "0.000033283044"
+    },
+    {
+      "ticker": "RKT",
+      "weight": "0.000033219541"
+    },
+    {
+      "ticker": "TDOC",
+      "weight": "0.000033087006"
+    },
+    {
+      "ticker": "KNSA",
+      "weight": "0.000032223243"
+    },
+    {
+      "ticker": "STR",
+      "weight": "0.000031361749"
+    },
+    {
+      "ticker": "MCW",
+      "weight": "0.000031273069"
+    },
+    {
+      "ticker": "LFST",
+      "weight": "0.000031249142"
+    },
+    {
+      "ticker": "CRK",
+      "weight": "0.000031193676"
+    },
+    {
+      "ticker": "PHR",
+      "weight": "0.000030997673"
+    },
+    {
+      "ticker": "HLX",
+      "weight": "0.000030457425"
+    },
+    {
+      "ticker": "CTKB",
+      "weight": "0.000030267768"
+    },
+    {
+      "ticker": "ULCC",
+      "weight": "0.000030080540"
+    },
+    {
+      "ticker": "YEXT",
+      "weight": "0.000029437242"
+    },
+    {
+      "ticker": "QXO",
+      "weight": "0.000029413900"
+    },
+    {
+      "ticker": "MTTR",
+      "weight": "0.000029286125"
+    },
+    {
+      "ticker": "SHEN",
+      "weight": "0.000029241199"
+    },
+    {
+      "ticker": "RLAY",
+      "weight": "0.000029038098"
+    },
+    {
+      "ticker": "PAY",
+      "weight": "0.000028568278"
+    },
+    {
+      "ticker": "MLNK",
+      "weight": "0.000028145954"
+    },
+    {
+      "ticker": "DFH",
+      "weight": "0.000027974151"
+    },
+    {
+      "ticker": "TR",
+      "weight": "0.000027894610"
+    },
+    {
+      "ticker": "LPRO",
+      "weight": "0.000027376805"
+    },
+    {
+      "ticker": "RES",
+      "weight": "0.000027130687"
+    },
+    {
+      "ticker": "AGL",
+      "weight": "0.000027106522"
+    },
+    {
+      "ticker": "PX",
+      "weight": "0.000027004921"
+    },
+    {
+      "ticker": "SEMR",
+      "weight": "0.000026711602"
+    },
+    {
+      "ticker": "PUBM",
+      "weight": "0.000026475897"
+    },
+    {
+      "ticker": "PTLO",
+      "weight": "0.000026041914"
+    },
+    {
+      "ticker": "RCKT",
+      "weight": "0.000025943632"
+    },
+    {
+      "ticker": "CDNA",
+      "weight": "0.000025888574"
+    },
+    {
+      "ticker": "INVX",
+      "weight": "0.000025713355"
+    },
+    {
+      "ticker": "SHLS",
+      "weight": "0.000024778596"
+    },
+    {
+      "ticker": "NRDS",
+      "weight": "0.000024667965"
+    },
+    {
+      "ticker": "PACS",
+      "weight": "0.000024561515"
+    },
+    {
+      "ticker": "EVGO",
+      "weight": "0.000023605364"
+    },
+    {
+      "ticker": "IBRX",
+      "weight": "0.000022816308"
+    },
+    {
+      "ticker": "KIND",
+      "weight": "0.000022356859"
+    },
+    {
+      "ticker": "PL",
+      "weight": "0.000021509024"
+    },
+    {
+      "ticker": "ADPT",
+      "weight": "0.000021405116"
+    },
+    {
+      "ticker": "KLC",
+      "weight": "0.000021404497"
+    },
+    {
+      "ticker": "OLO",
+      "weight": "0.000021304680"
+    },
+    {
+      "ticker": "UDMY",
+      "weight": "0.000021109574"
+    },
+    {
+      "ticker": "SNCY",
+      "weight": "0.000020778852"
+    },
+    {
+      "ticker": "GRC",
+      "weight": "0.000020689992"
+    },
+    {
+      "ticker": "TTAN",
+      "weight": "0.000020603205"
+    },
+    {
+      "ticker": "MAX",
+      "weight": "0.000020354080"
+    },
+    {
+      "ticker": "IRWD",
+      "weight": "0.000020328439"
+    },
+    {
+      "ticker": "BJRI",
+      "weight": "0.000020298847"
+    },
+    {
+      "ticker": "RCUS",
+      "weight": "0.000019973561"
     },
     {
       "ticker": "NPWR",
-      "weight": "0.000007114307"
+      "weight": "0.000019394288"
     },
     {
-      "ticker": "SAGE",
-      "weight": "0.000006876455"
+      "ticker": "CRSR",
+      "weight": "0.000018016244"
     },
     {
-      "ticker": "BIGC",
-      "weight": "0.000006307534"
+      "ticker": "HPK",
+      "weight": "0.000017751658"
+    },
+    {
+      "ticker": "HGTY",
+      "weight": "0.000017362333"
+    },
+    {
+      "ticker": "CHPT",
+      "weight": "0.000014873039"
+    },
+    {
+      "ticker": "CLBK",
+      "weight": "0.000014700352"
+    },
+    {
+      "ticker": "ZIP",
+      "weight": "0.000014692178"
+    },
+    {
+      "ticker": "OPK",
+      "weight": "0.000014184350"
+    },
+    {
+      "ticker": "ENFN",
+      "weight": "0.000014154314"
+    },
+    {
+      "ticker": "DH",
+      "weight": "0.000013905076"
+    },
+    {
+      "ticker": "LUCK",
+      "weight": "0.000013562902"
+    },
+    {
+      "ticker": "NOVA",
+      "weight": "0.000013473934"
+    },
+    {
+      "ticker": "ANAB",
+      "weight": "0.000011526728"
+    },
+    {
+      "ticker": "GETY",
+      "weight": "0.000011375686"
+    },
+    {
+      "ticker": "SANA",
+      "weight": "0.000010700285"
     },
     {
       "ticker": "ANGI",
-      "weight": "0.000005827431"
-    },
-    {
-      "ticker": "LAZR",
-      "weight": "0.000005567598"
-    },
-    {
-      "ticker": "DNA",
-      "weight": "0.000005480296"
-    },
-    {
-      "ticker": "CTRI",
-      "weight": "0.000005060101"
-    },
-    {
-      "ticker": "LESL",
-      "weight": "0.000004557880"
-    },
-    {
-      "ticker": "SVV",
-      "weight": "0.000004395737"
+      "weight": "0.000009859259"
     },
     {
       "ticker": "INNV",
-      "weight": "0.000004242952"
-    },
-    {
-      "ticker": "PRME",
-      "weight": "0.000004025965"
-    },
-    {
-      "ticker": "BYON",
-      "weight": "0.000003996910"
-    },
-    {
-      "ticker": "TASK",
-      "weight": "0.000003765680"
-    },
-    {
-      "ticker": "ZNTL",
-      "weight": "0.000003401916"
+      "weight": "0.000009358665"
     }
   ]
 }
