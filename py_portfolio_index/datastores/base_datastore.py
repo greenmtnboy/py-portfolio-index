@@ -11,19 +11,9 @@ class ResultProtocol(Protocol):
     values: List[Any]
     columns: List[str]
 
-    def fetchall(self) -> List[Any]:
-        ...
+    def fetchall(self) -> List[Any]: ...
 
-    def keys(self) -> List[str]:
-        ...
-
-
-class DBApiConnectionWrapper:
-    def __init__(self, dbapi):
-        self.dbapi = dbapi
-
-    def connect(self):
-        return self.dbapi
+    def keys(self) -> List[str]: ...
 
 
 class BaseDatastore:

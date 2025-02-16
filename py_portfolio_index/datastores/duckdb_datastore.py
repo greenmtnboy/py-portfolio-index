@@ -35,9 +35,6 @@ class DuckDBDatastore(BaseDatastore):
 
     def __init__(self, db_path: str, debug: bool = False):
         super().__init__(duckdb_path=db_path, debug=debug)
-        # from duckdb_engine import ConnectionWrapper
-
-        # engine = sa.create_engine("duckdb://", creator=lambda: ConnectionWrapper(con))
 
     def check_initialized(self) -> bool:
         assert self.executor is not None
@@ -52,6 +49,7 @@ class DuckDBDatastore(BaseDatastore):
     def drop(self):
         for x in self.EXPECTED_TABLES:
             self.executor.execute_raw_sql(f"DROP TABLE {x} CASCADE")
+        self.executor.connection.commit()
 
     def initialize(self):
         from py_portfolio_index.bin import STOCK_INFO
@@ -124,7 +122,7 @@ class DuckDBDatastore(BaseDatastore):
                 "INSERT INTO symbols VALUES (:id, :ticker, :name, :sector, :industry)",
                 x,
             )
-        # self.executor.engine.pool._creator().cursor().executemany("INSERT INTO symbols VALUES ($1, $2, $3)", final[:1])
+        self.executor.connection.commit()
 
     def persist_dividend_data(self, data: list[DividendResult]):
         for x in data:
