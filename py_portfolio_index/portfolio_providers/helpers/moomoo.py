@@ -115,18 +115,4 @@ class MooMooProxy:
             )
             # run this command in a subprocess
 
-        process = subprocess.Popen(
-            [
-                self.opend_path,
-                f"-login_account={account}",
-                f"-login_pwd={pwd}",
-                f"-lang={self.lang}",
-            ]
-        )
-        process.communicate()
-        for _ in range(0, 10):
-            if check_listening(DEFAULT_PORT):
-                return process
-            sleep(5)
-
-        raise ConfigurationError(f"Could not start moomoo proxy; {process.stderr}")
+        return self.start_proxy(self.opend_path,  account, pwd)

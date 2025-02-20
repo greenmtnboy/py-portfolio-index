@@ -11,6 +11,7 @@ from py_portfolio_index.exceptions import (
     ConfigurationError,
 )
 from py_portfolio_index.models import LoginResponse, LoginResponseStatus
+import time
 
 ROBINHOOD_USERNAME_ENV = "ROBINHOOD_USERNAME"
 ROBINHOOD_PASSWORD_ENV = "ROBINHOOD_PASSWORD"
@@ -66,31 +67,25 @@ def _validate_sherrif_id(device_token: str, workflow_id: str, mfa_code: str):
             f"https://api.robinhood.com/pathfinder/inquiries/{data['id']}/user_view/"
         )
         res = request_get(inquiries_url)
-        challenge_id = res["type_context"]["context"]["sheriff_challenge"]["id"]
-        challenge_url = f"https://api.robinhood.com/challenge/{challenge_id}/respond/"
-        challenge_payload = {"response": mfa_code}
-        challenge_response = request_post(
-            url=challenge_url, payload=challenge_payload, json=True
-        )
-        if (
-            "status" in challenge_response
-            and challenge_response["status"] == "validated"
-        ):
-            inquiries_payload = {"sequence": 0, "user_input": {"status": "continue"}}
-            inquiries_response = request_post(
-                url=inquiries_url, payload=inquiries_payload, json=True
-            )
-            if (
-                inquiries_response["type_context"]["result"]
-                == "workflow_status_approved"
-            ):
-                return
-            else:
-                raise Exception(
-                    f"workflow status not approved; is {challenge_response}"
-                )
-        else:
-            raise Exception(f"Challenge not validated: {challenge_response}")
+        challenge_id=res["context"]["sheriff_challenge"]["id"] # used to be type_context
+        challenge_url = f"https://api.robinhood.com/push/{challenge_id}/get_prompts_status/" 
+        challenge_response = request_get(url=challenge_url)
+        start_time = time.time()
+        while time.time() - start_time < 120: # 2 minutes
+            time.sleep(5)
+            print(challenge_response)
+            if challenge_response["challenge_status"] == "expired":
+                raise Exception('Expired challenge.')
+            if challenge_response["challenge_status"] == "validated":
+                inquiries_payload = {"sequence":0,"user_input":{"status":"continue"}}
+                inquiries_response = request_post(url=inquiries_url, payload=inquiries_payload,json=True )
+                if inquiries_response["type_context"]["result"] == "workflow_status_approved":
+                    return
+                else:
+                    raise Exception("workflow status not approved")
+            challenge_response = request_get(url=challenge_url) 
+            print("Waiting for challenge to be validated")
+            print(time.time() - start_time)
     raise Exception("Id not returned in user-machine call")
 
 
@@ -241,7 +236,7 @@ def login(
                 "X-ROBINHOOD-CHALLENGE-RESPONSE-ID", prior_response.data["challenge_id"]
             )
     data = request_post(url, payload)
-
+    print(data)
     if data:
         if "mfa_required" in data:
             raise ExtraAuthenticationStepException(
@@ -256,10 +251,10 @@ def login(
                 )
             )
         elif "verification_workflow" in data:
-            if not challenge_response:
-                raise ExtraAuthenticationStepException(
-                    response=LoginResponse(status=LoginResponseStatus.MFA_REQUIRED)
-                )
+            # if not challenge_response:
+            #     raise ExtraAuthenticationStepException(
+            #         response=LoginResponse(status=LoginResponseStatus.CHALLENGE_REQUIRED)
+            #     )
             workflow_id = data["verification_workflow"]["id"]
             _validate_sherrif_id(
                 device_token=device_token,

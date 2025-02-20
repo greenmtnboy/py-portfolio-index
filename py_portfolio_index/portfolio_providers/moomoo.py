@@ -17,6 +17,7 @@ from py_portfolio_index.exceptions import (
     PriceFetchError,
     OrderError,
 )
+from py_portfolio_index.enums import ProviderType
 
 from py_portfolio_index.portfolio_providers.helpers.moomoo import (
     DEFAULT_PORT,
@@ -71,13 +72,13 @@ class MooMooProvider(BaseProvider):
             password = environ.get(self.PASSWORD_ENV, None)
         if not trade_token:
             trade_token = environ.get(self.TRADE_TOKEN_ENV, "ABC")
+        self._trade_token= trade_token
         # if not device_id:
         #     device_id = environ.get(self.DEVICE_ID_ENV, None)
         if not (account and password and trade_token) and not _external_auth:
             raise ConfigurationError(
                 "Must provide ALL OF account, password, trade_token, and arguments or set environment variables MOOMOO_ACCOUNT, MOOMOO_PASSWORD, MOOMOO_TRADE_TOKEN"
             )
-        self._trade_token = trade_token
         self.proxy = proxy
         self.proxy.validate(account=account, pwd=password)
         self._trade_provider = OpenSecTradeContext(
@@ -134,19 +135,19 @@ class MooMooProvider(BaseProvider):
         symbol: str,
         qty: Optional[float],
         value: Optional[Money] = None,
-        price: Optional[Decimal] = None,
     ) -> bool:
         from moomoo import RET_OK, TrdSide, OrderType
 
         ret, data = self._trade_provider.unlock_trade(
-            environ.get(self._trade_token, None)
+            password = self._trade_token
         )  # If you use a live trading account to place an order, you need to unlock the account first. The example here is to place an order on a paper trading account, and unlocking is not necessary.
         if ret == RET_OK:
             pass
         else:
             raise OrderError("unlock trade error: ", data)
         ret, data = self._trade_provider.place_order(
-            price=price,
+            # price is arbitrary for makret
+            price=0.0 if not value else value.value,
             qty=qty,
             code="US." + symbol,
             order_type=OrderType.MARKET,
@@ -160,19 +161,12 @@ class MooMooProvider(BaseProvider):
     def buy_instrument(
         self, ticker: str, qty: Decimal, value: Optional[Money] = None
     ) -> bool:
-        # TODO: make sure this is always set
-        if not value and qty:
-            raise NotImplementedError(
-                "Moomoo provider must have both value and qty to purchase"
-            )
-        assert value
-        price = value / qty
         if qty:
             orders_kwargs_list: List[Dict[str, Money | None | Decimal]] = [
-                {"qty": qty, "value": None, "price": price}
+                {"qty": qty, "value": None, }
             ]
         else:
-            orders_kwargs_list = [{"qty": None, "value": value, "price": price}]
+            orders_kwargs_list = [{"qty": None, "value": value,}]
         for order_kwargs in orders_kwargs_list:
             return self._buy_instrument(ticker, **order_kwargs)  # type: ignore
         return True
