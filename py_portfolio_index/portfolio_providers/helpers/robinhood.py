@@ -12,7 +12,6 @@ from py_portfolio_index.exceptions import (
 )
 from py_portfolio_index.models import LoginResponse, LoginResponseStatus
 import time
-import secrets
 
 ROBINHOOD_USERNAME_ENV = "ROBINHOOD_USERNAME"
 ROBINHOOD_PASSWORD_ENV = "ROBINHOOD_PASSWORD"
@@ -181,7 +180,7 @@ def login(
         "password": password,
         "scope": scope,
         "username": username,
-        # "challenge_type": challenge_type,
+        "challenge_type": challenge_type,
         "device_token": device_token,
         "try_passkeys": False,
         "token_request_path": "/login",

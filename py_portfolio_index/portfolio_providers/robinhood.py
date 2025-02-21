@@ -432,7 +432,7 @@ class RobinhoodProvider(BaseProvider):
         total_value = Decimal(0.0)
         for s in symbols:
             price = prices[s]
-            if not prices[s]:
+            if not price:
                 continue
             total_value += price * Decimal(pre[s]["units"])
         final = []

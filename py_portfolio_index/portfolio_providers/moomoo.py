@@ -72,7 +72,7 @@ class MooMooProvider(BaseProvider):
             password = environ.get(self.PASSWORD_ENV, None)
         if not trade_token:
             trade_token = environ.get(self.TRADE_TOKEN_ENV, "ABC")
-        self._trade_token= trade_token
+        self._trade_token = trade_token
         # if not device_id:
         #     device_id = environ.get(self.DEVICE_ID_ENV, None)
         if not (account and password and trade_token) and not _external_auth:
@@ -139,7 +139,7 @@ class MooMooProvider(BaseProvider):
         from moomoo import RET_OK, TrdSide, OrderType
 
         ret, data = self._trade_provider.unlock_trade(
-            password = self._trade_token
+            password=self._trade_token
         )  # If you use a live trading account to place an order, you need to unlock the account first. The example here is to place an order on a paper trading account, and unlocking is not necessary.
         if ret == RET_OK:
             pass
@@ -163,10 +163,18 @@ class MooMooProvider(BaseProvider):
     ) -> bool:
         if qty:
             orders_kwargs_list: List[Dict[str, Money | None | Decimal]] = [
-                {"qty": qty, "value": None, }
+                {
+                    "qty": qty,
+                    "value": None,
+                }
             ]
         else:
-            orders_kwargs_list = [{"qty": None, "value": value,}]
+            orders_kwargs_list = [
+                {
+                    "qty": None,
+                    "value": value,
+                }
+            ]
         for order_kwargs in orders_kwargs_list:
             return self._buy_instrument(ticker, **order_kwargs)  # type: ignore
         return True

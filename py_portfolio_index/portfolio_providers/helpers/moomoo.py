@@ -1,10 +1,10 @@
 import socket as socket
 import subprocess
-from time import sleep
 from py_portfolio_index.exceptions import (
     ConfigurationError,
     ExtraAuthenticationStepException,
 )
+from py_portfolio_index.models import LoginResponse, LoginResponseStatus
 from py_portfolio_index.portfolio_providers.helpers.telnetlib import Telnet
 
 DEFAULT_PORT = 11111
@@ -25,8 +25,10 @@ def check_listening(port: int):
 
 def interactive_login(
     opend_path: str, account: str, pwd: str, lang: str = "en"
-) -> bool:
+) -> "MooMooProxy":
     proxy = MooMooProxy(opend_path)
+    if check_listening(DEFAULT_PORT):
+        return proxy
     try:
         proxy.start_proxy(opend_path, account, pwd, lang)
     except ExtraAuthenticationStepException:
@@ -45,14 +47,16 @@ class MooMooProxy:
         self.telnet_port = 22222
         self.telnet_ip = "127.0.0.1"
 
-    def validate(self, account: str, pwd: str, extra_factor: str | None = None) -> True:
-        if not self.process:
-            self.start_proxy(self.opend_path, account, pwd, self.lang)
-        if self.mfa_in_progress:
-            self.submit_mfa(extra_factor)
+    def validate(
+        self, account: str | None, pwd: str | None, extra_factor: str | None = None
+    ) -> bool:
         if check_listening(DEFAULT_PORT):
             return True
-        return self.connect(account, pwd)
+        if not self.process and self.opend_path and account and pwd:
+            self.start_proxy(self.opend_path, account, pwd, self.lang)
+        if self.mfa_in_progress and extra_factor:
+            self.submit_mfa(extra_factor)
+        return check_listening(DEFAULT_PORT)
 
     def submit_mfa(self, code: str):
         if not self.mfa_in_progress:
@@ -83,10 +87,11 @@ class MooMooProxy:
         )
         results = self.send_command("show_sub_info")
 
-        # raise ExtraAuthenticationStepException(
-        #     response=LoginResponse(status=LoginResponseStatus.MFA_REQUIRED)
-        # )
-        self.validate(login_account, login_pwd)
+        if "The remaining quota:" not in results:
+            raise ExtraAuthenticationStepException(
+                response=LoginResponse(status=LoginResponseStatus.MFA_REQUIRED)
+            )
+        return self.validate(login_account, login_pwd)
 
     def send_command(self, command: str):
         with Telnet(
@@ -115,4 +120,4 @@ class MooMooProxy:
             )
             # run this command in a subprocess
 
-        return self.start_proxy(self.opend_path,  account, pwd)
+        return self.start_proxy(self.opend_path, account, pwd)
