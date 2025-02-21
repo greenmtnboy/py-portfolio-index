@@ -132,9 +132,9 @@ NOOPT = bytes([0])
 # poll/select have the advantage of not requiring any extra file descriptor,
 # contrarily to epoll/kqueue (also, they require a single syscall).
 if hasattr(selectors, "PollSelector"):
-    _TelnetSelector = selectors.PollSelector #type: ignore
+    _TelnetSelector = selectors.PollSelector  # type: ignore
 else:
-    _TelnetSelector = selectors.SelectSelector #type: ignore
+    _TelnetSelector = selectors.SelectSelector  # type: ignore
 
 
 class Telnet:
