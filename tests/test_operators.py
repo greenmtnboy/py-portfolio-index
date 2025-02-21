@@ -35,9 +35,9 @@ def test_generate_order_plan():
         ideal_port,
         target_size=1000,
         buy_order=PurchaseStrategy.LARGEST_DIFF_FIRST,
-        price_cache=PriceCache(
+        price_fetcher=PriceCache(
             fetcher=lambda tickers, date: {y: 100 for y in tickers},
-        ),
+        ).get_prices,
     )
 
     expected = {"AAPL": Money(value=400), "MSFT": Money(value=500)}
