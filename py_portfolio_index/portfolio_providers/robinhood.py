@@ -432,7 +432,7 @@ class RobinhoodProvider(BaseProvider):
         total_value = Decimal(0.0)
         for s in symbols:
             price = prices[s]
-            if not prices[s]:
+            if not price:
                 continue
             total_value += price * Decimal(pre[s]["units"])
         final = []
@@ -453,9 +453,6 @@ class RobinhoodProvider(BaseProvider):
             accounts_data["cash_held_for_orders"]
         )
         return RealPortfolio(holdings=out, cash=Money(value=cash), provider=self)
-
-    def get_instrument_prices(self, tickers: List[str], at_day: Optional[date] = None):
-        return self._price_cache.get_prices(tickers=tickers, date=at_day)
 
     def _get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None

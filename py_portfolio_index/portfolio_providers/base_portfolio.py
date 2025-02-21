@@ -1,3 +1,4 @@
+from __future__ import annotations
 from math import floor, ceil
 from typing import Dict, Union, Optional, Set, List, Callable, Any
 from decimal import Decimal
@@ -10,7 +11,7 @@ from py_portfolio_index.common import (
     get_basic_stock_info,
 )
 from py_portfolio_index.constants import Logger
-from py_portfolio_index.enums import RoundingStrategy, ProviderType
+from py_portfolio_index.enums import RoundingStrategy, ProviderType, OrderType
 from py_portfolio_index.exceptions import OrderError
 from py_portfolio_index.models import (
     Money,
@@ -41,19 +42,22 @@ class BaseProvider(object):
     SUPPORTS_BATCH_HISTORY = 0
     SUPPORTS_FRACTIONAL_SHARES = True
 
-    def __init__(self) -> None:
+    def __init__(self, quote_provider: BaseProvider | None = None) -> None:
         self.stock_info_cache: Dict[str, StockInfo] = {}
         self._price_cache: PriceCache = PriceCache(
             fetcher=self._get_instrument_prices,
             single_fetcher=self._get_instrument_price,
         )
         self.CACHE: dict[str, CachedValue] = {}
+        self._quote_provider = quote_provider
 
     def clear_cache(self, skip_clearing: List[str]):
         for value in self.CACHE.values():
             if value in skip_clearing:
                 continue
             value.value = None
+        if self._quote_provider:
+            self._quote_provider.clear_cache(skip_clearing)
 
     def _get_cached_value(
         self,
@@ -108,11 +112,15 @@ class BaseProvider(object):
     def get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
     ) -> Dict[str, Optional[Decimal]]:
+        if self._quote_provider:
+            return self._quote_provider.get_instrument_prices(tickers, at_day)
         return self._price_cache.get_prices(tickers=tickers, date=at_day)
 
     def get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
     ) -> Optional[Decimal]:
+        if self._quote_provider:
+            return self._quote_provider.get_instrument_price(ticker, at_day)
         return self._price_cache.get_price(ticker=ticker, date=at_day)
 
     def buy_instrument(
@@ -214,6 +222,8 @@ class BaseProvider(object):
         )
 
     def handle_order_element(self, element: OrderElement, dry_run: bool = False):
+        if element.order_type == OrderType.SELL:
+            raise NotImplementedError
         raw_price = self.get_instrument_price(element.ticker)
 
         if not raw_price:
@@ -258,9 +268,10 @@ class BaseProvider(object):
     def purchase_order_plan(
         self,
         plan: OrderPlan,
-        skip_errored_stocks=False,
+        skip_errored_stocks: bool = False,
         ignore_unsettled: bool = True,
         plan_only: bool = False,
+        include_sell_orders: bool = False,
     ):
         if ignore_unsettled:
             unsettled = self.get_unsettled_instruments()
@@ -271,9 +282,11 @@ class BaseProvider(object):
                 Logger.info(f"Skipping {item.ticker} with unsettled orders.")
                 continue
             try:
+                if item.order_type == OrderType.SELL and not include_sell_orders:
+                    continue
                 self.handle_order_element(item, dry_run=plan_only)
             except Exception as e:
-                print(e)
+                Logger.error(f"Failed to purchase {item.ticker}:{str(e)}.")
                 if not skip_errored_stocks:
                     raise e
 

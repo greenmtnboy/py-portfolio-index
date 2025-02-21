@@ -11,6 +11,7 @@ from py_portfolio_index.exceptions import (
     ConfigurationError,
 )
 from py_portfolio_index.models import LoginResponse, LoginResponseStatus
+import time
 
 ROBINHOOD_USERNAME_ENV = "ROBINHOOD_USERNAME"
 ROBINHOOD_PASSWORD_ENV = "ROBINHOOD_PASSWORD"
@@ -61,31 +62,44 @@ def _validate_sherrif_id(device_token: str, workflow_id: str, mfa_code: str):
         "input": {"workflow_id": workflow_id},
     }
     data = request_post(url=url, payload=payload, json=True)
+    print(data)
     if "id" in data:
         inquiries_url = (
             f"https://api.robinhood.com/pathfinder/inquiries/{data['id']}/user_view/"
         )
         res = request_get(inquiries_url)
-        challenge_id = res["type_context"]["context"]["sheriff_challenge"]["id"]
-        challenge_url = f"https://api.robinhood.com/challenge/{challenge_id}/respond/"
-        challenge_payload = {"response": mfa_code}
-        challenge_response = request_post(
-            url=challenge_url, payload=challenge_payload, json=True
+        print(res)
+        challenge_id = res["context"]["sheriff_challenge"][
+            "id"
+        ]  # used to be type_context
+        challenge_url = (
+            f"https://api.robinhood.com/push/{challenge_id}/get_prompts_status/"
         )
-        if challenge_response["status"] == "validated":
-            inquiries_payload = {"sequence": 0, "user_input": {"status": "continue"}}
-            inquiries_response = request_post(
-                url=inquiries_url, payload=inquiries_payload, json=True
-            )
-            if (
-                inquiries_response["type_context"]["result"]
-                == "workflow_status_approved"
-            ):
-                return
-            else:
-                raise Exception("workflow status not approved")
-        else:
-            raise Exception("Challenge not validated")
+        challenge_response = request_get(url=challenge_url)
+        start_time = time.time()
+        while time.time() - start_time < 120:  # 2 minutes
+            time.sleep(5)
+            print(challenge_response)
+            if challenge_response["challenge_status"] == "expired":
+                raise Exception("Expired challenge.")
+            if challenge_response["challenge_status"] == "validated":
+                inquiries_payload = {
+                    "sequence": 0,
+                    "user_input": {"status": "continue"},
+                }
+                inquiries_response = request_post(
+                    url=inquiries_url, payload=inquiries_payload, json=True
+                )
+                if (
+                    inquiries_response["type_context"]["result"]
+                    == "workflow_status_approved"
+                ):
+                    return
+                else:
+                    raise Exception("workflow status not approved")
+            challenge_response = request_get(url=challenge_url)
+            print("Waiting for challenge to be validated")
+            print(time.time() - start_time)
     raise Exception("Id not returned in user-machine call")
 
 
@@ -171,8 +185,10 @@ def login(
         "try_passkeys": False,
         "token_request_path": "/login",
         "create_read_only_secondary_token": True,
-        # 'request_id': '848bd19e-02bc-45d9-99b5-01bce5a79ea7'
+        # 'request_id':
     }
+
+    original_device_token = device_token
 
     # If authentication has been stored in pickle file then load it. Stops login server from being pinged so much.
     if os.path.isfile(pickle_path):
@@ -218,6 +234,7 @@ def login(
                     f"ERROR: There was an issue loading pickle file {str(e)}. Authentication may be expired - logging in normally."
                 )
                 set_login_state(False)
+                payload["device_token"] = original_device_token
                 update_session("Authorization", None)
                 # raise ConfigurationError()
         else:
@@ -225,6 +242,7 @@ def login(
 
     # Handle case where mfa or challenge is required.
     if prior_response:
+        print("have prior response")
         if prior_response.status == LoginResponseStatus.MFA_REQUIRED:
             assert challenge_response is not None
             payload["mfa_code"] = challenge_response
@@ -237,12 +255,10 @@ def login(
             )
     data = request_post(url, payload)
 
+    print(data)
     if data:
-        if "mfa_required" in data:
-            raise ExtraAuthenticationStepException(
-                response=LoginResponse(status=LoginResponseStatus.MFA_REQUIRED)
-            )
-        elif "challenge" in data:
+
+        if "challenge" in data:
             challenge_id = data["challenge"]["id"]
             raise ExtraAuthenticationStepException(
                 response=LoginResponse(
@@ -251,10 +267,10 @@ def login(
                 )
             )
         elif "verification_workflow" in data:
-            if not challenge_response:
-                raise ExtraAuthenticationStepException(
-                    response=LoginResponse(status=LoginResponseStatus.MFA_REQUIRED)
-                )
+            # if not challenge_response:
+            #     raise ExtraAuthenticationStepException(
+            #         response=LoginResponse(status=LoginResponseStatus.CHALLENGE_REQUIRED)
+            #     )
             workflow_id = data["verification_workflow"]["id"]
             _validate_sherrif_id(
                 device_token=device_token,
@@ -262,7 +278,16 @@ def login(
                 mfa_code=str(challenge_response),
             )
             data = request_post(url, payload)
-        # Update Session data with authorization or raise exception with the information present in data.
+
+        elif "mfa_required" in data:
+            raise ExtraAuthenticationStepException(
+                response=LoginResponse(status=LoginResponseStatus.MFA_REQUIRED)
+            )
+
+        else:
+            raise Exception(data.get("detail", str(data)))
+
+        # this can happen from multiple calls
         if "access_token" in data:
             token = "{0} {1}".format(data["token_type"], data["access_token"])
             update_session("Authorization", token)
@@ -279,8 +304,6 @@ def login(
                         },
                         f,
                     )
-        else:
-            raise Exception(data.get("detail", str(data)))
     else:
         raise Exception(
             "Error: Trouble connecting to robinhood API. Check internet connection."

@@ -1,14 +1,13 @@
 from dataclasses import dataclass
-from typing import Optional, Dict, Union, Mapping, List
+from typing import Optional, Dict, Union, Mapping, List, Callable
 from decimal import Decimal
 from math import floor, ceil
 from collections import defaultdict
-
 from py_portfolio_index.common import print_per
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import PurchaseStrategy, RoundingStrategy
 from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
-from py_portfolio_index.portfolio_providers.common import PriceCache
+from py_portfolio_index.exceptions import PriceFetchError
 from py_portfolio_index.models import (
     Money,
     ProviderType,
@@ -274,7 +273,7 @@ def gen_diff_and_scaling(
 def generate_order_plan(
     real: PortfolioProtocol,
     ideal: IdealPortfolio,
-    price_cache: PriceCache,
+    price_fetcher: Callable,
     buy_order=PurchaseStrategy.LARGEST_DIFF_FIRST,
     target_size: Optional[Money | float | int] = None,
     purchase_power: Optional[Money | float | int] = None,
@@ -283,6 +282,8 @@ def generate_order_plan(
     fractional_shares: bool = True,
     provider: ProviderType | None = None,
     existing_orders: List[OrderElement] | None = None,
+    skip_invalid: bool = True,
+    include_sell_orders: bool = False,
 ) -> OrderPlan:
     diff = Decimal(0.0)
     selling = Decimal(0.0)
@@ -339,8 +340,32 @@ def generate_order_plan(
     )
     to_purchase: list[OrderElement] = []
     to_sell: list[OrderElement] = []
-
-    prices = price_cache.get_prices([*diff_output.keys()])
+    price_missing: set[str] = set()
+    try:
+        prices = price_fetcher([*diff_output.keys()])
+    except PriceFetchError as e:
+        for x in e.tickers:
+            price_missing.add(x)
+        Logger.info(
+            f"Was unable to fetch prices for {price_missing} tickers, adding to skipped."
+        )
+        if not skip_invalid:
+            raise e
+        return generate_order_plan(
+            real=real,
+            ideal=ideal,
+            price_fetcher=price_fetcher,
+            buy_order=buy_order,
+            target_size=target_size,
+            purchase_power=purchase_power,
+            min_order_value=min_order_value,
+            skip_tickers=(
+                skip_tickers.union(price_missing) if skip_tickers else price_missing
+            ),
+            fractional_shares=fractional_shares,
+            provider=provider,
+            existing_orders=current_orders,
+        )
 
     for key, diffvalue in diff_output.items():
         sell_order = generate_sell_order(
@@ -350,7 +375,7 @@ def generate_order_plan(
             diffvalue=diffvalue,
             provider=provider,
         )
-        if sell_order:
+        if sell_order and include_sell_orders:
             to_sell.append(sell_order)
 
     for key, diffvalue in diff_output.items():
@@ -389,6 +414,7 @@ def generate_composite_order_plan(
     min_order_value: Money = MIN_ORDER_MONEY,
     safety_threshold: Decimal = Decimal(0.95),
     target_order_size: Optional[Money] = None,
+    include_sell_orders: bool = False,
 ) -> Mapping[ProviderType, OrderPlan]:
     provider_to_portfolio_map = {
         x.provider: x for x in composite.portfolios if x.provider
@@ -451,10 +477,26 @@ def generate_composite_order_plan(
             min_order_value=min_order_value,
             skip_tickers=skip_tickers,
             fractional_shares=provider.SUPPORTS_FRACTIONAL_SHARES,
-            price_cache=provider._price_cache,
+            price_fetcher=provider.get_instrument_prices,
             provider=provider.PROVIDER,
             existing_orders=orders,
+            include_sell_orders=include_sell_orders,
         )
         orders += purchase_plan.all_orders
         output[provider.PROVIDER] += purchase_plan
     return output
+
+
+def purchase_composite_order_plan(
+    orders: Mapping[ProviderType, OrderPlan],
+    providers: list[BaseProvider],
+    include_sell_orders: bool = False,
+):
+    for provider in providers:
+        if provider.PROVIDER in orders:
+            provider.purchase_order_plan(
+                orders[provider.PROVIDER], include_sell_orders=include_sell_orders
+            )
+        else:
+            Logger.info(f"Provider {provider.PROVIDER} has no orders to execute")
+    return True

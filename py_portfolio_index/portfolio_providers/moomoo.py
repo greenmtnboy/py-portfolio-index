@@ -1,5 +1,5 @@
 from decimal import Decimal
-from datetime import date, datetime
+from datetime import date
 from typing import Optional, List, Dict, DefaultDict, Any
 from py_portfolio_index.models import (
     RealPortfolio,
@@ -17,63 +17,21 @@ from py_portfolio_index.exceptions import (
     PriceFetchError,
     OrderError,
 )
-from py_portfolio_index.constants import CACHE_DIR
 from py_portfolio_index.enums import ProviderType
+
+from py_portfolio_index.portfolio_providers.helpers.moomoo import (
+    DEFAULT_PORT,
+    MooMooProxy,
+)
 from functools import lru_cache
 from os import environ
 from collections import defaultdict
+
 
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
 
 CACHE_PATH = "moo_moo_tickers.json"
-
-
-def nearest_value(all_historicals, pivot) -> Optional[dict]:
-    filtered = [z for z in all_historicals if z]
-    if not filtered:
-        return None
-    return min(
-        filtered,
-        key=lambda x: abs(
-            datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - pivot
-        ),
-    )
-
-
-def nearest_multi_value(
-    symbol: str, all_historicals, pivot: Optional[date] = None
-) -> Optional[Decimal]:
-    filtered = [z for z in all_historicals if z and z["symbol"] == symbol]
-    if not filtered:
-        return None
-    if pivot is not None:
-        lpivot = pivot or date.today()
-        closest = min(
-            filtered,
-            key=lambda x: abs(
-                datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - lpivot
-            ),
-        )
-    else:
-        closest = filtered[0]
-    if closest:
-        value = closest.get("last_trade_price", closest.get("high_price", None))
-        return Decimal(value)
-    return None
-
-
-class InstrumentDict(dict):
-    def __init__(self, refresher, *args):
-        super().__init__(*args)
-        self.refresher = refresher
-
-    def __missing__(self, key):
-        mapping = self.refresher()
-        self.update(mapping)
-        if key in self:
-            return self[key]
-        raise ValueError(f"Could not find instrument {key} after refresh")
 
 
 class MooMooProvider(BaseProvider):
@@ -83,14 +41,23 @@ class MooMooProvider(BaseProvider):
 
     PROVIDER = ProviderType.MOOMOO
     SUPPORTS_BATCH_HISTORY = 0
+    SUPPORTS_FRACTIONAL_SHARES = True
     PASSWORD_ENV = "MOOMOO_PASSWORD"
-    USERNAME_ENV = "MOOMOO_USERNAME"
+    ACCOUNT_ENV = "MOOMOO_ACCOUNT"
     TRADE_TOKEN_ENV = "MOOMOO_TRADE_TOKEN"
     DEVICE_ID_ENV = "MOOMOO_DEVICE_ID"
+    OPEND_ENV = "MOOMOO_OPEND_PATH"
+
+    Proxy = MooMooProxy
 
     def __init__(
         self,
-        skip_cache: bool = False,
+        proxy: MooMooProxy,
+        account: str | None = None,
+        password: str | None = None,
+        trade_token: str | None = None,
+        quote_provider: BaseProvider | None = None,
+        _external_auth: bool = False,
     ):
         from moomoo import (
             OpenSecTradeContext,
@@ -99,46 +66,32 @@ class MooMooProvider(BaseProvider):
             TrdMarket,
         )
 
+        if not account:
+            account = environ.get(self.ACCOUNT_ENV, None)
+        if not password:
+            password = environ.get(self.PASSWORD_ENV, None)
+        if not trade_token:
+            trade_token = environ.get(self.TRADE_TOKEN_ENV, "ABC")
+        self._trade_token = trade_token
+        # if not device_id:
+        #     device_id = environ.get(self.DEVICE_ID_ENV, None)
+        if not (account and password and trade_token) and not _external_auth:
+            raise ConfigurationError(
+                "Must provide ALL OF account, password, trade_token, and arguments or set environment variables MOOMOO_ACCOUNT, MOOMOO_PASSWORD, MOOMOO_TRADE_TOKEN"
+            )
+        self.proxy = proxy
+        self.proxy.validate(account=account, pwd=password)
         self._trade_provider = OpenSecTradeContext(
             filter_trdmarket=TrdMarket.US,
             host="localhost",
-            port=11111,
+            port=DEFAULT_PORT,
             security_firm=SecurityFirm.FUTUINC,
         )
-        self._quote_provider = OpenQuoteContext(host="localhost", port=11111)
-        BaseProvider.__init__(self)
+        self._quote_context = OpenQuoteContext(host="localhost", port=DEFAULT_PORT)
+        BaseProvider.__init__(self, quote_provider=quote_provider)
         self._local_latest_price_cache: Dict[str, Decimal | None] = defaultdict(
             lambda: None
         )
-        self._local_instrument_cache: Dict[str, str] = {}
-        if not skip_cache:
-            self._load_local_instrument_cache()
-
-    def _load_local_instrument_cache(self):
-        from platformdirs import user_cache_dir
-        from pathlib import Path
-        import json
-
-        path = Path(user_cache_dir(CACHE_DIR, ensure_exists=True))
-        file = path / CACHE_PATH
-        if not file.exists():
-            self._local_instrument_cache = {}
-            return
-        with open(file, "r") as f:
-            self._local_instrument_cache = json.load(f)
-            # corruption guard
-            if not isinstance(self._local_instrument_cache, dict):
-                self._local_instrument_cache = {}
-
-    def _save_local_instrument_cache(self):
-        from platformdirs import user_cache_dir
-        from pathlib import Path
-        import json
-
-        path = Path(user_cache_dir(CACHE_DIR, ensure_exists=True))
-        file = path / CACHE_PATH
-        with open(file, "w") as f:
-            json.dump(self._local_instrument_cache, f)
 
     @lru_cache(maxsize=None)
     def _get_instrument_price(
@@ -163,12 +116,12 @@ class MooMooProvider(BaseProvider):
             # )
             # return Decimal(value=list(historicals.itertuples())[0].vwap)
         else:
-            ret_sub, err_message = self._quote_provider.subscribe(
+            ret_sub, err_message = self._quote_context.subscribe(
                 ["US." + ticker], [SubType.TICKER], subscribe_push=False
             )
             # Subscribe to the K line type first. After the subscription is successful, moomoo OpenD will continue to receive pushes from the server, False means that there is no need to push to the script temporarily
             if ret_sub == RET_OK:  # Subscription successful
-                ret, data = self._quote_provider.get_stock_quote(
+                ret, data = self._quote_context.get_stock_quote(
                     ["US." + ticker]
                 )  # Get real-time data of subscription stock quotes
                 if ret == RET_OK:
@@ -182,19 +135,19 @@ class MooMooProvider(BaseProvider):
         symbol: str,
         qty: Optional[float],
         value: Optional[Money] = None,
-        price: Optional[Decimal] = None,
     ) -> bool:
         from moomoo import RET_OK, TrdSide, OrderType
 
         ret, data = self._trade_provider.unlock_trade(
-            environ.get(self.TRADE_TOKEN_ENV, None)
+            password=self._trade_token
         )  # If you use a live trading account to place an order, you need to unlock the account first. The example here is to place an order on a paper trading account, and unlocking is not necessary.
         if ret == RET_OK:
             pass
         else:
             raise OrderError("unlock trade error: ", data)
         ret, data = self._trade_provider.place_order(
-            price=price,
+            # price is arbitrary for makret
+            price=0.0 if not value else value.value,
             qty=qty,
             code="US." + symbol,
             order_type=OrderType.MARKET,
@@ -208,19 +161,20 @@ class MooMooProvider(BaseProvider):
     def buy_instrument(
         self, ticker: str, qty: Decimal, value: Optional[Money] = None
     ) -> bool:
-        # TODO: make sure this is always set
-        if not value and qty:
-            raise NotImplementedError(
-                "Moomoo provider must have both value and qty to purchase"
-            )
-        assert value
-        price = value / qty
         if qty:
             orders_kwargs_list: List[Dict[str, Money | None | Decimal]] = [
-                {"qty": qty, "value": None, "price": price}
+                {
+                    "qty": qty,
+                    "value": None,
+                }
             ]
         else:
-            orders_kwargs_list = [{"qty": None, "value": value, "price": price}]
+            orders_kwargs_list = [
+                {
+                    "qty": None,
+                    "value": value,
+                }
+            ]
         for order_kwargs in orders_kwargs_list:
             return self._buy_instrument(ticker, **order_kwargs)  # type: ignore
         return True
@@ -276,7 +230,7 @@ class MooMooProvider(BaseProvider):
 
         ret, data = self._trade_provider.position_list_query()
         if ret == RET_OK:
-            return data.itertuples()
+            return list(data.itertuples())
 
         raise ConfigurationError("Could not get positions")
 
@@ -287,6 +241,7 @@ class MooMooProvider(BaseProvider):
         my_stocks = self._get_cached_value(
             ObjectKey.POSITIONS, callable=self._get_positions
         )
+
         unsettled = self._get_cached_value(
             ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments
         )
@@ -297,7 +252,6 @@ class MooMooProvider(BaseProvider):
         for row in my_stocks:
             local: Dict[str, Any] = {}
             local["units"] = row.qty
-            # instrument_data = self._provider.get_instrument_by_url(row["instrument"])
             ticker = row.code.split(".")[-1]
             local["ticker"] = ticker
             symbols.append(ticker)
@@ -313,11 +267,14 @@ class MooMooProvider(BaseProvider):
             local["unsettled"] = s in unsettled
             final.append(local)
         out = [RealPortfolioElement(**row) for row in final]
-        cash = Decimal(accounts_data.net_cash_power)
-        return RealPortfolio(holdings=out, cash=Money(value=cash), provider=self)
-
-    def get_instrument_prices(self, tickers: List[str], at_day: Optional[date] = None):
-        return self._price_cache.get_prices(tickers=tickers, date=at_day)
+        # THIS IS US SPECIFIC ATM
+        cash = Decimal(accounts_data.us_cash)
+        return RealPortfolio(
+            holdings=out,
+            cash=Money(value=cash),
+            provider=self,
+            profit_and_loss=self.get_profit_or_loss(),
+        )
 
     def _get_instrument_prices(
         self, tickers: List[str], at_day: Optional[date] = None
@@ -326,7 +283,6 @@ class MooMooProvider(BaseProvider):
         for list_batch in divide_into_batches(tickers, 1):
             # TODO: determine if there is a bulk API
             ticker: str = list_batch[0]
-            # webull_id = self._local_instrument_cache.get(ticker)
             rval = self._get_instrument_price(ticker, at_day=at_day)
             batches.append({ticker: rval})
         prices: Dict[str, Optional[Decimal]] = {}
@@ -334,37 +290,30 @@ class MooMooProvider(BaseProvider):
             prices = {**prices, **fbatch}
         return prices
 
-    def get_profit_or_loss(self) -> ProfitModel:
-        raise NotImplementedError()
-        # my_stocks = self._get_cached_value(
-        #     CacheKey.POSITIONS, callable=self._provider.get_positions
-        # )
-        # pls: List[Money] = []
-        # for x in my_stocks:
-        #     pl = Money(value=Decimal(x["unrealizedProfitLoss"]))
-        #     pls.append(pl)
-        # _total_pl = sum(pls)  # type: ignore
-        # if not include_dividends:
-        #     return Money(value=_total_pl)
-        # return Money(value=_total_pl) + sum(self._get_dividends().values())
+    def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
+        my_stocks = self._get_cached_value(
+            ObjectKey.POSITIONS, callable=self._get_positions
+        )
+        dividends = self._get_cached_value(
+            ObjectKey.DIVIDENDS, callable=self._get_dividends
+        )
+        output = {}
+        for x in my_stocks:
+            ticker = x.code.split(".")[-1]
+            output[ticker] = ProfitModel(
+                appreciation=Money(value=Decimal(x.pl_val)), dividends=dividends[ticker]
+            )
+        return output
 
     def _get_dividends(self) -> defaultdict[str, Money]:
-        # dividends = self._provider.get_dividends()
-        out: DefaultDict[str, Money] = DefaultDict(lambda: Money(value=0))
-        return out
+        final: DefaultDict[str, Money] = defaultdict(lambda: Money(value=0))
+        return final
 
     def get_dividend_history(self) -> Dict[str, Money]:
         return super().get_dividend_history()
 
-
-# class MooMooPaperProvider(MooMooProvider):
-#     PROVIDER = Provider.MOOMOO_PAPER
-#     PASSWORD_ENV = "MOOMOO_PAPER_PASSWORD"
-#     USERNAME_ENV = "MOOMOO_PAPER_USERNAME"
-#     TRADE_TOKEN_ENV = "MOOMOO_PAPER_TRADE_TOKEN"
-#     DEVICE_ID_ENV = "MOOMOO_PAPER_DEVICE_ID"
-
-#     def _get_provider(self):
-#         from webull import paper_webull
-
-#         return paper_webull
+    def _shutdown(self):
+        self._trade_provider.close()
+        self._quote_context.close()
+        if self.proxy:
+            self.proxy.close()

@@ -16,6 +16,14 @@ class ResultProtocol(Protocol):
     def keys(self) -> List[str]: ...
 
 
+class DBApiConnectionWrapper:
+    def __init__(self, dbapi):
+        self.dbapi = dbapi
+
+    def connect(self):
+        return self.dbapi
+
+
 class BaseDatastore:
     def __init__(self, duckdb_path: str, debug: bool = False):
         self.duckdb_path = duckdb_path
