@@ -63,6 +63,72 @@ def nearest_multi_value(
         return Decimal(value)
     return None
 
+def get_post_method():
+    """Custom function to enable evolution with the robinhood API"""
+    from robin_stocks.robinhood.stocks import (
+        SESSION,
+        update_session,
+    )
+
+    def request_post(
+        url, payload=None, timeout=16, json=False, jsonify_data=True, retry: int = 1
+    ):
+        """For a given url and payload, makes a post request and returns the response. Allows for responses other than 200.
+
+        :param url: The url to send a post request to.
+        :type url: str
+        :param payload: Dictionary of parameters to pass to the url as url/?key1=value1&key2=value2.
+        :type payload: Optional[dict]
+        :param timeout: The time for the post to wait for a response. Should be slightly greater than multiples of 3.
+        :type timeout: Optional[int]
+        :param json: This will set the 'content-type' parameter of the session header to 'application/json'
+        :type json: bool
+        :param jsonify_data: If this is true, will return requests.post().json(), otherwise will return response from requests.post().
+        :type jsonify_data: bool
+        :returns: Returns the data from the post request.
+
+        """
+        data = None
+        res = None
+        if json:
+            update_session("Content-Type", "application/json")
+            res = SESSION.post(url, json=payload, timeout=timeout)
+            update_session(
+                "Content-Type", "application/x-www-form-urlencoded; charset=utf-8"
+            )
+        else:
+            res = SESSION.post(url, data=payload, timeout=timeout)
+
+        if res.status_code == 429:
+            sleep(5 * retry)
+            return request_post(
+                url, payload, timeout, json, jsonify_data, retry + 1
+            )
+        if res.status_code not in [
+            200,
+            201,
+            202,
+            204,
+            301,
+            302,
+            303,
+            304,
+            307,
+            400,
+            401,
+            402,
+            403,
+        ]:
+            res.raise_for_status()
+
+        data = res.json()
+        if jsonify_data:
+            return data
+        else:
+            return res
+        
+    return request_post
+
 
 class InstrumentDict(dict):
     def __init__(self, refresher, *args):
@@ -172,9 +238,6 @@ class RobinhoodProvider(BaseProvider):
         """Custom function to enable evolution with the robinhood API"""
         from robin_stocks.robinhood.stocks import (
             orders_url,
-            # request_post,
-            SESSION,
-            update_session,
         )
         from robin_stocks.robinhood.orders import (
             load_account_profile,
@@ -183,63 +246,8 @@ class RobinhoodProvider(BaseProvider):
         )
         from uuid import uuid4
 
-        def request_post(
-            url, payload=None, timeout=16, json=False, jsonify_data=True, retry: int = 1
-        ):
-            """For a given url and payload, makes a post request and returns the response. Allows for responses other than 200.
-
-            :param url: The url to send a post request to.
-            :type url: str
-            :param payload: Dictionary of parameters to pass to the url as url/?key1=value1&key2=value2.
-            :type payload: Optional[dict]
-            :param timeout: The time for the post to wait for a response. Should be slightly greater than multiples of 3.
-            :type timeout: Optional[int]
-            :param json: This will set the 'content-type' parameter of the session header to 'application/json'
-            :type json: bool
-            :param jsonify_data: If this is true, will return requests.post().json(), otherwise will return response from requests.post().
-            :type jsonify_data: bool
-            :returns: Returns the data from the post request.
-
-            """
-            data = None
-            res = None
-            if json:
-                update_session("Content-Type", "application/json")
-                res = SESSION.post(url, json=payload, timeout=timeout)
-                update_session(
-                    "Content-Type", "application/x-www-form-urlencoded; charset=utf-8"
-                )
-            else:
-                res = SESSION.post(url, data=payload, timeout=timeout)
-
-            if res.status_code == 429:
-                sleep(5 * retry)
-                return request_post(
-                    url, payload, timeout, json, jsonify_data, retry + 1
-                )
-            if res.status_code not in [
-                200,
-                201,
-                202,
-                204,
-                301,
-                302,
-                303,
-                304,
-                307,
-                400,
-                401,
-                402,
-                403,
-            ]:
-                res.raise_for_status()
-
-            data = res.json()
-            if jsonify_data:
-                return data
-            else:
-                return res
-
+        request_post = get_post_method()
+        
         price = round_price(
             next(iter(get_latest_price(symbol, "ask_price", False)), 0.00)
         )
@@ -278,6 +286,61 @@ class RobinhoodProvider(BaseProvider):
         data = request_post(url, payload, json=True, jsonify_data=True)
 
         return data or {}
+    
+    def _sell_instrument(
+        self, symbol: str, qty: float, value: Optional[Money] = None
+    ) -> dict:
+        """Custom function to enable evolution with the robinhood API"""
+        from robin_stocks.robinhood.stocks import (
+            orders_url,
+        )
+        from robin_stocks.robinhood.orders import (
+            load_account_profile,
+            get_latest_price,
+            round_price,
+        )
+        from uuid import uuid4
+
+        request_post = get_post_method()
+
+        price = round_price(
+            next(iter(get_latest_price(symbol, "ask_price", False)), 0.00)
+        )
+        if value:
+            qty = round(float(value.decimal) / price, 2)
+
+        account = self._get_cached_value(
+            ObjectKey.MISC,
+            value="account_id",
+            callable=lambda: load_account_profile(account_number=None, info="url"),
+        )
+        sym_to_i = self._get_cached_value(
+            ObjectKey.MISC,
+            value="symbol_to_instrument",
+            callable=lambda: {
+                row["symbol"]: row["url"] for row in self._local_instrument_cache
+            },
+        )
+        #"bid_price"
+        payload = {
+            "account": account,
+            "instrument": sym_to_i[symbol],
+            "order_form_version": "4",
+            "symbol": symbol,
+            # "price": price,
+            "quantity": qty,
+            "ref_id": str(uuid4()),
+            "type": "market",
+            "time_in_force": "gfd",
+            "trigger": "immediate",
+            "side": "sell",
+            "extended_hours": False,
+        }
+        print(payload)
+        url = orders_url()
+        data = request_post(url, payload, json=True, jsonify_data=True)
+
+        return data or {}
 
     def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
         float_qty = float(qty)
@@ -299,6 +362,36 @@ class RobinhoodProvider(BaseProvider):
             )
             sleep(FRACTIONAL_SLEEP)
             return self.buy_instrument(ticker=ticker, qty=qty)
+        if not output.get("id"):
+            if msg:
+                Logger.error(msg)
+                raise ValueError(msg)
+            Logger.error(output)
+            raise ValueError(output)
+        return True
+    
+    def sell_instrument(self, ticker: str, qty: float| None = None, value: Optional[Money] = None):
+        if not qty:
+            qty = self.get_holdings().get_holding(ticker).units
+        float_qty = float(qty)
+        output = self._sell_instrument(ticker, float_qty, value)
+        msg = output.get("detail")
+        if msg and "throttled" in msg:
+            m = re.search("available in ([0-9]+) seconds", msg)
+            if m:
+                found = m.group(1)
+                t = int(found)
+            else:
+                t = 30
+            Logger.info(f"RH error: was throttled! Sleeping {t}")
+            sleep(t)
+            return self.sell_instrument(ticker=ticker, qty=qty)
+        elif msg and "Too many requests for fractional orders" in msg:
+            Logger.info(
+                f"RH error: was throttled on fractional orders! Sleeping {FRACTIONAL_SLEEP}"
+            )
+            sleep(FRACTIONAL_SLEEP)
+            return self.sell_instrument(ticker=ticker, qty=qty)
         if not output.get("id"):
             if msg:
                 Logger.error(msg)
