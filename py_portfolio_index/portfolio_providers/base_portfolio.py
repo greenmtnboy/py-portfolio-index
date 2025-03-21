@@ -222,8 +222,7 @@ class BaseProvider(object):
         )
 
     def handle_order_element(self, element: OrderElement, dry_run: bool = False):
-        if element.order_type == OrderType.SELL:
-            raise NotImplementedError
+        
         raw_price = self.get_instrument_price(element.ticker)
 
         if not raw_price:
@@ -243,8 +242,15 @@ class BaseProvider(object):
         else:
             raise OrderError("Order element must have qty or value")
         if not dry_run:
-            self.buy_instrument(element.ticker, units, value)
-            Logger.info(f"Bought {units} of {element.ticker}")
+            if element.order_type == OrderType.BUY:
+                self.buy_instrument(element.ticker, units, value)
+                Logger.info(f"Bought {units} of {element.ticker}")
+            elif element.order_type == OrderType.SELL:
+                self.sell_instrument(element.ticker, units, value)
+                Logger.info(f"Sold {units} of {element.ticker}")
+            else:
+                raise OrderError("Invalid order type")
+            
         else:
             Logger.info(f"Would have bought {units} of {element.ticker}")
 
