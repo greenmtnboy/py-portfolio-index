@@ -128,6 +128,11 @@ class BaseProvider(object):
     ) -> bool:
         raise NotImplementedError
 
+    def sell_instrument(
+        self, ticker: str, qty: Decimal, value: Optional[Money] = None
+    ) -> bool:
+        raise NotImplementedError
+
     def get_unsettled_instruments(self) -> Set[str]:
         raise NotImplementedError
 
@@ -222,8 +227,6 @@ class BaseProvider(object):
         )
 
     def handle_order_element(self, element: OrderElement, dry_run: bool = False):
-        if element.order_type == OrderType.SELL:
-            raise NotImplementedError
         raw_price = self.get_instrument_price(element.ticker)
 
         if not raw_price:
@@ -243,8 +246,15 @@ class BaseProvider(object):
         else:
             raise OrderError("Order element must have qty or value")
         if not dry_run:
-            self.buy_instrument(element.ticker, units, value)
-            Logger.info(f"Bought {units} of {element.ticker}")
+            if element.order_type == OrderType.BUY:
+                self.buy_instrument(element.ticker, units, value)
+                Logger.info(f"Bought {units} of {element.ticker}")
+            elif element.order_type == OrderType.SELL:
+                self.sell_instrument(element.ticker, units, value)
+                Logger.info(f"Sold {units} of {element.ticker}")
+            else:
+                raise OrderError("Invalid order type")
+
         else:
             Logger.info(f"Would have bought {units} of {element.ticker}")
 
@@ -303,3 +313,9 @@ class BaseProvider(object):
 
     def get_dividend_history(self) -> Dict[str, Money]:
         return self._get_cached_value(ObjectKey.DIVIDENDS, callable=self._get_dividends)
+
+    def _shutdown(self):
+        pass
+
+    def shutdown(self):
+        return self._shutdown()

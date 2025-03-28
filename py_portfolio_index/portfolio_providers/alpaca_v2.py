@@ -210,6 +210,32 @@ class AlpacaProvider(BaseProvider):
             raise OrderError(message=f"Failed to buy {ticker} {qty} {e}: {message}")
         return True
 
+    def sell_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
+        from alpaca.trading.requests import MarketOrderRequest
+        from alpaca.trading.enums import OrderSide, TimeInForce
+        from alpaca.common.exceptions import APIError
+
+        if value:
+            order_qty = None
+        else:
+            order_qty = qty
+        market_order_data = MarketOrderRequest(
+            symbol=ticker,
+            notional=round(float(value), 2) if value else None,
+            qty=order_qty if order_qty else None,
+            side=OrderSide.SELL,
+            time_in_force=TimeInForce.DAY,
+        )
+        try:
+            self.trading_client.submit_order(order_data=market_order_data)
+        except APIError as e:
+            import json
+
+            error = json.loads(e._error)
+            message = error.get("message", "Unknown Error")
+            raise OrderError(message=f"Failed to sell {ticker} {qty} {e}: {message}")
+        return True
+
     def _get_unsettled_cash(self):
         from alpaca.trading.requests import GetOrdersRequest, QueryOrderStatus
 
