@@ -257,7 +257,6 @@ def login(
 
     print(data)
     if data:
-
         if "challenge" in data:
             challenge_id = data["challenge"]["id"]
             raise ExtraAuthenticationStepException(

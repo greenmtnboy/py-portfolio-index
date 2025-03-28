@@ -222,7 +222,6 @@ class BaseProvider(object):
         )
 
     def handle_order_element(self, element: OrderElement, dry_run: bool = False):
-        
         raw_price = self.get_instrument_price(element.ticker)
 
         if not raw_price:
@@ -250,7 +249,7 @@ class BaseProvider(object):
                 Logger.info(f"Sold {units} of {element.ticker}")
             else:
                 raise OrderError("Invalid order type")
-            
+
         else:
             Logger.info(f"Would have bought {units} of {element.ticker}")
 
@@ -309,3 +308,10 @@ class BaseProvider(object):
 
     def get_dividend_history(self) -> Dict[str, Money]:
         return self._get_cached_value(ObjectKey.DIVIDENDS, callable=self._get_dividends)
+    
+    def _shutdown(self):
+        pass
+    
+    def shutdown(self):
+        return self._shutdown()
+

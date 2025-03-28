@@ -93,6 +93,8 @@ class MooMooProvider(BaseProvider):
             lambda: None
         )
 
+
+
     @lru_cache(maxsize=None)
     def _get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
@@ -144,7 +146,8 @@ class MooMooProvider(BaseProvider):
         if ret == RET_OK:
             pass
         else:
-            raise OrderError("unlock trade error: ", data)
+            raise ConfigurationError(f"unlock trade error: {data}")
+
         ret, data = self._trade_provider.place_order(
             # price is arbitrary for makret
             price=0.0 if not value else value.value,
@@ -156,7 +159,7 @@ class MooMooProvider(BaseProvider):
         if ret == RET_OK:
             return True
         else:
-            raise OrderError("place_order error: ", data)
+            raise OrderError(f"place_order error: {data}")
 
     def buy_instrument(
         self, ticker: str, qty: Decimal, value: Optional[Money] = None
@@ -169,10 +172,13 @@ class MooMooProvider(BaseProvider):
                 }
             ]
         else:
+            # market orders require quantity not price
+            # so convert here
+            price = self.get_instrument_price(ticker)
             orders_kwargs_list = [
                 {
-                    "qty": None,
-                    "value": value,
+                    "qty": value / price,
+                    "value": None
                 }
             ]
         for order_kwargs in orders_kwargs_list:
