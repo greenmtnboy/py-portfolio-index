@@ -128,6 +128,11 @@ class BaseProvider(object):
     ) -> bool:
         raise NotImplementedError
 
+    def sell_instrument(
+        self, ticker: str, qty: Decimal, value: Optional[Money] = None
+    ) -> bool:
+        raise NotImplementedError
+
     def get_unsettled_instruments(self) -> Set[str]:
         raise NotImplementedError
 
@@ -308,10 +313,9 @@ class BaseProvider(object):
 
     def get_dividend_history(self) -> Dict[str, Money]:
         return self._get_cached_value(ObjectKey.DIVIDENDS, callable=self._get_dividends)
-    
+
     def _shutdown(self):
         pass
-    
+
     def shutdown(self):
         return self._shutdown()
-

@@ -93,8 +93,6 @@ class MooMooProvider(BaseProvider):
             lambda: None
         )
 
-
-
     @lru_cache(maxsize=None)
     def _get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
@@ -171,16 +169,13 @@ class MooMooProvider(BaseProvider):
                     "value": None,
                 }
             ]
-        else:
+        elif value:
             # market orders require quantity not price
             # so convert here
             price = self.get_instrument_price(ticker)
-            orders_kwargs_list = [
-                {
-                    "qty": value / price,
-                    "value": None
-                }
-            ]
+            orders_kwargs_list = [{"qty": value / price, "value": None}]
+        else:
+            raise OrderError("Must provide either qty or value for order")
         for order_kwargs in orders_kwargs_list:
             return self._buy_instrument(ticker, **order_kwargs)  # type: ignore
         return True
