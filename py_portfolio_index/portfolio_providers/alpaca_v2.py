@@ -401,6 +401,7 @@ class AlpacaProvider(BaseProvider):
                         amount=Money(value=float(x["net_amount"])),
                         date=paid_date,
                         provider=self.PROVIDER,
+                        external_id = x["id"],
                     )
                 )
         return final

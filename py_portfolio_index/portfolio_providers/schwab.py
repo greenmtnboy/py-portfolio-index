@@ -445,17 +445,34 @@ class SchwabProvider(BaseProvider):
             ObjectKey.DIVIDENDS, callable=self._get_dividends_wrapper
         )
         final = []
-        for x in dividends:
-            if x["status"] == "VALID":
-                paid_date = datetime.fromisoformat(x["settlementDate"]).date()
-                if start and paid_date < start.date():
+        changes = False
+        for item in dividends:
+            lookup_desc = item["description"]
+            ticker = self._local_description_lookup_cache.get(lookup_desc)
+            if not ticker:
+                ticker = HARD_CODED_DESC_TO_TICKER.get(lookup_desc)
+            if not ticker:
+                fuzzy_search = self._get_stock_info_fuzzy(search=lookup_desc)
+                if fuzzy_search.get("instruments"):
+                    match = fuzzy_search["instruments"][0]
+                    self._local_description_lookup_cache[lookup_desc] = match["symbol"]
+                    changes = True
+                else:
+                    ticker = lookup_desc
+            if item["status"] == "VALID":
+                event_date = datetime.fromisoformat(item["time"]).date()
+                if start and event_date < start.date():
                     continue
+                
                 final.append(
                     DividendResult(
-                        ticker=x["transferItems"][0]["instrument"]["symbol"],
-                        amount=Money(value=float(x["netAmount"])),
-                        date=paid_date,
+                        ticker=ticker,
+                        amount=Money(value=float(item["netAmount"])),
+                        date=event_date,
                         provider=self.PROVIDER,
+                        external_id=str(item["activityId"]),
                     )
                 )
+        if changes:
+            self._save_local_description_lookup_cache()
         return final
