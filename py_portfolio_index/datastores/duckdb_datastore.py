@@ -105,6 +105,7 @@ class DuckDBDatastore(BaseDatastore):
             name VARCHAR,
             sector VARCHAR,
             industry VARCHAR,
+            state VARCHAR,
             city VARCHAR,
             country VARCHAR
         );
