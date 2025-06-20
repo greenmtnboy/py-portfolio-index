@@ -14,7 +14,7 @@ from py_portfolio_index.portfolio_providers.base_portfolio import (
     ObjectKey,
 )
 from py_portfolio_index.exceptions import ConfigurationError
-from py_portfolio_index.constants import Logger
+from py_portfolio_index.constants import Logger, UNKNOWN_TICKER
 from py_portfolio_index.exceptions import OrderError
 from py_portfolio_index.enums import ProviderType
 from py_portfolio_index.models import DividendResult
@@ -412,7 +412,7 @@ class SchwabProvider(BaseProvider):
         dividends: dict = self._get_cached_value(
             ObjectKey.DIVIDENDS_DETAIL, callable=self._get_dividends_wrapper
         )
-        base = []
+        base: list[dict] = []
 
         changes: bool = False
         for item in dividends:
@@ -434,8 +434,8 @@ class SchwabProvider(BaseProvider):
         if changes:
             self._save_local_description_lookup_cache()
         final: DefaultDict[str, Money] = defaultdict(lambda: Money(value=0))
-        for item in base:
-            final[item["ticker"]] += item["value"]
+        for dividend_item in base:
+            final[dividend_item["ticker"]] += dividend_item["value"]
         return final
 
     def get_dividend_details(
@@ -445,17 +445,37 @@ class SchwabProvider(BaseProvider):
             ObjectKey.DIVIDENDS, callable=self._get_dividends_wrapper
         )
         final = []
-        for x in dividends:
-            if x["status"] == "VALID":
-                paid_date = datetime.fromisoformat(x["settlementDate"]).date()
-                if start and paid_date < start.date():
+        changes = False
+        for item in dividends:
+            lookup_desc = item["description"]
+            ticker = self._local_description_lookup_cache.get(lookup_desc)
+            if not ticker:
+                ticker = HARD_CODED_DESC_TO_TICKER.get(
+                    lookup_desc,
+                )
+            if not ticker:
+                fuzzy_search = self._get_stock_info_fuzzy(search=lookup_desc)
+                if fuzzy_search.get("instruments"):
+                    match = fuzzy_search["instruments"][0]
+                    self._local_description_lookup_cache[lookup_desc] = match["symbol"]
+                    changes = True
+                else:
+                    ticker = lookup_desc
+            final_ticker = ticker or UNKNOWN_TICKER
+            if item["status"] == "VALID":
+                event_date = datetime.fromisoformat(item["time"]).date()
+                if start and event_date < start.date():
                     continue
+
                 final.append(
                     DividendResult(
-                        ticker=x["transferItems"][0]["instrument"]["symbol"],
-                        amount=Money(value=float(x["netAmount"])),
-                        date=paid_date,
+                        ticker=final_ticker,
+                        amount=Money(value=float(item["netAmount"])),
+                        date=event_date,
                         provider=self.PROVIDER,
+                        external_id=str(item["activityId"]),
                     )
                 )
+        if changes:
+            self._save_local_description_lookup_cache()
         return final

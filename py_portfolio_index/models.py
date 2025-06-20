@@ -567,6 +567,8 @@ class StockInfo(BaseModel):
     industry: str | None = None
     sector: str | None = None
     location: str | None = None
+    state: str | None = None
+    postal_code: str | None = None
     cusip: str | None = None
     cik: int | None = None
     sic_num: int | None = None
@@ -585,3 +587,4 @@ class DividendResult(BaseModel):
     date: date
     amount: Money
     provider: ProviderType
+    external_id: Optional[str] = None

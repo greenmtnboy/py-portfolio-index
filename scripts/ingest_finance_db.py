@@ -36,8 +36,12 @@ if __name__ == "__main__":
     df = equities.search().replace({np.nan: None})
     df = df[df.index.notnull()]
     for x in df.itertuples():
+        if x.country == "China":
+            print(x)
+            raise ValueError
         if x.Index == np.nan:
             continue
+
         final[x.Index] = StockInfo(
             ticker=x.Index,
             name=x.name,
@@ -48,6 +52,8 @@ if __name__ == "__main__":
             description=x.summary,
             location=x.city,
             exchange=x.exchange,
+            state=x.state,
+            postal_code=x.zipcode,
         )
 
     enriched = final
@@ -68,6 +74,8 @@ if __name__ == "__main__":
             ticker_info.industry = updated.industry
             ticker_info.market_cap = updated.market_cap
             ticker_info.location = updated.location
+            ticker_info.state = updated.state
+            ticker_info.postal_code = updated.postal_code
 
     target = (
         Path(__file__).parent.parent / "py_portfolio_index" / "bin" / "stock_info.json"

@@ -8,4 +8,4 @@ AUTO_TARGET_SIZE = -1
 
 Logger: baseLogger = getLogger(LOGGER_NAME)
 
-UNKNOWN_TICKER = "~UNKWN"
+UNKNOWN_TICKER = "???"

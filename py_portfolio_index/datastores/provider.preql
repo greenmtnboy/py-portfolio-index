@@ -1,12 +1,12 @@
 
 
 key id int;
-property id.name <-  CASE
-    WHEN id = 1 THEN 'robinhood'
-    WHEN id = 2 THEN 'alpaca'
-    WHEN id = 3 THEN 'webull'
-    WHEN id = 4 THEN 'schwab'
-    WHEN id = 5 THEN 'moomoo'
+auto name <-  CASE
+    WHEN id = 1 THEN 'Robinhood'
+    WHEN id = 2 THEN 'Alpaca'
+    WHEN id = 3 THEN 'Webull'
+    WHEN id = 4 THEN 'Moomoo'
+    WHEN id = 5 THEN 'Schwab'
     ELSE 'unknown'
 END;
 

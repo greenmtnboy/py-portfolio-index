@@ -544,6 +544,7 @@ class RobinhoodProvider(BaseProvider):
                         amount=Money(value=float(x["amount"])),
                         date=date.fromisoformat(x["payable_date"]),
                         provider=self.PROVIDER,
+                        external_id=x["id"],
                     )
                 )
         return final

@@ -452,15 +452,19 @@ class WebullProvider(BaseProvider):
         dlist = dividends.get("dividendList", [])
         final = []
         for x in dlist:
+            id = x["tickerTuple"]["tickerId"]
             paid_date = datetime.strptime(x["payDate"], r"%m/%d/%Y").date()
             if start and paid_date < start.date():
                 continue
+            epoch = paid_date.day + paid_date.month * 100 + paid_date.year * 10000
+            epoch += id * 1000000
             final.append(
                 DividendResult(
                     ticker=x["tickerTuple"]["symbol"],
                     amount=Money(value=float(x["dividendAmount"])),
                     date=paid_date,
                     provider=self.PROVIDER,
+                    external_id=str(epoch),
                 )
             )
         return final

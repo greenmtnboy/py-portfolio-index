@@ -313,6 +313,11 @@ class MooMooProvider(BaseProvider):
     def get_dividend_history(self) -> Dict[str, Money]:
         return super().get_dividend_history()
 
+    def get_dividend_details(self, start=None):
+        # TODO: get endpoint for this
+        # https://github.com/MoomooOpen/py-moomoo-api/issues/12
+        return []
+
     def _shutdown(self):
         self._trade_provider.close()
         self._quote_context.close()

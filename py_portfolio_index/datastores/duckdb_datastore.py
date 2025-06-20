@@ -1,6 +1,7 @@
 from py_portfolio_index.datastores.base_datastore import BaseDatastore
 from py_portfolio_index.models import DividendResult, RealPortfolioElement
 from py_portfolio_index.enums import ProviderType
+from py_portfolio_index.constants import UNKNOWN_TICKER
 import hashlib
 
 
@@ -51,8 +52,58 @@ class DuckDBDatastore(BaseDatastore):
             self.executor.execute_raw_sql(f"DROP TABLE {x} CASCADE")
         self.executor.connection.commit()
 
-    def initialize(self):
+    def intialize_tickers(self, commit: bool = True):
         from py_portfolio_index.bin import STOCK_INFO
+
+        self.executor.execute_raw_sql(
+            """
+        CREATE OR REPLACE TABLE symbols (
+            id INTEGER PRIMARY KEY,
+            ticker VARCHAR,
+            name VARCHAR,
+            sector VARCHAR,
+            industry VARCHAR,
+            state VARCHAR,
+            city VARCHAR,
+            country VARCHAR
+        );
+        """
+        )
+
+        final = [
+            {
+                "id": idx,
+                "ticker": v.ticker,
+                "name": v.name,
+                "sector": v.sector,
+                "industry": v.industry,
+                "state": v.state if (v.state and v.state != "") else v.location,
+                "city": v.location,
+                "country": v.country,
+            }
+            for idx, v in enumerate(STOCK_INFO.values())
+        ]
+        final += [
+            {
+                "id": -1,
+                "ticker": UNKNOWN_TICKER,
+                "name": "Unknown",
+                "sector": "Unknown",
+                "industry": "Unknown",
+                "state": "Unknown",
+                "city": "Unknown",
+                "country": "Unknown",
+            }
+        ]
+        for x in final:
+            self.executor.execute_raw_sql(
+                "INSERT INTO symbols VALUES (:id, :ticker, :name, :sector, :industry, :state, :city, :country);",
+                x,
+            )
+        if commit:
+            self.executor.connection.commit()
+
+    def initialize(self):
 
         self.executor.execute_raw_sql(
             """
@@ -75,7 +126,8 @@ class DuckDBDatastore(BaseDatastore):
             provider INTEGER,
             symbol INTEGER,
             dividend FLOAT,
-            dividend_date DATE
+            dividend_date DATE,
+            dividend_external_id VARCHAR,
         );
         """
         )
@@ -92,39 +144,12 @@ class DuckDBDatastore(BaseDatastore):
         );
         """
         )
-        self.executor.execute_raw_sql(
-            """
-        
-        DROP TABLE IF EXISTS symbols CASCADE;
-        CREATE TABLE symbols (
-            id INTEGER PRIMARY KEY,
-            ticker VARCHAR,
-            name VARCHAR,
-            sector VARCHAR,
-            industry VARCHAR,
-        );
-        """
-        )
-
-        final = [
-            {
-                "id": idx,
-                "ticker": v.ticker,
-                "name": v.name,
-                "sector": v.sector,
-                "industry": v.industry,
-            }
-            # (idx+1, v.ticker, v.name)
-            for idx, v in enumerate(STOCK_INFO.values())
-        ]
-        for x in final:
-            self.executor.execute_raw_sql(
-                "INSERT INTO symbols VALUES (:id, :ticker, :name, :sector, :industry)",
-                x,
-            )
+        self.intialize_tickers(commit=False)
         self.executor.connection.commit()
 
     def persist_dividend_data(self, data: list[DividendResult]):
+        from py_portfolio_index.bin import STOCK_INFO
+
         for x in data:
             # calculate ID as date epoch + symbol + provider for dividends
             self.executor.execute_raw_sql(
@@ -135,16 +160,18 @@ class DuckDBDatastore(BaseDatastore):
                                             :provider,
                                             symbols.id,
                                             :dividend,
-                                            :dividend_date
+                                            :dividend_date,
+                                            :external_id
                                           from symbols
                                           where symbols.ticker = :ticker
                 ON CONFLICT DO NOTHING;
                                           """,
                 {
-                    "ticker": x.ticker,
+                    "ticker": x.ticker if x.ticker in STOCK_INFO else UNKNOWN_TICKER,
                     "provider": map_provider(x.provider),
                     "dividend": x.amount.value,
                     "dividend_date": x.date,
+                    "external_id": x.external_id,
                 },
             )
         self.executor.connection.commit()
@@ -152,6 +179,8 @@ class DuckDBDatastore(BaseDatastore):
     def persist_holding_data(
         self, data: list[RealPortfolioElement], provider: ProviderType
     ):
+        from py_portfolio_index.bin import STOCK_INFO
+
         for x in data:
             self.executor.execute_raw_sql(
                 """INSERT INTO ticker_holdings
@@ -166,7 +195,7 @@ class DuckDBDatastore(BaseDatastore):
                 ON CONFLICT DO UPDATE SET qty = EXCLUDED.qty, cost_basis = EXCLUDED.cost_basis, value = EXCLUDED.value;
                                           """,
                 {
-                    "ticker": x.ticker,
+                    "ticker": x.ticker if x.ticker in STOCK_INFO else UNKNOWN_TICKER,
                     "provider": map_provider(provider),
                     "qty": x.units,
                     "cost_basis": x.value.decimal - x.appreciation.decimal,
@@ -174,3 +203,6 @@ class DuckDBDatastore(BaseDatastore):
                 },
             )
         self.executor.connection.commit()
+
+    def close(self):
+        self.executor.connection.close()
