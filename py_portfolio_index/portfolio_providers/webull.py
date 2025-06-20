@@ -457,7 +457,7 @@ class WebullProvider(BaseProvider):
             if start and paid_date < start.date():
                 continue
             epoch = paid_date.day + paid_date.month * 100 + paid_date.year * 10000
-            epoch += id * 1000000 
+            epoch += id * 1000000
             final.append(
                 DividendResult(
                     ticker=x["tickerTuple"]["symbol"],

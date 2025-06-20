@@ -4,10 +4,9 @@ from datetime import date
 from pathlib import Path
 
 
-
 # CONFIGURATION
 def blend_us_eu():
-    base = Path(__file__).parent.parent / 'py_portfolio_index' / 'bin' / 'indexes' 
+    base = Path(__file__).parent.parent / "py_portfolio_index" / "bin" / "indexes"
     us_file = base / "total_market.json"
     eu_file = base / "eu_index.json"
     us_ratio = 0.6
@@ -23,10 +22,7 @@ def blend_us_eu():
 
     # Helper to convert weights to float and apply ratio
     def scale_components(components, ratio):
-        return {
-            comp["ticker"]: float(comp["weight"]) * ratio
-            for comp in components
-        }
+        return {comp["ticker"]: float(comp["weight"]) * ratio for comp in components}
 
     # Scale weights by their respective ratios
     us_scaled = scale_components(us_data["components"], us_ratio)
@@ -46,20 +42,17 @@ def blend_us_eu():
 
     normalized_components = sorted(
         [
-            {
-                "ticker": ticker,
-                "weight": f"{weight / total_weight:.12f}"
-            }
+            {"ticker": ticker, "weight": f"{weight / total_weight:.12f}"}
             for ticker, weight in combined_weights.items()
         ],
         key=lambda x: float(x["weight"]),
-        reverse=True
+        reverse=True,
     )
     # Prepare final JSON
     blended_index = {
         "name": "Blended US+EU Index",
         "as_of": str(date.today()),
-        "components": normalized_components
+        "components": normalized_components,
     }
 
     # Write to file

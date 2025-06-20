@@ -36,7 +36,7 @@ if __name__ == "__main__":
     df = equities.search().replace({np.nan: None})
     df = df[df.index.notnull()]
     for x in df.itertuples():
-        if x.country == 'China':
+        if x.country == "China":
             print(x)
             raise ValueError
         if x.Index == np.nan:
@@ -52,8 +52,8 @@ if __name__ == "__main__":
             description=x.summary,
             location=x.city,
             exchange=x.exchange,
-            state = x.state,
-            postal_code = x.zipcode,
+            state=x.state,
+            postal_code=x.zipcode,
         )
 
     enriched = final

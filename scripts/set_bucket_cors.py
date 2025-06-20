@@ -1,5 +1,4 @@
 from google.cloud import storage
-import sys
 
 
 def cors_configuration(bucket_name: str):
@@ -12,19 +11,11 @@ def cors_configuration(bucket_name: str):
             "origin": [
                 "http://localhost:3000",
                 "http://localhost:5173",
-                "https://trilogydata.dev"
+                "https://trilogydata.dev",
             ],
-            "responseHeader": [
-                "Content-Type",
-                "x-goog-resumable"
-            ],
-            "method": [
-                "GET",
-                "HEAD",
-                "PUT",
-                "POST"
-            ],
-            "maxAgeSeconds": 3600
+            "responseHeader": ["Content-Type", "x-goog-resumable"],
+            "method": ["GET", "HEAD", "PUT", "POST"],
+            "maxAgeSeconds": 3600,
         }
     ]
 
@@ -37,4 +28,4 @@ def cors_configuration(bucket_name: str):
 
 
 if __name__ == "__main__":
-    cors_configuration('trilogy_public_geo_data')
+    cors_configuration("trilogy_public_geo_data")

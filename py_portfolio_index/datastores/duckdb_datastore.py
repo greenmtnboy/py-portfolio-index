@@ -1,9 +1,8 @@
 from py_portfolio_index.datastores.base_datastore import BaseDatastore
 from py_portfolio_index.models import DividendResult, RealPortfolioElement
 from py_portfolio_index.enums import ProviderType
+from py_portfolio_index.constants import UNKNOWN_TICKER
 import hashlib
-
-UNKNOWN_TICKER = "???"
 
 
 def get_integer_id(value):
@@ -53,7 +52,7 @@ class DuckDBDatastore(BaseDatastore):
             self.executor.execute_raw_sql(f"DROP TABLE {x} CASCADE")
         self.executor.connection.commit()
 
-    def intialize_tickers(self, commit:bool = True):
+    def intialize_tickers(self, commit: bool = True):
         from py_portfolio_index.bin import STOCK_INFO
 
         self.executor.execute_raw_sql(
@@ -78,7 +77,7 @@ class DuckDBDatastore(BaseDatastore):
                 "name": v.name,
                 "sector": v.sector,
                 "industry": v.industry,
-                "state": v.state if (v.state and v.state != '') else v.location,
+                "state": v.state if (v.state and v.state != "") else v.location,
                 "city": v.location,
                 "country": v.country,
             }
@@ -105,7 +104,6 @@ class DuckDBDatastore(BaseDatastore):
             self.executor.connection.commit()
 
     def initialize(self):
-        from py_portfolio_index.bin import STOCK_INFO
 
         self.executor.execute_raw_sql(
             """
