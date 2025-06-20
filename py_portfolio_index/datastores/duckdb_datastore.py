@@ -53,6 +53,57 @@ class DuckDBDatastore(BaseDatastore):
             self.executor.execute_raw_sql(f"DROP TABLE {x} CASCADE")
         self.executor.connection.commit()
 
+    def intialize_tickers(self, commit:bool = True):
+        from py_portfolio_index.bin import STOCK_INFO
+
+        self.executor.execute_raw_sql(
+            """
+        CREATE OR REPLACE TABLE symbols (
+            id INTEGER PRIMARY KEY,
+            ticker VARCHAR,
+            name VARCHAR,
+            sector VARCHAR,
+            industry VARCHAR,
+            state VARCHAR,
+            city VARCHAR,
+            country VARCHAR
+        );
+        """
+        )
+
+        final = [
+            {
+                "id": idx,
+                "ticker": v.ticker,
+                "name": v.name,
+                "sector": v.sector,
+                "industry": v.industry,
+                "state": v.state if (v.state and v.state != '') else v.location,
+                "city": v.location,
+                "country": v.country,
+            }
+            for idx, v in enumerate(STOCK_INFO.values())
+        ]
+        final += [
+            {
+                "id": -1,
+                "ticker": UNKNOWN_TICKER,
+                "name": "Unknown",
+                "sector": "Unknown",
+                "industry": "Unknown",
+                "state": "Unknown",
+                "city": "Unknown",
+                "country": "Unknown",
+            }
+        ]
+        for x in final:
+            self.executor.execute_raw_sql(
+                "INSERT INTO symbols VALUES (:id, :ticker, :name, :sector, :industry, :state, :city, :country);",
+                x,
+            )
+        if commit:
+            self.executor.connection.commit()
+
     def initialize(self):
         from py_portfolio_index.bin import STOCK_INFO
 
@@ -95,54 +146,7 @@ class DuckDBDatastore(BaseDatastore):
         );
         """
         )
-        self.executor.execute_raw_sql(
-            """
-        
-        DROP TABLE IF EXISTS symbols CASCADE;
-        CREATE TABLE symbols (
-            id INTEGER PRIMARY KEY,
-            ticker VARCHAR,
-            name VARCHAR,
-            sector VARCHAR,
-            industry VARCHAR,
-            state VARCHAR,
-            city VARCHAR,
-            country VARCHAR
-        );
-        """
-        )
-
-        final = [
-            {
-                "id": idx,
-                "ticker": v.ticker,
-                "name": v.name,
-                "sector": v.sector,
-                "industry": v.industry,
-                "state": v.state,
-                "city": v.location,
-                "country": v.country,
-            }
-            # (idx+1, v.ticker, v.name)
-            for idx, v in enumerate(STOCK_INFO.values())
-        ]
-        final += [
-            {
-                "id": -1,
-                "ticker": UNKNOWN_TICKER,
-                "name": "Unknown",
-                "sector": "Unknown",
-                "industry": "Unknown",
-                "state": "Unknown",
-                "city": "Unknown",
-                "country": "Unknown",
-            }
-        ]
-        for x in final:
-            self.executor.execute_raw_sql(
-                "INSERT INTO symbols VALUES (:id, :ticker, :name, :sector, :industry, :state, :city, :country);",
-                x,
-            )
+        self.intialize_tickers(commit=False)
         self.executor.connection.commit()
 
     def persist_dividend_data(self, data: list[DividendResult]):

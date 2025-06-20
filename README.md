@@ -234,3 +234,6 @@ Logger.setLevel(INFO)
 
 
 
+### Credit
+
+[SimpleMaps](https://simplemaps.com/data/world-cities) used for some city enrichment.

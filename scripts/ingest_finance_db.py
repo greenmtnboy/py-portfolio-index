@@ -36,6 +36,9 @@ if __name__ == "__main__":
     df = equities.search().replace({np.nan: None})
     df = df[df.index.notnull()]
     for x in df.itertuples():
+        if x.country == 'China':
+            print(x)
+            raise ValueError
         if x.Index == np.nan:
             continue
 

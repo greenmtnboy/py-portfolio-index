@@ -1,8 +1,9 @@
-import pyarrow as pa
+
 import pyarrow.parquet as pq
 from google.cloud import bigquery
-from google.oauth2 import service_account
+
 import os
+from pathlib import Path
 
 def dump_bq_to_parquet_no_pandas(table_name:str):
     """
@@ -41,6 +42,11 @@ def dump_bq_to_parquet_no_pandas(table_name:str):
     # Define output file path
     file_name = table_name.split('.')[-1]  # Get the last part of the table name
     output_file = f'{file_name}.parquet'
+
+    #clear file if exists
+    if Path(output_file).exists():
+        print(f"File {output_file} already exists. Overwriting...")
+        os.remove(output_file)
     
     # Write directly to parquet using PyArrow
     print(f"Writing to {output_file}...")
@@ -51,21 +57,15 @@ def dump_bq_to_parquet_no_pandas(table_name:str):
     # Verify the file
     file_size = os.path.getsize(output_file)
     print(f"File size: {file_size:,} bytes")
-    
-    # Optional: Read back and show sample
-    print("\nSample data:")
-    parquet_table = pq.read_table(output_file)
-    sample = parquet_table.slice(0, 5).to_pandas()  # Just for display
-    print(sample)
-    
-    print(f"\nTotal rows in parquet: {parquet_table.num_rows:,}")
+
 
 if __name__ == "__main__":
-    try:
-        dump_bq_to_parquet_no_pandas('preqldata.public_geo.osm_cities')
-    except Exception as e:
-        print(f"Error: {e}")
-        print("\nMake sure you have:")
-        print("1. Installed required packages: pip install google-cloud-bigquery pyarrow")
-        print("2. Set up Google Cloud authentication (gcloud auth login or service account)")
-        print("3. Have access to the BigQuery table")
+    for table in ['preqldata.public_geo.osm_cities', 'preqldata.public_geo.osm_countries', 'preqldata.public_geo.osm_state_province']:
+        try:
+            dump_bq_to_parquet_no_pandas(table)
+        except Exception as e:
+            print(f"Error: {e}")
+            print("\nMake sure you have:")
+            print("1. Installed required packages: pip install google-cloud-bigquery pyarrow")
+            print("2. Set up Google Cloud authentication (gcloud auth login or service account)")
+            print("3. Have access to the BigQuery table")
