@@ -320,6 +320,10 @@ class SchwabProvider(BaseProvider):
         for row in my_stocks:
             local: Dict[str, Any] = {}
             local["units"] = row["longQuantity"]
+            instrument = ticker = row["instrument"]
+            # unclear what is happening here, but skip this for now
+            if not 'symbol' in instrument.keys():
+                continue
             ticker = row["instrument"]["symbol"]
             local["ticker"] = ticker
             symbols.append(ticker)
@@ -401,7 +405,7 @@ class SchwabProvider(BaseProvider):
                 appreciation=Money(value=Decimal(x["longOpenProfitLoss"])),
                 dividends=dividends[x["instrument"]["symbol"]],
             )
-            for x in account_info["positions"]
+            for x in account_info["positions"] if 'symbol' in x["instrument"].keys()
         }
         for k, v in dividends.items():
             if k not in first:
