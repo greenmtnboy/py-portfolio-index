@@ -322,7 +322,7 @@ class SchwabProvider(BaseProvider):
             local["units"] = row["longQuantity"]
             instrument = ticker = row["instrument"]
             # unclear what is happening here, but skip this for now
-            if not 'symbol' in instrument.keys():
+            if 'symbol' not in instrument.keys():
                 continue
             ticker = row["instrument"]["symbol"]
             local["ticker"] = ticker
