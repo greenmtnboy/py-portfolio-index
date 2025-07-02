@@ -320,11 +320,9 @@ class SchwabProvider(BaseProvider):
         for row in my_stocks:
             local: Dict[str, Any] = {}
             local["units"] = row["longQuantity"]
-            instrument = ticker = row["instrument"]
+            instrument: dict[str, str] = row["instrument"]
             # unclear what is happening here, but skip this for now
-            if 'symbol' not in instrument.keys():
-                continue
-            ticker = row["instrument"]["symbol"]
+            ticker = instrument.get("symbol", UNKNOWN_TICKER)
             local["ticker"] = ticker
             symbols.append(ticker)
             local["value"] = Money(value=row["marketValue"])
@@ -403,9 +401,9 @@ class SchwabProvider(BaseProvider):
         first = {
             x["instrument"]["symbol"]: ProfitModel(
                 appreciation=Money(value=Decimal(x["longOpenProfitLoss"])),
-                dividends=dividends[x["instrument"]["symbol"]],
+                dividends=dividends[x["instrument"].get("symbol", UNKNOWN_TICKER)],
             )
-            for x in account_info["positions"] if 'symbol' in x["instrument"].keys()
+            for x in account_info["positions"]
         }
         for k, v in dividends.items():
             if k not in first:
