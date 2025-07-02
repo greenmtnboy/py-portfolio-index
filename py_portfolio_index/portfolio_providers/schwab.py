@@ -320,7 +320,9 @@ class SchwabProvider(BaseProvider):
         for row in my_stocks:
             local: Dict[str, Any] = {}
             local["units"] = row["longQuantity"]
-            ticker = row["instrument"]["symbol"]
+            instrument: dict[str, str] = row["instrument"]
+            # unclear what is happening here, but skip this for now
+            ticker = instrument.get("symbol", UNKNOWN_TICKER)
             local["ticker"] = ticker
             symbols.append(ticker)
             local["value"] = Money(value=row["marketValue"])
@@ -399,7 +401,7 @@ class SchwabProvider(BaseProvider):
         first = {
             x["instrument"]["symbol"]: ProfitModel(
                 appreciation=Money(value=Decimal(x["longOpenProfitLoss"])),
-                dividends=dividends[x["instrument"]["symbol"]],
+                dividends=dividends[x["instrument"].get("symbol", UNKNOWN_TICKER)],
             )
             for x in account_info["positions"]
         }
