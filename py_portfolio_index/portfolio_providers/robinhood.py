@@ -261,20 +261,22 @@ class RobinhoodProvider(BaseProvider):
         payload = {
             "account": account,
             "instrument": sym_to_i[symbol],
-            "order_form_version": "2",
-            "preset_percent_limit": "0.05",
+            "order_form_version": "4",
+            # "preset_percent_limit": "0.05",
             "symbol": symbol,
-            "price": price,
+            "price": None,
             "quantity": qty,
             "ref_id": str(uuid4()),
-            "type": "limit",
+            "type": "market",
             "time_in_force": "gfd",
             "trigger": "immediate",
             "side": "buy",
             "extended_hours": False,
+            "bid_ask_timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
         }
 
         url = orders_url()
+        print(payload)
         data = request_post(url, payload, json=True, jsonify_data=True)
 
         return data or {}

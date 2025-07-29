@@ -83,6 +83,10 @@ def api_helper(response):
     return raw.json()
 
 
+def safe_get_symbol(input: dict[str, Any]) -> str:
+    return input.get("instrument", {}).get("symbol", UNKNOWN_TICKER)
+
+
 class SchwabProvider(BaseProvider):
     """Provider for interacting with stocks held in
     Schwab
@@ -258,7 +262,7 @@ class SchwabProvider(BaseProvider):
                     account_hash=self._account_hash, status=status
                 )
             )
-        return set(item["instrument"]["symbol"] for item in orders)
+        return set(safe_get_symbol(item) for item in orders)
 
     def _get_stock_info(self, ticker: str) -> dict:
         return api_helper(
@@ -320,9 +324,8 @@ class SchwabProvider(BaseProvider):
         for row in my_stocks:
             local: Dict[str, Any] = {}
             local["units"] = row["longQuantity"]
-            instrument: dict[str, str] = row["instrument"]
             # unclear what is happening here, but skip this for now
-            ticker = instrument.get("symbol", UNKNOWN_TICKER)
+            ticker = safe_get_symbol(row)
             local["ticker"] = ticker
             symbols.append(ticker)
             local["value"] = Money(value=row["marketValue"])
@@ -399,9 +402,9 @@ class SchwabProvider(BaseProvider):
         dividends = self._get_dividends()
 
         first = {
-            x["instrument"]["symbol"]: ProfitModel(
+            safe_get_symbol(x): ProfitModel(
                 appreciation=Money(value=Decimal(x["longOpenProfitLoss"])),
-                dividends=dividends[x["instrument"].get("symbol", UNKNOWN_TICKER)],
+                dividends=dividends[safe_get_symbol(x)],
             )
             for x in account_info["positions"]
         }
@@ -409,6 +412,23 @@ class SchwabProvider(BaseProvider):
             if k not in first:
                 first[k] = ProfitModel(appreciation=Money(value=0), dividends=v)
         return first
+
+    def _fuzzy_ticker_lookup(self, lookup_desc: str) -> tuple[str, bool]:
+        changes = False
+        ticker = self._local_description_lookup_cache.get(lookup_desc)
+        if not ticker:
+            ticker = HARD_CODED_DESC_TO_TICKER.get(
+                lookup_desc,
+            )
+        if not ticker:
+            fuzzy_search = self._get_stock_info_fuzzy(search=lookup_desc)
+            if fuzzy_search.get("instruments"):
+                match = fuzzy_search["instruments"][0]
+                self._local_description_lookup_cache[lookup_desc] = match["symbol"]
+                changes = True
+            else:
+                ticker = lookup_desc
+        return ticker or UNKNOWN_TICKER, changes
 
     def _get_dividends(self) -> defaultdict[str, Money]:
         dividends: dict = self._get_cached_value(
@@ -418,18 +438,8 @@ class SchwabProvider(BaseProvider):
 
         changes: bool = False
         for item in dividends:
-            lookup_desc = item["description"]
-            ticker = self._local_description_lookup_cache.get(lookup_desc)
-            if not ticker:
-                ticker = HARD_CODED_DESC_TO_TICKER.get(lookup_desc)
-            if not ticker:
-                fuzzy_search = self._get_stock_info_fuzzy(search=lookup_desc)
-                if fuzzy_search.get("instruments"):
-                    match = fuzzy_search["instruments"][0]
-                    self._local_description_lookup_cache[lookup_desc] = match["symbol"]
-                    changes = True
-                else:
-                    ticker = lookup_desc
+            ticker, item_searched = self._fuzzy_ticker_lookup(item["description"])
+            changes = changes or item_searched
             base.append(
                 {"value": Money(value=Decimal(item["netAmount"])), "ticker": ticker}
             )
@@ -449,21 +459,8 @@ class SchwabProvider(BaseProvider):
         final = []
         changes = False
         for item in dividends:
-            lookup_desc = item["description"]
-            ticker = self._local_description_lookup_cache.get(lookup_desc)
-            if not ticker:
-                ticker = HARD_CODED_DESC_TO_TICKER.get(
-                    lookup_desc,
-                )
-            if not ticker:
-                fuzzy_search = self._get_stock_info_fuzzy(search=lookup_desc)
-                if fuzzy_search.get("instruments"):
-                    match = fuzzy_search["instruments"][0]
-                    self._local_description_lookup_cache[lookup_desc] = match["symbol"]
-                    changes = True
-                else:
-                    ticker = lookup_desc
-            final_ticker = ticker or UNKNOWN_TICKER
+            ticker, item_searched = self._fuzzy_ticker_lookup(item["description"])
+            changes = changes or item_searched
             if item["status"] == "VALID":
                 event_date = datetime.fromisoformat(item["time"]).date()
                 if start and event_date < start.date():
@@ -471,7 +468,7 @@ class SchwabProvider(BaseProvider):
 
                 final.append(
                     DividendResult(
-                        ticker=final_ticker,
+                        ticker=ticker,
                         amount=Money(value=float(item["netAmount"])),
                         date=event_date,
                         provider=self.PROVIDER,
