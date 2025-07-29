@@ -276,7 +276,6 @@ class RobinhoodProvider(BaseProvider):
         }
 
         url = orders_url()
-        print(payload)
         data = request_post(url, payload, json=True, jsonify_data=True)
 
         return data or {}
