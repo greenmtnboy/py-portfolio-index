@@ -19,7 +19,7 @@ from py_portfolio_index.portfolio_providers.webull import (
 from py_portfolio_index.portfolio_providers.moomoo import MooMooProvider
 from py_portfolio_index.portfolio_providers.schwab import SchwabProvider
 from py_portfolio_index.config import get_providers
-from py_portfolio_index.models import IdealPortfolio, CompositePortfolio
+from py_portfolio_index.models import IdealPortfolio, CompositePortfolio, IdealPortfolioElement, RealPortfolioElement, RealPortfolio
 from py_portfolio_index.enums import ProviderType
 from py_portfolio_index.models import OrderElement, OrderType, Money
 
@@ -50,4 +50,8 @@ __all__ = [
     "OrderElement",
     "OrderType",
     "Money",
+    "IdealPortfolioElement",
+    "RealPortfolioElement",
+    "RealPortfolio",
+    
 ]
