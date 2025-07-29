@@ -87,60 +87,63 @@ class PriceCache(object):
         return found
 
 
-def time_endpoint(logger: Optional[logging.Logger] = None, 
-                 log_level: int = logging.INFO) -> Callable:
+def time_endpoint(
+    logger: Optional[logging.Logger] = None, log_level: int = logging.INFO
+) -> Callable:
     """
     Decorator to measure and log endpoint execution time.
-    
+
     Args:
         logger: Optional logger instance. If None, uses print() to stdout.
         log_level: Logging level to use (default: INFO)
-    
+
     Returns:
         Decorated function that logs timing information
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> Any:
             # Get the function name (endpoint name)
             endpoint_name = func.__name__
-            
+
             # Record start time
             start_time = time.time()
-            
+
             try:
                 # Execute the function
                 result = func(*args, **kwargs)
-                
+
                 # Calculate execution time
                 execution_time = time.time() - start_time
-                
+
                 # Format the message
                 message = f"Endpoint '{endpoint_name}' completed in {execution_time:.4f} seconds"
-                
+
                 # Log or print the message
                 if logger:
                     logger.log(log_level, message)
                 else:
                     print(message)
-                
+
                 return result
-                
+
             except Exception as e:
                 # Calculate execution time even if there's an error
                 execution_time = time.time() - start_time
-                
+
                 # Format error message
                 error_message = f"Endpoint '{endpoint_name}' failed after {execution_time:.4f} seconds: {str(e)}"
-                
+
                 # Log or print the error message
                 if logger:
                     logger.log(logging.ERROR, error_message)
                 else:
                     print(error_message)
-                
+
                 # Re-raise the exception
                 raise
-                
+
         return wrapper
+
     return decorator
