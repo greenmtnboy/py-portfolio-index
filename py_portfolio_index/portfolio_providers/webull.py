@@ -22,12 +22,88 @@ from py_portfolio_index.enums import ProviderType
 from functools import lru_cache
 from os import environ
 from pytz import UTC
+import hashlib
+import requests
+
 
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
 
 DEFAULT_WEBULL_TIMEOUT = 60
 CACHE_PATH = "webull_tickers.json"
+
+
+def login(
+    _provider,
+    username="",
+    password="",
+    device_name="",
+    mfa="",
+    question_id="",
+    question_answer="",
+):
+    """
+    Login with email or phone number
+
+    phone numbers must be a str in the following form
+    US '+1-XXXXXXX'
+    CH '+86-XXXXXXXXXXX'
+    """
+    from webull import webull
+
+    provider: webull = _provider
+
+    if not username or not password:
+        raise ValueError("username or password is empty")
+
+    # with webull md5 hash salted
+    password = ("wl_app-a&b@!423^" + password).encode("utf-8")
+    md5_hash = hashlib.md5(password)
+
+    account_type = provider.get_account_type(username)
+
+    if device_name == "":
+        device_name = "default_string"
+
+    data = {
+        "account": username,
+        "accountType": str(account_type),
+        "deviceId": provider._did,
+        "deviceName": device_name,
+        "grade": 1,
+        "pwd": md5_hash.hexdigest(),
+        "regionId": provider._region_code,
+    }
+
+    if mfa != "":
+        data["extInfo"] = {"codeAccountType": account_type, "verificationCode": mfa}
+        headers = provider.build_req_headers()
+    else:
+        headers = provider._headers
+
+    if question_id != "" and question_answer != "":
+        data["accessQuestions"] = (
+            '[{"questionId":"'
+            + str(question_id)
+            + '", "answer":"'
+            + str(question_answer)
+            + '"}]'
+        )
+
+    response = requests.post(
+        provider._urls.login(), json=data, headers=headers, timeout=provider.timeout
+    )
+    result = response.json()
+
+    if "accessToken" in result:
+        provider._access_token = result["accessToken"]
+        provider._refresh_token = result["refreshToken"]
+        provider._token_expire = result["tokenExpireTime"]
+        provider._uuid = result["uuid"]
+        provider._account_id = provider.get_account_id()
+    else:
+        raise ValueError(result)
+    return result
 
 
 class WebullProvider(BaseProvider):
@@ -74,14 +150,16 @@ class WebullProvider(BaseProvider):
         self._provider._did = device_id
         self._provider._headers["did"] = device_id
 
-        self._provider.login(username=username, password=password)
+        login(self._provider, username=username, password=password)
         self._local_instrument_cache: Dict[str, str] = {}
         if not skip_cache:
             self._load_local_instrument_cache()
 
         token = self._provider.get_trade_token(trade_token)
         if not token:
-            raise ConfigurationError("Could not get trade token with provided password")
+            raise ConfigurationError(
+                "Could not get trade token with provided password or device ID."
+            )
         account_info: dict = self._provider.get_account()
         if account_info.get("success") is False:
             raise ConfigurationError(f"Authentication is expired: {account_info}")

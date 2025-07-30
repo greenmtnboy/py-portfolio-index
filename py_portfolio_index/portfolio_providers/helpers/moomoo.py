@@ -10,11 +10,14 @@ from py_portfolio_index.portfolio_providers.helpers.telnetlib import Telnet
 DEFAULT_PORT = 11111
 
 
+STARTUP_TIMEOUT = 30
+
+
 def check_listening(port: int):
-    # Create a TCP socket
     address = "localhost"
     s = socket.socket()
     try:
+        s.settimeout(STARTUP_TIMEOUT)
         s.connect((address, port))
         return True
     except socket.error:
