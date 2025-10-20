@@ -5,4 +5,7 @@ import holdings as holdings;
 
 merge dividend.symbol.* into ~symbol.*;
 merge holdings.symbol.* into ~symbol.*;
-                           
+
+
+auto ticker_value <- sum(holdings.value) by holdings.symbol.ticker; 
+property symbol.ticker.holding_size <- CASE WHEN ticker_value > 10000 THEN 'Large' WHEN ticker_value > 5000 THEN 'Medium' ELSE 'Small' END;

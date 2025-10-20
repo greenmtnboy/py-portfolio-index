@@ -1,11 +1,13 @@
 import symbol as symbol;
 import provider as provider;
+import std.money;
+import std.display;
 
 property <symbol.id, provider.id>.qty float;
-property <symbol.id, provider.id>.cost_basis float;
-property <symbol.id, provider.id>.value float;
-property <symbol.id, provider.id>.appreciation <- (value - cost_basis);
-property <symbol.id, provider.id>.return <- appreciation / cost_basis;
+property <symbol.id, provider.id>.cost_basis float::usd;
+property <symbol.id, provider.id>.value float::usd;
+property <symbol.id, provider.id>.appreciation <- (value - cost_basis)::float::usd;
+property <symbol.id, provider.id>.return <- appreciation / cost_basis::float::percent;
 
 
 datasource ticker_holdings (

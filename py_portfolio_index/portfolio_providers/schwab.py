@@ -191,7 +191,7 @@ class SchwabProvider(BaseProvider):
 
     @lru_cache(maxsize=None)
     def _get_instrument_price(
-        self, ticker: str, at_day: Optional[date] = None
+        self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True
     ) -> Optional[Decimal]:
         stored = self._price_cache.get_prices(tickers=[ticker], date=at_day)
         if stored:
@@ -360,7 +360,10 @@ class SchwabProvider(BaseProvider):
         return RealPortfolio(holdings=out, cash=Money(value=cash), provider=self)
 
     def _get_instrument_prices(
-        self, tickers: List[str], at_day: Optional[date] = None
+        self,
+        tickers: List[str],
+        at_day: Optional[date] = None,
+        fail_on_missing: bool = True,
     ) -> Dict[str, Optional[Decimal]]:
         batches: List[Dict[str, Optional[Decimal]]] = []
         prices: Dict[str, Optional[Decimal]] = {}

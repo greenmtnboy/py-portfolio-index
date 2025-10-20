@@ -1,9 +1,10 @@
 import symbol as symbol;
 import provider as provider;
+import std.money;
 
 key id int;
 property id.date date;
-property id.amount float;
+property id.amount float::usd;
 
 
 datasource dividend_data (

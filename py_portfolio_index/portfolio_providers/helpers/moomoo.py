@@ -6,6 +6,7 @@ from py_portfolio_index.exceptions import (
 )
 from py_portfolio_index.models import LoginResponse, LoginResponseStatus
 from py_portfolio_index.portfolio_providers.helpers.telnetlib import Telnet
+from time import sleep
 
 DEFAULT_PORT = 11111
 
@@ -88,6 +89,8 @@ class MooMooProxy:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+
+        sleep(15)  # wait for telnet to start
         results = self.send_command("show_sub_info")
 
         if "The remaining quota:" not in results:

@@ -111,6 +111,7 @@ class RobinhoodProvider(BaseProvider):
         self._local_instrument_cache: List[Dict] = []
         if not skip_cache:
             self._load_local_instrument_cache()
+        self._provider.order_buy_market
 
     @property
     def valid_assets(self) -> set[str]:
@@ -146,7 +147,7 @@ class RobinhoodProvider(BaseProvider):
             json.dump(self._local_instrument_cache, f)
 
     def _get_instrument_price(
-        self, ticker: str, at_day: Optional[date] = None
+        self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True
     ) -> Optional[Decimal]:
         if at_day:
             historicals = self._provider.get_stock_historicals(
@@ -262,19 +263,19 @@ class RobinhoodProvider(BaseProvider):
             "account": account,
             "instrument": sym_to_i[symbol],
             "order_form_version": "4",
-            # "preset_percent_limit": "0.05",
+            "preset_percent_limit": "0.05",
             "symbol": symbol,
-            "price": None,
+            "price": price,
             "quantity": qty,
             "ref_id": str(uuid4()),
-            "type": "market",
+            "type": "limit",
             "time_in_force": "gfd",
             "trigger": "immediate",
+            "market_hours": "regular_hours",
             "side": "buy",
             "extended_hours": False,
             "bid_ask_timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
         }
-
         url = orders_url()
         data = request_post(url, payload, json=True, jsonify_data=True)
 
@@ -456,7 +457,10 @@ class RobinhoodProvider(BaseProvider):
         return RealPortfolio(holdings=out, cash=Money(value=cash), provider=self)
 
     def _get_instrument_prices(
-        self, tickers: List[str], at_day: Optional[date] = None
+        self,
+        tickers: List[str],
+        at_day: Optional[date] = None,
+        fail_on_missing: bool = True,
     ) -> Dict[str, Optional[Decimal]]:
         ticker_list = tickers
         batches = []

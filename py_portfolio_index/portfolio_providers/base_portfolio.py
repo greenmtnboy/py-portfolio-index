@@ -91,10 +91,17 @@ class BaseProvider(object):
     def cash(self) -> Money:
         return self.get_holdings().cash or Money(value=0)
 
-    def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None):
+    def _get_instrument_price(
+        self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True
+    ):
         raise NotImplementedError
 
-    def _get_instrument_prices(self, ticker: List[str], at_day: Optional[date] = None):
+    def _get_instrument_prices(
+        self,
+        ticker: List[str],
+        at_day: Optional[date] = None,
+        fail_on_missing: bool = True,
+    ):
         raise NotImplementedError
 
     def get_holdings(self) -> RealPortfolio:

@@ -1,19 +1,10 @@
-from typing import Protocol, List, Any
 from py_portfolio_index.enums import ObjectKey, ProviderType
 from datetime import datetime
 from trilogy import Environment, Dialects, Executor
 from pathlib import Path
 from trilogy.dialect.config import DuckDBConfig
 from py_portfolio_index.models import DividendResult, RealPortfolioElement
-
-
-class ResultProtocol(Protocol):
-    values: List[Any]
-    columns: List[str]
-
-    def fetchall(self) -> List[Any]: ...
-
-    def keys(self) -> List[str]: ...
+from trilogy.engine import ResultProtocol
 
 
 class DBApiConnectionWrapper:
@@ -46,6 +37,15 @@ class BaseDatastore:
         for _ in self.executor.parse_file(Path(__file__).parent / "entrypoint.preql"):
             pass
         return self.executor
+
+    @classmethod
+    def get_files_and_contents(self) -> dict[str, str]:
+        base_path = Path(__file__).parent
+        result = {}
+        for file in base_path.glob("*.preql"):
+            with open(file, "r", encoding="utf-8") as f:
+                result[file.stem] = f.read()
+        return result
 
     def reset(self):
         self.drop()

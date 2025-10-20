@@ -65,6 +65,9 @@ if __name__ == "__main__":
     today = datetime.today().date()
     found = False
     start = datetime.now()
+    url_candidates = [
+        "https://crsp.org/wp-content/uploads/quarterly-index-constituents/crsp_quarterly_constituents.csv"
+    ]
     candidates = [
         [v.year, v.month]
         for v in [
@@ -82,26 +85,29 @@ if __name__ == "__main__":
             sday = str(day).zfill(2)
 
             address = f"https://crsp.org/wp-content/uploads/crspmi_quarterly_constituents_{year}{smonth}{sday}.csv"
-            # for address in [
-            #     "https://crsp.org/wp-content/uploads/crspmi_quarterly_constituents_20231229.csv",
-            #     "https://www.crsp.org/wp-content/uploads/CRSP_Constituents.csv",
-            # ]:
-            print("attempting")
-            print(address)
-            data = requests.get(
-                address,
-                allow_redirects=True,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-                },
-            )
-            print(data.text[0:100])
-            # print(len(response.text))
-            # we got the valid csv
-            if data.text.startswith("TradeDate"):
-                found = True
-                print("got match")
-                break
+            url_candidates.append(address)
+
+    for address in url_candidates:
+        # for address in [
+        #     "https://crsp.org/wp-content/uploads/crspmi_quarterly_constituents_20231229.csv",
+        #     "https://www.crsp.org/wp-content/uploads/CRSP_Constituents.csv",
+        # ]:
+        print("attempting")
+        print(address)
+        data = requests.get(
+            address,
+            allow_redirects=True,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            },
+        )
+        print(data.text[0:100])
+        # print(len(response.text))
+        # we got the valid csv
+        if data.text.startswith("TradeDate"):
+            found = True
+            print("got match")
+            break
         if found:
             break
     if not found:

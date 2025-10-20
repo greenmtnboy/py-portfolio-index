@@ -108,7 +108,10 @@ class AlpacaProvider(BaseProvider):
         return self._valid_assets
 
     def _get_instrument_prices(
-        self, tickers: List[str], at_day: Optional[date] = None
+        self,
+        tickers: List[str],
+        at_day: Optional[date] = None,
+        fail_on_missing: bool = True,
     ) -> Dict[str, Optional[Decimal]]:
         from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
         from alpaca.data.requests import StockBarsRequest, Adjustment
@@ -171,16 +174,24 @@ class AlpacaProvider(BaseProvider):
         }
 
     def _get_instrument_prices_wrapper(
-        self, tickers: List[str], at_day: Optional[date] = None
+        self,
+        tickers: List[str],
+        at_day: Optional[date] = None,
+        fail_on_missing: bool = True,
     ) -> Dict[str, Optional[Decimal]]:
         batches = divide_into_batches(list(tickers), self.SUPPORTS_BATCH_HISTORY)
         final: Dict[str, Optional[Decimal]] = {}
         for batch in batches:
-            final = {**final, **self._get_instrument_prices(batch, at_day=at_day)}
+            final = {
+                **final,
+                **self._get_instrument_prices(
+                    batch, at_day=at_day, fail_on_missing=fail_on_missing
+                ),
+            }
         return final
 
     def _get_instrument_price(
-        self, ticker: str, at_day: Optional[date] = None
+        self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True
     ) -> Optional[Decimal]:
         return self._price_cache.get_prices(tickers=[ticker], date=at_day)[ticker]
 
@@ -381,8 +392,12 @@ class AlpacaProvider(BaseProvider):
             if len(response) == 0:
                 has_data = False
             else:
-                params["page_token"] = response[-1]["id"]
-
+                try:
+                    params["page_token"] = response[-1]["id"]
+                except (KeyError, IndexError) as e:
+                    raise ValueError(
+                        f"Could not find page token in response {str(response)}"
+                    ) from e
         return all_data
 
     def get_dividend_details(
