@@ -1,19 +1,10 @@
-from typing import Protocol, List, Any
 from py_portfolio_index.enums import ObjectKey, ProviderType
 from datetime import datetime
 from trilogy import Environment, Dialects, Executor
 from pathlib import Path
 from trilogy.dialect.config import DuckDBConfig
 from py_portfolio_index.models import DividendResult, RealPortfolioElement
-
-
-class ResultProtocol(Protocol):
-    values: List[Any]
-    columns: List[str]
-
-    def fetchall(self) -> List[Any]: ...
-
-    def keys(self) -> List[str]: ...
+from trilogy.engine import ResultProtocol
 
 
 class DBApiConnectionWrapper:

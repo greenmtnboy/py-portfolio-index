@@ -94,7 +94,7 @@ class MooMooProvider(BaseProvider):
         self._local_latest_price_cache: Dict[str, Decimal | None] = defaultdict(
             lambda: None
         )
-        self.last_unlocked: datetime = None
+        self.last_unlocked: datetime | None = None
 
         # Rate limiting for orders: max 15 orders per 30 seconds
         self._order_timestamps: deque = deque()

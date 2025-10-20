@@ -47,7 +47,7 @@ class LocalDictProvider(BaseProvider):
         return self._portfolio.cash or Money(value=0)
 
     def _get_instrument_price(
-        self, ticker: str, at_day: Optional[date] = None
+        self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True
     ) -> Decimal:
         value = self._price_dict.get(ticker)
         if not value:
@@ -57,7 +57,10 @@ class LocalDictProvider(BaseProvider):
         return value
 
     def _get_instrument_prices(
-        self, tickers: List[str], at_day: Optional[date] = None
+        self,
+        tickers: List[str],
+        at_day: Optional[date] = None,
+        fail_on_missing: bool = True,
     ) -> Dict[str, Decimal]:
         for ticker in tickers:
             value = self._price_dict.get(ticker)
