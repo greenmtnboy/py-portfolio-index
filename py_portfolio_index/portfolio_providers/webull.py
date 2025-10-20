@@ -90,7 +90,7 @@ def login(
             + '"}]'
         )
 
-    response = requests.post(
+    result = requests.post(
         provider._urls.login(), json=data, headers=headers, timeout=provider.timeout
     )
 
