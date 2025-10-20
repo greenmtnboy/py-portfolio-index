@@ -23,8 +23,8 @@ from functools import lru_cache
 from os import environ
 from pytz import UTC
 import hashlib
+import json
 import requests
-
 
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
@@ -93,7 +93,21 @@ def login(
     response = requests.post(
         provider._urls.login(), json=data, headers=headers, timeout=provider.timeout
     )
-    result = response.json()
+
+    if "accessToken" in result:
+        provider._access_token = result["accessToken"]
+        provider._refresh_token = result["refreshToken"]
+        provider._token_expire = result["tokenExpireTime"]
+        provider._uuid = result["uuid"]
+        provider._account_id = provider.get_account_id()
+    else:
+        raise ValueError(result)
+    return result
+
+
+def login_json(_provider, login_response: str):
+    provider = _provider
+    result = json.loads(login_response)
 
     if "accessToken" in result:
         provider._access_token = result["accessToken"]
@@ -129,6 +143,7 @@ class WebullProvider(BaseProvider):
         password: str | None = None,
         trade_token: str | None = None,
         device_id: str | None = None,
+        response_json: str | None = None,
         skip_cache: bool = False,
     ):
         if not username:
@@ -149,8 +164,11 @@ class WebullProvider(BaseProvider):
         # we must set both of these to have a valid login
         self._provider._did = device_id
         self._provider._headers["did"] = device_id
+        if response_json:
+            login_json(self._provider, response_json)
+        else:
+            login(self._provider, username=username, password=password)
 
-        login(self._provider, username=username, password=password)
         self._local_instrument_cache: Dict[str, str] = {}
         if not skip_cache:
             self._load_local_instrument_cache()
@@ -191,6 +209,12 @@ class WebullProvider(BaseProvider):
         with open(file, "w") as f:
             json.dump(self._local_instrument_cache, f)
 
+    def _get_webull_id(self, ticker: str) -> Optional[str]:
+        try:
+            return str(self._provider.get_ticker(ticker))
+        except ValueError:
+            return None
+
     @lru_cache(maxsize=None)
     def _get_instrument_price(
         self, ticker: str, at_day: Optional[date] = None
@@ -200,7 +224,10 @@ class WebullProvider(BaseProvider):
         if not webull_id:
             # skip the call
             lookup_ticker = ticker.replace(".", "-")
-            webull_id = str(self._provider.get_ticker(lookup_ticker))
+            webull_id = self._get_webull_id(lookup_ticker)
+            if not webull_id:
+                Logger.error(f"Could not find Webull ID for {ticker}")
+                return None
             self._local_instrument_cache[ticker] = webull_id
             self._save_local_instrument_cache()
         if at_day:
@@ -389,10 +416,10 @@ class WebullProvider(BaseProvider):
             local["value"] = 0
             local["weight"] = 0
             pre[ticker] = local
-        prices = self._price_cache.get_prices(symbols)
+        prices = self._price_cache.get_prices(symbols, fail_on_missing=False)
         total_value = Decimal(0.0)
         for s in symbols:
-            price = prices[s]
+            price = prices.get(s)
             if not price:
                 continue
             total_value += price * Decimal(pre[s]["units"])
@@ -400,7 +427,7 @@ class WebullProvider(BaseProvider):
         pl_info = self.get_per_ticker_profit_or_loss()
         for s in symbols:
             local = pre[s]
-            value = Decimal(prices[s] or 0) * Decimal(pre[s]["units"])
+            value = Decimal(prices.get(s) or 0.0) * Decimal(pre[s]["units"])
             local["value"] = Money(value=value)
             if value == 0.0000:
                 local["weight"] = 0.0000
@@ -415,7 +442,10 @@ class WebullProvider(BaseProvider):
         return RealPortfolio(holdings=out, cash=Money(value=cash), provider=self)
 
     def _get_instrument_prices(
-        self, tickers: List[str], at_day: Optional[date] = None
+        self,
+        tickers: List[str],
+        at_day: Optional[date] = None,
+        fail_on_missing: bool = True,
     ) -> Dict[str, Optional[Decimal]]:
         batches: List[Dict[str, Optional[Decimal]]] = []
         if at_day:
@@ -434,8 +464,12 @@ class WebullProvider(BaseProvider):
                     # skip the call
                     try:
                         webull_id = str(self._provider.get_ticker(lookup_ticker))
-                    except Exception as e:
-                        raise PriceFetchError([ticker], e)
+                    except ValueError as e:
+                        if fail_on_missing:
+                            raise PriceFetchError([ticker], e)
+                        else:
+                            # skip it
+                            continue
                     self._local_instrument_cache[ticker] = webull_id
                     new_ids = True
 

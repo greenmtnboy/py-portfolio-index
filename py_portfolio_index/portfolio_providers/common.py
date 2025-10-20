@@ -60,7 +60,10 @@ class PriceCache(object):
             raise PriceFetchError([ticker], e)
 
     def get_prices(
-        self, tickers: List[str], date: datetype | None = None
+        self,
+        tickers: List[str],
+        date: datetype | None = None,
+        fail_on_missing: bool = True,
     ) -> Dict[str, Decimal | None]:
         # if no date is provided, assume they want the instantaneous price
         label = self.date_to_label(date)
@@ -74,11 +77,15 @@ class PriceCache(object):
         missing = [x for x in tickers if x not in found]
         if missing:
             try:
-                prices: dict[str, Decimal | None] = self.fetcher(missing, date)
+                prices: dict[str, Decimal | None] = self.fetcher(
+                    missing, date, fail_on_missing=fail_on_missing
+                )
             except PriceFetchError:
-                raise
+                if fail_on_missing:
+                    raise
             except Exception as e:
-                raise PriceFetchError(missing, e)
+                if fail_on_missing:
+                    raise PriceFetchError(missing, e)
             for ticker, price in prices.items():
                 cached[ticker] = price
                 found[ticker] = price

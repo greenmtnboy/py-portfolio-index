@@ -47,6 +47,15 @@ class BaseDatastore:
             pass
         return self.executor
 
+    @classmethod
+    def get_files_and_contents(self) -> dict[str, str]:
+        base_path = Path(__file__).parent
+        result = {}
+        for file in base_path.glob("*.preql"):
+            with open(file, "r", encoding="utf-8") as f:
+                result[file.stem] = f.read()
+        return result
+
     def reset(self):
         self.drop()
         self.connect()

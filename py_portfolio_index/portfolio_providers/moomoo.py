@@ -25,8 +25,9 @@ from py_portfolio_index.portfolio_providers.helpers.moomoo import (
 )
 from functools import lru_cache
 from os import environ
-from collections import defaultdict
-
+from collections import defaultdict, deque
+from datetime import datetime
+import time
 
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
@@ -41,7 +42,7 @@ class MooMooProvider(BaseProvider):
 
     PROVIDER = ProviderType.MOOMOO
     SUPPORTS_BATCH_HISTORY = 0
-    SUPPORTS_FRACTIONAL_SHARES = True
+    SUPPORTS_FRACTIONAL_SHARES = False
     PASSWORD_ENV = "MOOMOO_PASSWORD"
     ACCOUNT_ENV = "MOOMOO_ACCOUNT"
     TRADE_TOKEN_ENV = "MOOMOO_TRADE_TOKEN"
@@ -58,6 +59,7 @@ class MooMooProvider(BaseProvider):
         trade_token: str | None = None,
         quote_provider: BaseProvider | None = None,
         _external_auth: bool = False,
+        raise_on_rate_limit: bool = False,
     ):
         from moomoo import (
             OpenSecTradeContext,
@@ -92,10 +94,50 @@ class MooMooProvider(BaseProvider):
         self._local_latest_price_cache: Dict[str, Decimal | None] = defaultdict(
             lambda: None
         )
+        self.last_unlocked: datetime = None
+
+        # Rate limiting for orders: max 15 orders per 30 seconds
+        self._order_timestamps: deque = deque()
+        self._max_orders_per_window = 14  # Conservative: 14 instead of 15
+        self._rate_limit_window = 30  # seconds
+        self._raise_on_rate_limit = raise_on_rate_limit
+
+    def _check_order_rate_limit(self) -> None:
+        """Check if we can place an order without exceeding rate limits.
+        Either raises OrderError or sleeps to throttle based on raise_on_rate_limit flag.
+        """
+        current_time = time.time()
+
+        # Remove timestamps older than the rate limit window
+        while (
+            self._order_timestamps
+            and current_time - self._order_timestamps[0] > self._rate_limit_window
+        ):
+            self._order_timestamps.popleft()
+
+        # Check if we would exceed the rate limit
+        if len(self._order_timestamps) >= self._max_orders_per_window:
+            oldest_timestamp = self._order_timestamps[0]
+            wait_time = self._rate_limit_window - (current_time - oldest_timestamp)
+
+            if self._raise_on_rate_limit:
+                raise OrderError(
+                    f"Order rate limit exceeded. Please wait {wait_time:.1f} seconds before placing another order. "
+                    f"Current limit: {self._max_orders_per_window} orders per {self._rate_limit_window} seconds."
+                )
+            else:
+                # Sleep to throttle the order submission
+                # Add a small buffer (0.1 seconds) to ensure we're safely under the limit
+                sleep_time = wait_time + 0.1
+                time.sleep(sleep_time)
+
+    def _record_order_attempt(self) -> None:
+        """Record that an order attempt was made."""
+        self._order_timestamps.append(time.time())
 
     @lru_cache(maxsize=None)
     def _get_instrument_price(
-        self, ticker: str, at_day: Optional[date] = None
+        self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True
     ) -> Optional[Decimal]:
         # TODO: determine if there is a bulk API
         from moomoo import RET_OK, SubType
@@ -138,13 +180,21 @@ class MooMooProvider(BaseProvider):
     ) -> bool:
         from moomoo import RET_OK, TrdSide, OrderType
 
-        ret, data = self._trade_provider.unlock_trade(
-            password=self._trade_token
-        )  # If you use a live trading account to place an order, you need to unlock the account first. The example here is to place an order on a paper trading account, and unlocking is not necessary.
-        if ret == RET_OK:
-            pass
-        else:
-            raise ConfigurationError(f"unlock trade error: {data}")
+        # Check rate limit before attempting to place order
+        self._check_order_rate_limit()
+
+        if (
+            not self.last_unlocked
+            or (datetime.now() - self.last_unlocked).seconds > 300
+        ):
+            ret, data = self._trade_provider.unlock_trade(password=self._trade_token)
+            if ret == RET_OK:
+                self.last_unlocked = datetime.now()
+            else:
+                raise ConfigurationError(f"unlock trade error: {data}")
+
+        # Record the order attempt before making the API call
+        self._record_order_attempt()
 
         ret, data = self._trade_provider.place_order(
             # price is arbitrary for makret
@@ -157,7 +207,7 @@ class MooMooProvider(BaseProvider):
         if ret == RET_OK:
             return True
         else:
-            raise OrderError(f"place_order error: {data}")
+            raise OrderError(f"place_order error: {data} debug: {qty} {value}")
 
     def buy_instrument(
         self, ticker: str, qty: Decimal, value: Optional[Money] = None
@@ -278,7 +328,10 @@ class MooMooProvider(BaseProvider):
         )
 
     def _get_instrument_prices(
-        self, tickers: List[str], at_day: Optional[date] = None
+        self,
+        tickers: List[str],
+        at_day: Optional[date] = None,
+        fail_on_missing: bool = True,
     ) -> Dict[str, Optional[Decimal]]:
         batches: List[Dict[str, Optional[Decimal]]] = []
         for list_batch in divide_into_batches(tickers, 1):

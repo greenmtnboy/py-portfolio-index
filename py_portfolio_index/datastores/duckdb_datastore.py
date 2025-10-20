@@ -205,4 +205,12 @@ class DuckDBDatastore(BaseDatastore):
         self.executor.connection.commit()
 
     def close(self):
+        results = self.executor.engine.dispose(close=True)
         self.executor.connection.close()
+        import duckdb
+
+        duckdb.default_connection().close()
+        import gc
+
+        gc.collect()
+        return results
