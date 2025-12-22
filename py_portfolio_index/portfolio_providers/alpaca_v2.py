@@ -14,8 +14,8 @@ from decimal import Decimal
 from typing import Optional, Dict, List, Set, DefaultDict
 from datetime import date, datetime, timezone, timedelta
 from py_portfolio_index.common import divide_into_batches
-from py_portfolio_index.enums import ProviderType
-from py_portfolio_index.models import DividendResult
+from py_portfolio_index.enums import Currency, ProviderType, OrderType
+from py_portfolio_index.models import DividendResult, Transaction
 from os import environ
 from py_portfolio_index.portfolio_providers.common import PriceCache
 from collections import defaultdict
@@ -194,6 +194,88 @@ class AlpacaProvider(BaseProvider):
         self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True
     ) -> Optional[Decimal]:
         return self._price_cache.get_prices(tickers=[ticker], date=at_day)[ticker]
+    
+    
+    def get_transactions(self) -> List[Transaction]:
+        """
+        Get all filled transactions from Alpaca API.
+        Only returns orders that have been filled (executed).
+        Uses timestamp-based pagination as order ID pagination is not available in current alpaca-py.
+        """
+        from alpaca.trading.requests import GetOrdersRequest, QueryOrderStatus
+        from alpaca.trading.enums import OrderSide
+        all_orders = []
+        CHUNK_SIZE = 500  # Maximum allowed per API docs
+        until_time = None  # Start from the most recent
+        
+        # Get all filled orders using timestamp-based pagination
+        while True:
+            # Create filter request
+            filter_request = GetOrdersRequest(
+                status=QueryOrderStatus.CLOSED,  # Only get closed orders
+                limit=CHUNK_SIZE,
+                until=until_time,
+                direction="desc",  # Get most recent first
+            )
+            
+            response = self.trading_client.get_orders(filter=filter_request)
+            
+            if not response:  # No more orders
+                break
+                
+            all_orders.extend(response)
+            
+            # Check if we got a full batch (meaning there might be more)
+            if len(response) < CHUNK_SIZE:
+                break  # This was the last batch
+            
+            # Set the until timestamp for the next batch to the oldest order in this batch
+            # Use a small offset hack to avoid missing orders with identical timestamps
+            until_time = response[-3].submitted_at if len(response) >= 3 else response[-1].submitted_at
+            print('Fetched', len(all_orders), 'orders so far...')
+        
+        # Remove any duplicate orders by ID (in case of timestamp overlap)
+        seen_ids = set()
+        unique_orders = []
+        for order in all_orders:
+            if order.id not in seen_ids:
+                unique_orders.append(order)
+                seen_ids.add(order.id)
+        
+        transactions: List[Transaction] = []
+        
+        for order in unique_orders:
+            # Skip orders that don't have filled price or quantity
+            if not order.filled_avg_price or not order.filled_qty:
+                continue
+                
+            # Map OrderSide to TransactionType
+            transaction_type = None
+            if order.side == OrderSide.BUY:
+                transaction_type = OrderType.BUY
+            elif order.side == OrderSide.SELL:
+                transaction_type = OrderType.SELL
+            else:
+                continue  # Skip unknown transaction types
+            
+            try:
+                transactions.append(
+                    Transaction(
+                        date=order.filled_at.date() if order.filled_at else order.submitted_at.date(),
+                        ticker=order.symbol,
+                        qty=Decimal(str(order.filled_qty)),  # Use filled_qty instead of qty
+                        type=transaction_type,
+                        unitPrice=Money(value=Decimal(str(order.filled_avg_price))),
+                        currency=Currency.USD,
+                    )
+                )
+            except (ValueError, TypeError, AttributeError) as e:
+                # Log the error and skip this order
+                print(f"Error processing order {order.id}: {e}")
+                continue
+        
+        return transactions
+
 
     def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
         from alpaca.trading.requests import MarketOrderRequest
