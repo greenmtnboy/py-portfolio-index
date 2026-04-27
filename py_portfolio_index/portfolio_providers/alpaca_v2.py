@@ -253,8 +253,8 @@ class AlpacaProvider(BaseProvider):
         transactions: List[Transaction] = []
 
         for order in unique_orders:
-            # Skip orders that don't have filled price or quantity
-            if not order.filled_avg_price or not order.filled_qty:
+            # Skip orders that don't have filled price, quantity, or symbol
+            if not order.filled_avg_price or not order.filled_qty or not order.symbol:
                 continue
 
             # Map OrderSide to TransactionType
