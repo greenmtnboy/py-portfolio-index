@@ -193,7 +193,7 @@ class BaseProvider(object):
             if not to_buy_units:
                 Logger.info(f"skipping {key} because no units to buy")
                 continue
-            purchasing = to_buy_units * price
+            purchasing = price * to_buy_units
 
             Logger.info(f"Need to buy {to_buy_units} units of {key}.")
             if (purchasing_power_resolved - purchasing) < Money(value=0):
@@ -233,16 +233,16 @@ class BaseProvider(object):
         to_buy_currency: Money,
         fractional_shares: bool,
         rounding_strategy: RoundingStrategy,
-    ) -> Decimal | Money:
+    ) -> Decimal:
         if fractional_shares:
-            return round(to_buy_currency, 4)
+            return round(to_buy_currency, 4).decimal
         else:
             if rounding_strategy == RoundingStrategy.CLOSEST:
-                return Money(value=int(round(to_buy_currency, 0)))
+                return Decimal(int(round(to_buy_currency, 0)))
             elif rounding_strategy == RoundingStrategy.FLOOR:
-                return Money(value=floor(to_buy_currency))
+                return Decimal(floor(to_buy_currency))
             elif rounding_strategy == RoundingStrategy.CEILING:
-                return Money(value=ceil(to_buy_currency))
+                return Decimal(ceil(to_buy_currency))
             else:
                 raise ValueError(
                     "Invalid rounding strategy provided with non-fractional shares."

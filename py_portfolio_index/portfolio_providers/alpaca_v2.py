@@ -11,7 +11,7 @@ from py_portfolio_index.portfolio_providers.base_portfolio import (
     ObjectKey,
 )
 from decimal import Decimal
-from typing import Optional, Dict, List, Set, DefaultDict
+from typing import Optional, Dict, List, Set, DefaultDict, cast
 from datetime import date, datetime, timezone, timedelta
 from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.enums import Currency, ProviderType, OrderType
@@ -203,8 +203,10 @@ class AlpacaProvider(BaseProvider):
         """
         from alpaca.trading.requests import GetOrdersRequest, QueryOrderStatus
         from alpaca.trading.enums import OrderSide
+        from alpaca.common.enums import Sort
+        from alpaca.trading.models import Order
 
-        all_orders = []
+        all_orders: List[Order] = []
         CHUNK_SIZE = 500  # Maximum allowed per API docs
         until_time = None  # Start from the most recent
 
@@ -215,10 +217,12 @@ class AlpacaProvider(BaseProvider):
                 status=QueryOrderStatus.CLOSED,  # Only get closed orders
                 limit=CHUNK_SIZE,
                 until=until_time,
-                direction="desc",  # Get most recent first
+                direction=Sort.DESC,  # Get most recent first
             )
 
-            response = self.trading_client.get_orders(filter=filter_request)
+            response = cast(
+                List[Order], self.trading_client.get_orders(filter=filter_request)
+            )
 
             if not response:  # No more orders
                 break
