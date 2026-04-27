@@ -545,7 +545,8 @@ class OrderPlan(BaseModel):
                 self.to_sell.append(sx)
         return self
 
-'''date,symbol,quantity,activityType,unitPrice,currency,fee
+
+"""date,symbol,quantity,activityType,unitPrice,currency,fee
 2024-03-01T15:02:36.329Z,MSFT,1,DIVIDEND,57.5,USD,0
 2024-02-15T15:02:36.329Z,MSFT,30,BUY,368.6046511627907,USD,0
 2024-06-05T09:15:22.456Z,$CASH-USD,1,INTEREST,180.5,USD,0
@@ -558,7 +559,7 @@ class OrderPlan(BaseModel):
 2023-02-12T16:25:35.654Z,TSLA,20,BUY,212.50,USD,9.99
 2023-01-15T12:10:20.456Z,SHOP,25,BUY,61.23,USD,9.99
 2023-01-18T15:55:05.654Z,NVDA,12,BUY,52.40,USD,9.99
-2023-03-11T14:55:30.863Z,$CASH-USD,100000,DEPOSIT,1,USD,0'''
+2023-03-11T14:55:30.863Z,$CASH-USD,100000,DEPOSIT,1,USD,0"""
 
 
 class Transaction(BaseModel):

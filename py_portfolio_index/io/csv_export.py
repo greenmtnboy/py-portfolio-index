@@ -1,11 +1,8 @@
 import csv
 from io import StringIO
 from typing import List
-from decimal import Decimal
-from datetime import date
 
 from py_portfolio_index.models import Transaction
-from py_portfolio_index.enums import Currency, OrderType
 
 
 def transactions_to_csv(
@@ -37,7 +34,7 @@ def transactions_to_csv(
         "currency",
         "fee",
     ]
-    writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator='\n')
+    writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
 
     # Write header
     writer.writeheader()

@@ -20,7 +20,7 @@ from py_portfolio_index.models import (
     StockInfo,
     ProfitModel,
     DividendResult,
-    Transaction
+    Transaction,
 )
 from py_portfolio_index.models import RealPortfolio
 from dataclasses import dataclass, field
@@ -110,7 +110,7 @@ class BaseProvider(object):
 
     def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
         raise NotImplementedError
-    
+
     def get_transactions(self) -> List[Transaction]:
         raise NotImplementedError
 
