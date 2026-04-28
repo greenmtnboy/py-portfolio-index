@@ -1,8 +1,10 @@
+from decimal import Decimal
 from py_portfolio_index.datastores.base_datastore import BaseDatastore
 from py_portfolio_index.models import DividendResult, RealPortfolioElement
 from py_portfolio_index.enums import ProviderType
 from py_portfolio_index.constants import UNKNOWN_TICKER
 import hashlib
+from collections import defaultdict
 
 
 def get_integer_id(value):
@@ -181,27 +183,62 @@ class DuckDBDatastore(BaseDatastore):
     ):
         from py_portfolio_index.bin import STOCK_INFO
 
+        mapping = defaultdict(list)
         for x in data:
+            mapping[x.ticker.strip().lower()].append(x)
+        unknown_qty, unknown_value, unknown_basis = (
+            Decimal(0.0),
+            Decimal(0.0),
+            Decimal(0.0),
+        )
+        for x in data:
+            if x.ticker in STOCK_INFO:
+                self.executor.execute_raw_sql(
+                    """INSERT INTO ticker_holdings
+                                            SELECT 
+                                                symbols.id,
+                                                :provider,
+                                                :qty,
+                                                :cost_basis,
+                                                :value
+                                            from symbols
+                                            where symbols.ticker = :ticker
+                ON CONFLICT DO UPDATE SET qty = EXCLUDED.qty, cost_basis = EXCLUDED.cost_basis, value = EXCLUDED.value;
+                                            """,
+                    #
+                    {
+                        "ticker": x.ticker,
+                        "provider": map_provider(provider),
+                        "qty": x.units,
+                        "cost_basis": x.value.decimal - x.appreciation.decimal,
+                        "value": x.value.decimal,
+                    },
+                )
+            else:
+                unknown_qty += x.units
+                unknown_value += x.value.decimal
+                unknown_basis += x.value.decimal - x.appreciation.decimal
+        if unknown_qty > Decimal(0.0):
             self.executor.execute_raw_sql(
                 """INSERT INTO ticker_holdings
-                                          SELECT 
+                                        SELECT 
                                             symbols.id,
                                             :provider,
                                             :qty,
                                             :cost_basis,
                                             :value
-                                          from symbols
-                                          where symbols.ticker = :ticker
-                ON CONFLICT DO UPDATE SET qty = EXCLUDED.qty, cost_basis = EXCLUDED.cost_basis, value = EXCLUDED.value;
-                                          """,
+                                        FROM symbols
+                                        WHERE symbols.ticker = :ticker
+                """,
                 {
-                    "ticker": x.ticker if x.ticker in STOCK_INFO else UNKNOWN_TICKER,
+                    "ticker": UNKNOWN_TICKER,
                     "provider": map_provider(provider),
-                    "qty": x.units,
-                    "cost_basis": x.value.decimal - x.appreciation.decimal,
-                    "value": x.value.value,
+                    "qty": unknown_qty,
+                    "cost_basis": unknown_basis,
+                    "value": unknown_value,
                 },
             )
+
         self.executor.connection.commit()
 
     def close(self):

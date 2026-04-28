@@ -20,6 +20,7 @@ from py_portfolio_index.models import (
     StockInfo,
     ProfitModel,
     DividendResult,
+    Transaction,
 )
 from py_portfolio_index.models import RealPortfolio
 from dataclasses import dataclass, field
@@ -110,6 +111,9 @@ class BaseProvider(object):
     def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
         raise NotImplementedError
 
+    def get_transactions(self) -> List[Transaction]:
+        raise NotImplementedError
+
     def get_profit_or_loss(self) -> ProfitModel:
         raw = self.get_per_ticker_profit_or_loss().values()
         appreciation = sum([x.appreciation for x in raw], Money(value=0.0))
@@ -182,23 +186,14 @@ class BaseProvider(object):
             else:
                 to_buy_currency = value / price
 
-            if fractional_shares:
-                to_buy_units = round(to_buy_currency, 4)
-            else:
-                if rounding_strategy == RoundingStrategy.CLOSEST:
-                    to_buy_units = Money(value=int(round(to_buy_currency, 0)))
-                elif rounding_strategy == RoundingStrategy.FLOOR:
-                    to_buy_units = Money(value=floor(to_buy_currency))
-                elif rounding_strategy == RoundingStrategy.CEILING:
-                    to_buy_units = Money(value=ceil(to_buy_currency))
-                else:
-                    raise ValueError(
-                        "Invalid rounding strategy provided with non-fractional shares."
-                    )
+            to_buy_units = self._calculate_buy_units(
+                to_buy_currency, fractional_shares, rounding_strategy
+            )
+
             if not to_buy_units:
                 Logger.info(f"skipping {key} because no units to buy")
                 continue
-            purchasing = to_buy_units * price
+            purchasing = price * to_buy_units
 
             Logger.info(f"Need to buy {to_buy_units} units of {key}.")
             if (purchasing_power_resolved - purchasing) < Money(value=0):
@@ -232,6 +227,26 @@ class BaseProvider(object):
         Logger.info(
             f"$ diff from ideal for purchased stocks was {print_money(diff)}. {print_per(diff / target_value)} of total purchase goal."
         )
+
+    def _calculate_buy_units(
+        self,
+        to_buy_currency: Money,
+        fractional_shares: bool,
+        rounding_strategy: RoundingStrategy,
+    ) -> Decimal:
+        if fractional_shares:
+            return round(to_buy_currency, 4).decimal
+        else:
+            if rounding_strategy == RoundingStrategy.CLOSEST:
+                return Decimal(int(round(to_buy_currency, 0)))
+            elif rounding_strategy == RoundingStrategy.FLOOR:
+                return Decimal(floor(to_buy_currency))
+            elif rounding_strategy == RoundingStrategy.CEILING:
+                return Decimal(ceil(to_buy_currency))
+            else:
+                raise ValueError(
+                    "Invalid rounding strategy provided with non-fractional shares."
+                )
 
     def handle_order_element(self, element: OrderElement, dry_run: bool = False):
         raw_price = self.get_instrument_price(element.ticker)
