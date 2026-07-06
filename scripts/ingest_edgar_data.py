@@ -74,11 +74,41 @@ if __name__ == "__main__":
         existing = StockInfoList.model_validate_json(contents)
     edgar = EdgarClient(user_agent="ethan.dickinson@gmail.com")
 
-    for chunk in divide_chunks(existing.root, 100):
+    chunk_size = 100
+    total_stocks = len(existing.root)
+    total_chunks = (total_stocks + chunk_size - 1) // chunk_size
+    enriched_count = 0
+    run_started = time.monotonic()
+    print(
+        f"Processing {total_stocks} stocks in {total_chunks} chunks "
+        f"of up to {chunk_size}",
+        flush=True,
+    )
+
+    for chunk_number, chunk in enumerate(
+        divide_chunks(existing.root, chunk_size), start=1
+    ):
+        chunk_started = time.monotonic()
+        chunk_enriched = 0
         for ticker in chunk:
+            had_cik = bool(ticker.cik)
             process_ticker(
                 ticker, provider=provider, sec_api=edgar, cik_mapping=mapping
             )
+            if not had_cik and ticker.cik:
+                chunk_enriched += 1
+
+        enriched_count += chunk_enriched
+        processed = min(chunk_number * chunk_size, total_stocks)
+        print(
+            f"Completed chunk {chunk_number}/{total_chunks}: "
+            f"{processed}/{total_stocks} stocks processed, "
+            f"{chunk_enriched} enriched in this chunk, "
+            f"{enriched_count} enriched total "
+            f"({time.monotonic() - chunk_started:.1f}s chunk, "
+            f"{time.monotonic() - run_started:.1f}s total)",
+            flush=True,
+        )
     target = (
         Path(__file__).parent.parent / "py_portfolio_index" / "bin" / "stock_info.json"
     )

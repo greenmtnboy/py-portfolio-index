@@ -1,6 +1,10 @@
 from datetime import datetime
 
-from scripts.ingest_index_data import fetch_crsp_indexes, fetch_vanguard_index
+from scripts.ingest_index_data import (
+    fetch_crsp_indexes,
+    fetch_vanguard_index,
+    valid_tickers,
+)
 
 
 class FakeResponse:
@@ -75,4 +79,11 @@ def test_fetch_crsp_indexes_normalizes_csv():
     assert [(item.ticker, item.weight) for item in snapshot.components] == [
         ("NVDA", "0.067"),
         ("AAPL", "0.0629"),
+    ]
+
+
+def test_valid_tickers_excludes_failed_validations():
+    assert valid_tickers({"NVDA": True, "INVALID": False, "AAPL": True}) == [
+        "AAPL",
+        "NVDA",
     ]

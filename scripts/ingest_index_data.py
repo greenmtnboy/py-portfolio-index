@@ -235,6 +235,10 @@ def write_snapshot(snapshot: IndexSnapshot) -> None:
         json.dump(output, file, indent=2)
 
 
+def valid_tickers(info_cache: dict[str, bool]) -> list[str]:
+    return sorted(ticker for ticker, is_valid in info_cache.items() if is_valid)
+
+
 def update_init_file():
     init_target = Path(__file__).parent.parent / "py_portfolio_index" / "__init__.py"
     print("Updating init file")
@@ -288,7 +292,7 @@ def main() -> None:
         / "bin"
         / "cached_ticker_list.csv"
     )
-    tickers = sorted(info_cache)
+    tickers = valid_tickers(info_cache)
     with open(target, "w") as file:
         for ticker in tickers:
             file.write(f"{ticker}\n")
