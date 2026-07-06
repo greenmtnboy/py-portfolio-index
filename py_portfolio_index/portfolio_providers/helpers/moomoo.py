@@ -159,12 +159,8 @@ class MooMooProxy:
                     self._raise_mfa_required(last_output)
             time.sleep(POLL_INTERVAL)
 
-        code_request_output = self.send_command("req_phone_verify_code")
-        combined_output = f"{last_output}\n{code_request_output}"
-        if self._is_mfa_required(combined_output):
-            self._raise_mfa_required(combined_output)
         raise ConfigurationError(
-            f"moomoo OpenD API did not start on localhost:{DEFAULT_PORT}. Last telnet response: {combined_output}"
+            f"moomoo OpenD API did not start on localhost:{DEFAULT_PORT}. Last telnet response: {last_output}"
         )
 
     def _wait_for_api_auth_ready(self, timeout: float = API_AUTH_TIMEOUT) -> bool:

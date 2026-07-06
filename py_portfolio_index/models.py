@@ -431,8 +431,17 @@ class CompositePortfolio:
 
     @property
     def cash(self) -> Money:
+        # Floor each provider at 0 so a negative balance in one account
+        # doesn't reduce purchasing capacity sourced from other accounts.
+        zero = Money(value=0)
         return Money(
-            value=sum([item.cash for item in self.portfolios if item.cash is not None])
+            value=sum(
+                [
+                    max(item.cash, zero)
+                    for item in self.portfolios
+                    if item.cash is not None
+                ]
+            )
         )
 
     def rebuild_cache(self):

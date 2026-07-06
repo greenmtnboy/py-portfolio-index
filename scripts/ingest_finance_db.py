@@ -1,21 +1,22 @@
 from sys import path
 from os.path import dirname
+from pathlib import Path
+from typing import List
+
+import financedatabase as fd
+import numpy as np
+from dotenv import load_dotenv
+from pydantic import RootModel
 
 nb_path = __file__
 root_path = dirname(dirname(__file__))
 
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 print(root_path)
 path.insert(0, root_path)
 
-
-from pydantic import RootModel
-from py_portfolio_index.models import StockInfo
-from pathlib import Path
-from typing import List
-import financedatabase as fd
-
-# Initialize the Equities database
-import numpy as np
+from py_portfolio_index.models import StockInfo  # noqa: E402
 
 
 class StockInfoList(RootModel):

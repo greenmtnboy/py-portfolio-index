@@ -1,8 +1,12 @@
+from pathlib import Path
 from py_portfolio_index.bin import INDEXES, STOCK_LISTS, VALID_STOCKS
 from py_portfolio_index import PaperAlpacaProvider
 from alpaca.common.exceptions import APIError
-from pathlib import Path
 import json
+from dotenv import load_dotenv
+
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 
 def remove_ticker_from_index(index, ticker):

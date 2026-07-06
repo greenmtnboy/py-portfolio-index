@@ -1,14 +1,21 @@
-from pydantic import RootModel
-from py_portfolio_index.models import StockInfo
-from pathlib import Path
-from py_portfolio_index import PaperAlpacaProvider
-from typing import List, Generator
-from requests import get
-from alpaca.common.exceptions import APIError
+from __future__ import annotations
 
-DUMB_STOCK_API = (
-    "https://dumbstockapi.com/stock?format=tickers-only&exchange=NYSE,NASDAQ,AMEX"
-)
+from pathlib import Path
+from typing import TYPE_CHECKING, List
+
+from alpaca.trading.enums import AssetClass, AssetStatus
+from alpaca.trading.requests import GetAssetsRequest
+from dotenv import load_dotenv
+from pydantic import RootModel
+
+from py_portfolio_index.models import StockInfo
+
+if TYPE_CHECKING:
+    from py_portfolio_index import PaperAlpacaProvider
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+SUPPORTED_EXCHANGES = {"AMEX", "NASDAQ", "NYSE"}
 
 
 class StockInfoList(RootModel):
@@ -19,18 +26,33 @@ class StockInfoList(RootModel):
         return set([x.ticker for x in self.root])
 
 
-def divide_chunks(lst: list[str], n) -> Generator[List[str], None, None]:
-    # looping till length l
-    for i in range(0, len(lst), n):
-        yield lst[i : i + n]
+def fetch_alpaca_stock_info(provider: PaperAlpacaProvider) -> list[StockInfo]:
+    """Fetch the active US equity universe directly from Alpaca."""
+    request = GetAssetsRequest(
+        status=AssetStatus.ACTIVE,
+        asset_class=AssetClass.US_EQUITY,
+    )
+    assets = provider.trading_client.get_all_assets(request)
+    stock_info = []
+    for asset in assets:
+        exchange = asset.exchange.value
+        if exchange not in SUPPORTED_EXCHANGES:
+            continue
+        stock_info.append(
+            StockInfo(
+                ticker=asset.symbol,
+                name=asset.name,
+                exchange=exchange,
+                tradable=asset.tradable,
+            )
+        )
+    return sorted(stock_info, key=lambda info: info.ticker)
 
 
-if __name__ == "__main__":
+def main() -> None:
+    from py_portfolio_index import PaperAlpacaProvider
+
     provider = PaperAlpacaProvider()
-
-    info_cache: dict[str, StockInfo | bool] = {}
-
-    tickers = get(DUMB_STOCK_API).json()
     target = (
         Path(__file__).parent.parent / "py_portfolio_index" / "bin" / "stock_info.json"
     )
@@ -41,23 +63,18 @@ if __name__ == "__main__":
             contents = f.read()
             if contents:
                 existing = StockInfoList.model_validate_json(contents)
-    with open(target, "w") as f:
-        f.write(existing.model_dump_json())
 
-    for chunk in divide_chunks(tickers, 100):
-        for val in chunk:
-            if val in existing.tickers:
-                continue
-            try:
-                info = provider.get_stock_info(val)
-            except APIError:
-                continue
-            if val not in existing.tickers:
-                print(f"adding {val}")
-                existing.root.append(info)
+    existing_tickers = existing.tickers
+    for info in fetch_alpaca_stock_info(provider):
+        if info.ticker in existing_tickers:
+            continue
+        print(f"adding {info.ticker}")
+        existing.root.append(info)
+        existing_tickers.add(info.ticker)
 
-    target = (
-        Path(__file__).parent.parent / "py_portfolio_index" / "bin" / "stock_info.json"
-    )
     with open(target, "w", encoding="utf-8") as f:
         f.write(existing.model_dump_json(indent=4))
+
+
+if __name__ == "__main__":
+    main()
