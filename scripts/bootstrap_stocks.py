@@ -1,10 +1,14 @@
+from pathlib import Path
 from pydantic import RootModel
 from py_portfolio_index.models import StockInfo
-from pathlib import Path
 from py_portfolio_index import PaperAlpacaProvider
 from typing import List, Generator
 from requests import get
 from alpaca.common.exceptions import APIError
+from dotenv import load_dotenv
+
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 DUMB_STOCK_API = (
     "https://dumbstockapi.com/stock?format=tickers-only&exchange=NYSE,NASDAQ,AMEX"

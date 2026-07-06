@@ -1,11 +1,15 @@
+from pathlib import Path
 from pydantic import RootModel
 from py_portfolio_index.models import StockInfo
-from pathlib import Path
 from py_portfolio_index import PaperAlpacaProvider
 from typing import List
 from alpaca.common.exceptions import APIError
 from sec_edgar_api import EdgarClient
 import time
+from dotenv import load_dotenv
+
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 TICKER_INFO = r"https://www.sec.gov/files/company_tickers_exchange.json"
 
