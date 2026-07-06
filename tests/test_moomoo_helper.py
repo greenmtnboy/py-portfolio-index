@@ -54,6 +54,44 @@ def test_start_proxy_requests_phone_code_and_raises_mfa(monkeypatch):
     assert commands == ["show_sub_info", "req_phone_verify_code"]
 
 
+def test_start_proxy_timeout_without_mfa_raises_configuration_error(monkeypatch):
+    """A normal startup timeout (telnet up, API never comes up, no MFA markers)
+    must raise ConfigurationError — not trigger an MFA flow as a side effect.
+    """
+    commands = []
+
+    class DummyPopen:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    def fake_wait_for_listening(port, address="localhost", timeout=30):
+        return port == DEFAULT_TELNET_PORT
+
+    def fake_check_listening(port, address="localhost", timeout=1):
+        return port == DEFAULT_TELNET_PORT
+
+    def fake_send_command(self, command, timeout=0.5):
+        commands.append(command)
+        if command == "show_sub_info":
+            return "Total used quota:0,The remaining quota:100"
+        return ""
+
+    monkeypatch.setattr(moomoo.subprocess, "Popen", DummyPopen)
+    monkeypatch.setattr(moomoo, "wait_for_listening", fake_wait_for_listening)
+    monkeypatch.setattr(moomoo, "check_listening", fake_check_listening)
+    monkeypatch.setattr(MooMooProxy, "send_command", fake_send_command)
+    monkeypatch.setattr(moomoo, "STARTUP_TIMEOUT", 0.0)
+    monkeypatch.setattr(moomoo, "POLL_INTERVAL", 0.0)
+
+    proxy = MooMooProxy("OpenD.exe")
+
+    with pytest.raises(ConfigurationError):
+        proxy.start_proxy("OpenD.exe", "account", "password")
+
+    assert proxy.mfa_in_progress is False
+    assert "req_phone_verify_code" not in commands
+
+
 def test_submit_mfa_waits_for_api_before_clearing_mfa(monkeypatch):
     commands = []
 

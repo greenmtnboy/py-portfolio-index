@@ -134,9 +134,12 @@ def generate_auto_target_size(
     real: CompositePortfolio,
     ideal: IdealPortfolio,
 ) -> Money:
+    zero = Money(value=0)
     cash = Money(value=0)
     for input in real.portfolios:
-        cash += input.cash
+        if input.cash is None:
+            continue
+        cash += max(input.cash, zero)
     in_portfolio_value = Money(value=0)
     for value in ideal.holdings:
         comparison = real.get_holding(value.ticker)
@@ -419,16 +422,20 @@ def generate_composite_order_plan(
     provider_to_portfolio_map = {
         x.provider: x for x in composite.portfolios if x.provider
     }
+    zero = Money(value=0)
     if target_order_size:
         purchase_power_money = {}
         for portfolio in composite.portfolios:
             if portfolio.provider:
-                local_power = min(portfolio.cash, target_order_size)
+                available = max(portfolio.cash or zero, zero)
+                local_power = min(available, target_order_size)
                 purchase_power_money[portfolio.provider.PROVIDER] = local_power
                 target_order_size -= local_power
     else:
         purchase_power_money = {
-            x.provider.PROVIDER: x.cash for x in composite.portfolios if x.provider
+            x.provider.PROVIDER: max(x.cash or zero, zero)
+            for x in composite.portfolios
+            if x.provider
         }
     Logger.debug(f"Purchase power money is {purchase_power_money}")
     providers: List[BaseProvider] = list(provider_to_portfolio_map.keys())  # type: ignore

@@ -78,14 +78,43 @@ def date_to_datetimes(at_day: date) -> tuple[datetime, datetime]:
     return start_datetime, end_datetime
 
 
-def api_helper(response):
+# Substrings that indicate the Schwab/OAuth session is no longer valid and the
+# user must re-authenticate. These can surface either from raise_for_status() on
+# a bad response or, more commonly, from authlib raising an OAuthError while it
+# tries to refresh an expired/revoked token *before* the request is even sent
+# (e.g. "unsupported_token_type: 400 Bad Request: ...invalid_grant...").
+AUTH_ERROR_SIGNATURES = (
+    "exception while authenticating refresh token",
+    "refresh token is invalid",
+    "invalid_grant",
+    "unsupported_token_type",
+    "refresh_token",
+)
+
+
+def is_auth_error(e: Exception) -> bool:
+    message = str(e).lower()
+    return any(signature in message for signature in AUTH_ERROR_SIGNATURES)
+
+
+def api_helper(request):
+    """Execute a Schwab API call and return its JSON body.
+
+    ``request`` must be a callable (thunk) so that the request -- including the
+    implicit token refresh authlib performs before sending -- runs *inside* this
+    try block. A failed refresh on an expired/revoked token is converted into a
+    ConfigurationError so callers force a re-sign in rather than leaking a raw
+    OAuthError.
+    """
     from httpx import Response
 
-    raw: Response = response
     try:
+        raw: Response = request()
         raw.raise_for_status()
+    except ConfigurationError:
+        raise
     except Exception as e:
-        if "Exception while authenticating refresh token" in str(e):
+        if is_auth_error(e):
             raise ConfigurationError(str(e))
         raise e
     return raw.json()
@@ -153,7 +182,7 @@ class SchwabProvider(BaseProvider):
         BaseProvider.__init__(self)
         self._provider = c
         try:
-            self._account_hash = api_helper(self._provider.get_account_numbers())[0][
+            self._account_hash = api_helper(self._provider.get_account_numbers)[0][
                 "hashValue"
             ]
         except Exception as e:
@@ -199,7 +228,7 @@ class SchwabProvider(BaseProvider):
         if at_day:
             start_datetime, end_datetime = date_to_datetimes(at_day)
             historicals = api_helper(
-                self._provider.get_price_history_every_day(
+                lambda: self._provider.get_price_history_every_day(
                     symbol=ticker,
                     start_datetime=start_datetime,
                     end_datetime=end_datetime,
@@ -208,7 +237,7 @@ class SchwabProvider(BaseProvider):
             rval = Decimal(value=historicals[0].vwap)
 
         else:
-            quotes = api_helper(self._provider.get_quote(symbol=ticker))
+            quotes = api_helper(lambda: self._provider.get_quote(symbol=ticker))
             rval = Decimal(value=quotes["quotes"])
         return rval
 
@@ -255,6 +284,10 @@ class SchwabProvider(BaseProvider):
         try:
             self._buy_instrument(ticker, **orders_kwargs)  # type: ignore
         except Exception as e:
+            if is_auth_error(e):
+                raise ConfigurationError(
+                    f"Could not buy {ticker}: {str(e)}; assuming session expired"
+                )
             raise OrderError(f"Could not buy {ticker}: {str(e)}")
         return True
 
@@ -266,7 +299,7 @@ class SchwabProvider(BaseProvider):
             self._provider.Order.Status.WORKING,
         ):
             orders = api_helper(
-                self._provider.get_orders_for_account(
+                lambda: self._provider.get_orders_for_account(
                     account_hash=self._account_hash, status=status
                 )
             )
@@ -274,7 +307,7 @@ class SchwabProvider(BaseProvider):
 
     def _get_stock_info(self, ticker: str) -> dict:
         return api_helper(
-            self._provider.get_instruments(
+            lambda: self._provider.get_instruments(
                 symbols=[ticker],
                 project=self._provider.Instrument.Projection.FUNDAMENTAL,
             )
@@ -290,7 +323,7 @@ class SchwabProvider(BaseProvider):
         search = f"(?i){search[:20]}.*"
         search = search.replace("&", ".")
         return api_helper(
-            self._provider.get_instruments(
+            lambda: self._provider.get_instruments(
                 symbols=[search],
                 projection=self._provider.Instrument.Projection.DESCRIPTION_REGEX,
             )
@@ -301,17 +334,19 @@ class SchwabProvider(BaseProvider):
 
         try:
             return api_helper(
-                self._provider.get_account(
+                lambda: self._provider.get_account(
                     account_hash=self._account_hash,
                     fields=Client.Account.Fields.POSITIONS,
                 )
             )["securitiesAccount"]
+        except ConfigurationError:
+            raise
         except KeyError as e:
             raise ConfigurationError(
                 f"Could not fetch portfolio on {str(e)}; assuming session expired"
             )
         except Exception as e:
-            if "refresh_token" in str(e):
+            if is_auth_error(e):
                 raise ConfigurationError(
                     f"Could not fetch portfolio: {str(e)}; assuming session expired"
                 )
@@ -373,7 +408,7 @@ class SchwabProvider(BaseProvider):
                 start_datetime, end_datetime = date_to_datetimes(at_day)
                 for ticker in list_batch:
                     historicals = api_helper(
-                        self._provider.get_price_history_every_day(
+                        lambda ticker=ticker: self._provider.get_price_history_every_day(
                             symbol=ticker,
                             start_datetime=start_datetime,
                             end_datetime=end_datetime,
@@ -383,7 +418,9 @@ class SchwabProvider(BaseProvider):
                         {ticker: Decimal(value=historicals["candles"][0]["close"])}
                     )
             else:
-                quotes = api_helper(self._provider.get_quotes(symbols=list_batch))
+                quotes = api_helper(
+                    lambda: self._provider.get_quotes(symbols=list_batch)
+                )
                 for ticker in list_batch:
                     if ticker in quotes:
                         prices[ticker] = Decimal(
@@ -399,7 +436,7 @@ class SchwabProvider(BaseProvider):
         from schwab.client.base import BaseClient
 
         return api_helper(
-            self._provider.get_transactions(
+            lambda: self._provider.get_transactions(
                 account_hash=self._account_hash,
                 transaction_types=BaseClient.Transactions.TransactionType.DIVIDEND_OR_INTEREST,
             )
