@@ -25,9 +25,7 @@ import json
 MAX_OPEN_ORDER_SIZE = 500
 
 
-def filter_prices_response(
-    ticker: str, response, earliest: bool = True
-) -> Decimal | None:
+def filter_prices_response(ticker: str, response, earliest: bool = True) -> Decimal | None:
     try:
         ticker_vals = response[ticker]
     except KeyError:
@@ -65,12 +63,8 @@ class AlpacaProvider(BaseProvider):
         if not secret_key:
             secret_key = environ.get(self.API_SECRET_VARIABLE, None)
         if not (key_id and secret_key):
-            raise ConfigurationError(
-                f"Must provide key_id and secret_key or set environment variables {self.API_KEY_VARIABLE} and {self.API_SECRET_VARIABLE}"
-            )
-        self.trading_client: TradingClient = TradingClient(
-            api_key=key_id, secret_key=secret_key, paper=paper
-        )
+            raise ConfigurationError(f"Must provide key_id and secret_key or set environment variables {self.API_KEY_VARIABLE} and {self.API_SECRET_VARIABLE}")
+        self.trading_client: TradingClient = TradingClient(api_key=key_id, secret_key=secret_key, paper=paper)
         self.historical_client = StockHistoricalDataClient(
             api_key=key_id,
             secret_key=secret_key,
@@ -97,14 +91,7 @@ class AlpacaProvider(BaseProvider):
         from alpaca.trading.requests import AssetClass
 
         if not self._valid_assets:
-            self._valid_assets = {
-                (x.symbol if isinstance(x, Asset) else x)
-                for x in self.trading_client.get_all_assets(
-                    GetAssetsRequest(
-                        status=None, exchange=None, asset_class=AssetClass.US_EQUITY
-                    )
-                )
-            }
+            self._valid_assets = {(x.symbol if isinstance(x, Asset) else x) for x in self.trading_client.get_all_assets(GetAssetsRequest(status=None, exchange=None, asset_class=AssetClass.US_EQUITY))}
         return self._valid_assets
 
     def _get_instrument_prices(
@@ -156,10 +143,7 @@ class AlpacaProvider(BaseProvider):
                 )
             )
             # take the first day after target day
-            return {
-                ticker: filter_prices_response(ticker, raw, earliest=False)
-                for ticker in tickers
-            }
+            return {ticker: filter_prices_response(ticker, raw, earliest=False) for ticker in tickers}
 
     def _get_stock_info(self, ticker: str) -> dict:
         from alpaca.trading.client import Asset
@@ -184,15 +168,11 @@ class AlpacaProvider(BaseProvider):
         for batch in batches:
             final = {
                 **final,
-                **self._get_instrument_prices(
-                    batch, at_day=at_day, fail_on_missing=fail_on_missing
-                ),
+                **self._get_instrument_prices(batch, at_day=at_day, fail_on_missing=fail_on_missing),
             }
         return final
 
-    def _get_instrument_price(
-        self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True
-    ) -> Optional[Decimal]:
+    def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True) -> Optional[Decimal]:
         return self._price_cache.get_prices(tickers=[ticker], date=at_day)[ticker]
 
     def get_transactions(self) -> List[Transaction]:
@@ -220,9 +200,7 @@ class AlpacaProvider(BaseProvider):
                 direction=Sort.DESC,  # Get most recent first
             )
 
-            response = cast(
-                List[Order], self.trading_client.get_orders(filter=filter_request)
-            )
+            response = cast(List[Order], self.trading_client.get_orders(filter=filter_request))
 
             if not response:  # No more orders
                 break
@@ -235,11 +213,7 @@ class AlpacaProvider(BaseProvider):
 
             # Set the until timestamp for the next batch to the oldest order in this batch
             # Use a small offset hack to avoid missing orders with identical timestamps
-            until_time = (
-                response[-3].submitted_at
-                if len(response) >= 3
-                else response[-1].submitted_at
-            )
+            until_time = response[-3].submitted_at if len(response) >= 3 else response[-1].submitted_at
             print("Fetched", len(all_orders), "orders so far...")
 
         # Remove any duplicate orders by ID (in case of timestamp overlap)
@@ -269,15 +243,9 @@ class AlpacaProvider(BaseProvider):
             try:
                 transactions.append(
                     Transaction(
-                        date=(
-                            order.filled_at.date()
-                            if order.filled_at
-                            else order.submitted_at.date()
-                        ),
+                        date=(order.filled_at.date() if order.filled_at else order.submitted_at.date()),
                         ticker=order.symbol,
-                        qty=Decimal(
-                            str(order.filled_qty)
-                        ),  # Use filled_qty instead of qty
+                        qty=Decimal(str(order.filled_qty)),  # Use filled_qty instead of qty
                         type=transaction_type,
                         unitPrice=Money(value=Decimal(str(order.filled_avg_price))),
                         currency=Currency.USD,
@@ -347,16 +315,10 @@ class AlpacaProvider(BaseProvider):
 
         open_orders = self._get_cached_value(
             ObjectKey.OPEN_ORDERS,
-            callable=lambda: self.trading_client.get_orders(
-                filter=GetOrdersRequest(
-                    status=QueryOrderStatus.OPEN, limit=MAX_OPEN_ORDER_SIZE
-                )
-            ),
+            callable=lambda: self.trading_client.get_orders(filter=GetOrdersRequest(status=QueryOrderStatus.OPEN, limit=MAX_OPEN_ORDER_SIZE)),
         )
         if len(open_orders) == MAX_OPEN_ORDER_SIZE:
-            raise ValueError(
-                "Returned max number of open orders - cannot continue safely"
-            )
+            raise ValueError("Returned max number of open orders - cannot continue safely")
         return sum([Decimal(o.notional) for o in open_orders])
 
     def get_unsettled_instruments(self):
@@ -364,16 +326,10 @@ class AlpacaProvider(BaseProvider):
 
         open_orders = self._get_cached_value(
             ObjectKey.OPEN_ORDERS,
-            callable=lambda: self.trading_client.get_orders(
-                filter=GetOrdersRequest(
-                    status=QueryOrderStatus.OPEN, limit=MAX_OPEN_ORDER_SIZE
-                )
-            ),
+            callable=lambda: self.trading_client.get_orders(filter=GetOrdersRequest(status=QueryOrderStatus.OPEN, limit=MAX_OPEN_ORDER_SIZE)),
         )
         if len(open_orders) == MAX_OPEN_ORDER_SIZE:
-            raise ValueError(
-                "Returned max number of open orders - cannot continue safely"
-            )
+            raise ValueError("Returned max number of open orders - cannot continue safely")
         return set([o.symbol for o in open_orders])
 
     def get_holdings(self):
@@ -381,15 +337,9 @@ class AlpacaProvider(BaseProvider):
         from alpaca.common.exceptions import APIError
 
         try:
-            my_stocks = self._get_cached_value(
-                ObjectKey.POSITIONS, callable=self.trading_client.get_all_positions
-            )
-            account = self._get_cached_value(
-                ObjectKey.ACCOUNT, callable=self.trading_client.get_account
-            )
-            unsettled = self._get_cached_value(
-                ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments
-            )
+            my_stocks = self._get_cached_value(ObjectKey.POSITIONS, callable=self.trading_client.get_all_positions)
+            account = self._get_cached_value(ObjectKey.ACCOUNT, callable=self.trading_client.get_account)
+            unsettled = self._get_cached_value(ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments)
             unsettled_cash = self._get_unsettled_cash()
         except APIError as e:
             import json
@@ -418,9 +368,7 @@ class AlpacaProvider(BaseProvider):
                 cash=cash,
                 provider=self,
             )
-        total_value = sum(
-            [Decimal(item.market_value) for item in my_stocks if item.market_value]
-        )
+        total_value = sum([Decimal(item.market_value) for item in my_stocks if item.market_value])
 
         profit = self.get_per_ticker_profit_or_loss()
         out = [
@@ -428,8 +376,7 @@ class AlpacaProvider(BaseProvider):
                 ticker=row.symbol,
                 units=row.qty,
                 value=Money(value=Decimal(row.market_value if row.market_value else 0)),
-                weight=Decimal(row.market_value if row.market_value else 0)
-                / total_value,
+                weight=Decimal(row.market_value if row.market_value else 0) / total_value,
                 unsettled=row.symbol in unsettled,
                 appreciation=profit[row.symbol].appreciation,
                 dividends=profit[row.symbol].dividends,
@@ -437,18 +384,12 @@ class AlpacaProvider(BaseProvider):
             for row in my_stocks
         ]
 
-        extra_unsettled = [
-            item
-            for item in unsettled_elements
-            if item.ticker not in [x.ticker for x in out]
-        ]
+        extra_unsettled = [item for item in unsettled_elements if item.ticker not in [x.ticker for x in out]]
         out.extend(extra_unsettled)
         return RealPortfolio(holdings=out, cash=cash, provider=self)
 
     def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
-        my_stocks = self._get_cached_value(
-            ObjectKey.POSITIONS, callable=self.trading_client.get_all_positions
-        )
+        my_stocks = self._get_cached_value(ObjectKey.POSITIONS, callable=self.trading_client.get_all_positions)
         raw_divs = [x for x in self._get_dividends() if x["status"] == "executed"]
 
         divs: DefaultDict[str, Money] = defaultdict(lambda: Money(value=Decimal(0)))
@@ -478,9 +419,7 @@ class AlpacaProvider(BaseProvider):
         all_data = []
         has_data = True
         while has_data:
-            raw_response = requests.get(
-                self.LEGACY_BASE + api_call, params=params, headers=headers
-            )
+            raw_response = requests.get(self.LEGACY_BASE + api_call, params=params, headers=headers)
             response = json.loads(raw_response.text)
             all_data += response
 
@@ -490,14 +429,10 @@ class AlpacaProvider(BaseProvider):
                 try:
                     params["page_token"] = response[-1]["id"]
                 except (KeyError, IndexError) as e:
-                    raise ValueError(
-                        f"Could not find page token in response {str(response)}"
-                    ) from e
+                    raise ValueError(f"Could not find page token in response {str(response)}") from e
         return all_data
 
-    def get_dividend_details(
-        self, start: datetime | None = None
-    ) -> list[DividendResult]:
+    def get_dividend_details(self, start: datetime | None = None) -> list[DividendResult]:
         value = self._get_dividends()
         final = []
         for x in value:

@@ -3,7 +3,10 @@ ruff
 requests
 types-requests
 alpaca-py
-webull
+webull-python-sdk-core
+# webull-python-sdk-mdata and webull-python-sdk-trade must be installed with
+# --no-deps; see the install step in .github/workflows/pythonpackage.yml
 types-pytz
 schwab-py
+requests-oauthlib
 python-dotenv

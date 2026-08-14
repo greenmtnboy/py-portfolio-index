@@ -89,9 +89,7 @@ def login(
     if not password:
         password = os.environ.get(ROBINHOOD_PASSWORD_ENV, None)
     device_token = generate_device_token()
-    data_dir = Path(
-        platformdirs.user_data_dir("py_portfolio_index", ensure_exists=True)
-    )
+    data_dir = Path(platformdirs.user_data_dir("py_portfolio_index", ensure_exists=True))
     data_dir = data_dir / ".tokens"
     creds_file = "vanguard" + pickle_name + ".pickle"
     pickle_path = data_dir / creds_file
@@ -130,9 +128,7 @@ def login(
                     payload["device_token"] = pickle_device_token
                     # Set login status to True in order to try and get account info.
                     set_login_state(True)
-                    update_session(
-                        "Authorization", "{0} {1}".format(token_type, access_token)
-                    )
+                    update_session("Authorization", "{0} {1}".format(token_type, access_token))
                     # Try to load account profile to check that authorization token is still valid.
                     res = request_get(
                         positions_url(),
@@ -147,16 +143,12 @@ def login(
                         "token_type": token_type,
                         "expires_in": expiresIn,
                         "scope": scope,
-                        "detail": "logged in using authentication in {0}".format(
-                            creds_file
-                        ),
+                        "detail": "logged in using authentication in {0}".format(creds_file),
                         "backup_code": None,
                         "refresh_token": refresh_token,
                     }
             except Exception as e:
-                print(
-                    f"ERROR: There was an issue loading pickle file {str(e)}. Authentication may be expired - logging in normally."
-                )
+                print(f"ERROR: There was an issue loading pickle file {str(e)}. Authentication may be expired - logging in normally.")
                 set_login_state(False)
                 update_session("Authorization", None)
                 # raise ConfigurationError()
@@ -169,19 +161,13 @@ def login(
             assert challenge_response is not None
             payload["mfa_code"] = challenge_response
         if prior_response.status == LoginResponseStatus.CHALLENGE_REQUIRED:
-            res = respond_to_challenge(
-                prior_response.data["challenge_id"], challenge_response
-            )
-            update_session(
-                "X-ROBINHOOD-CHALLENGE-RESPONSE-ID", prior_response.data["challenge_id"]
-            )
+            res = respond_to_challenge(prior_response.data["challenge_id"], challenge_response)
+            update_session("X-ROBINHOOD-CHALLENGE-RESPONSE-ID", prior_response.data["challenge_id"])
     data = request_post(url, payload)
 
     if data:
         if "mfa_required" in data:
-            raise ExtraAuthenticationStepException(
-                response=LoginResponse(status=LoginResponseStatus.MFA_REQUIRED)
-            )
+            raise ExtraAuthenticationStepException(response=LoginResponse(status=LoginResponseStatus.MFA_REQUIRED))
         elif "challenge" in data:
             challenge_id = data["challenge"]["id"]
             raise ExtraAuthenticationStepException(
@@ -210,7 +196,5 @@ def login(
         else:
             raise Exception(data["detail"])
     else:
-        raise Exception(
-            "Error: Trouble connecting to vanguard API. Check internet connection."
-        )
+        raise Exception("Error: Trouble connecting to vanguard API. Check internet connection.")
     return data

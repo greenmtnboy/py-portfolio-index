@@ -23,23 +23,13 @@ class AlpacaProviderLegacy(BaseProvider):
         if not secret_key:
             secret_key = environ.get("ALPACA_API_SECRET", None)
         if not (key_id and secret_key):
-            raise ValueError(
-                "Must provide key_id and secret_key or set environment variables ALPACA_API_KEY and ALPACA_API_SECRET "
-            )
-        TARGET_URL = (
-            "https://paper-api.alpaca.markets"
-            if paper
-            else "https://api.alpaca.markets"
-        )
-        self.api = tradeapi.REST(
-            key_id=key_id, secret_key=secret_key, base_url=URL(TARGET_URL)
-        )
+            raise ValueError("Must provide key_id and secret_key or set environment variables ALPACA_API_KEY and ALPACA_API_SECRET ")
+        TARGET_URL = "https://paper-api.alpaca.markets" if paper else "https://api.alpaca.markets"
+        self.api = tradeapi.REST(key_id=key_id, secret_key=secret_key, base_url=URL(TARGET_URL))
         BaseProvider.__init__(self)
 
     @lru_cache(maxsize=None)
-    def _get_instrument_price(
-        self, ticker: str, at_day: Optional[date] = None
-    ) -> Optional[Decimal]:
+    def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None) -> Optional[Decimal]:
         from alpaca_trade_api.rest import TimeFrame, TimeFrameUnit
 
         if at_day:
@@ -86,7 +76,9 @@ class AlpacaProviderLegacy(BaseProvider):
 
     def get_unsettled_instruments(self):
         open_orders = self.api.list_orders(
-            status="open", limit=100, nested=True  # show nested multi-leg orders
+            status="open",
+            limit=100,
+            nested=True,  # show nested multi-leg orders
         )
         return set([o.symbol for o in open_orders])
 

@@ -36,15 +36,11 @@ def nearest_value(all_historicals, pivot) -> Optional[dict]:
         return None
     return min(
         filtered,
-        key=lambda x: abs(
-            datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - pivot
-        ),
+        key=lambda x: abs(datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - pivot),
     )
 
 
-def nearest_multi_value(
-    symbol: str, all_historicals, pivot: Optional[date] = None
-) -> Optional[Decimal]:
+def nearest_multi_value(symbol: str, all_historicals, pivot: Optional[date] = None) -> Optional[Decimal]:
     filtered = [z for z in all_historicals if z and z["symbol"] == symbol]
     if not filtered:
         return None
@@ -52,9 +48,7 @@ def nearest_multi_value(
         lpivot = pivot or date.today()
         closest = min(
             filtered,
-            key=lambda x: abs(
-                datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - lpivot
-            ),
+            key=lambda x: abs(datetime.strptime(x["begins_at"], "%Y-%m-%dT%H:%M:%SZ").date() - lpivot),
         )
     else:
         closest = filtered[0]
@@ -99,9 +93,7 @@ class RobinhoodProvider(BaseProvider):
         if not password:
             password = environ.get(ROBINHOOD_PASSWORD_ENV, None)
         if not (username and password) and not external_auth:
-            raise ConfigurationError(
-                "Must provide username and password arguments or set environment variables ROBINHOOD_USERNAME and ROBINHOOD_PASSWORD "
-            )
+            raise ConfigurationError("Must provide username and password arguments or set environment variables ROBINHOOD_USERNAME and ROBINHOOD_PASSWORD ")
         self._provider = r
         BaseProvider.__init__(self)
         if not external_auth:
@@ -146,13 +138,9 @@ class RobinhoodProvider(BaseProvider):
         with open(file, "w") as f:
             json.dump(self._local_instrument_cache, f)
 
-    def _get_instrument_price(
-        self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True
-    ) -> Optional[Decimal]:
+    def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True) -> Optional[Decimal]:
         if at_day:
-            historicals = self._provider.get_stock_historicals(
-                [ticker], interval="day", span="year", bounds="regular"
-            )
+            historicals = self._provider.get_stock_historicals([ticker], interval="day", span="year", bounds="regular")
             closest = nearest_value(historicals, at_day)
             if closest:
                 return Decimal(closest["high_price"])
@@ -167,9 +155,7 @@ class RobinhoodProvider(BaseProvider):
             rval = Decimal(quotes[0]["ask_price"])
             return rval
 
-    def _buy_instrument(
-        self, symbol: str, qty: float, value: Optional[Money] = None
-    ) -> dict:
+    def _buy_instrument(self, symbol: str, qty: float, value: Optional[Money] = None) -> dict:
         """Custom function to enable evolution with the robinhood API"""
         from robin_stocks.robinhood.stocks import (
             orders_url,
@@ -184,9 +170,7 @@ class RobinhoodProvider(BaseProvider):
         )
         from uuid import uuid4
 
-        def request_post(
-            url, payload=None, timeout=16, json=False, jsonify_data=True, retry: int = 1
-        ):
+        def request_post(url, payload=None, timeout=16, json=False, jsonify_data=True, retry: int = 1):
             """For a given url and payload, makes a post request and returns the response. Allows for responses other than 200.
 
             :param url: The url to send a post request to.
@@ -207,17 +191,13 @@ class RobinhoodProvider(BaseProvider):
             if json:
                 update_session("Content-Type", "application/json")
                 res = SESSION.post(url, json=payload, timeout=timeout)
-                update_session(
-                    "Content-Type", "application/x-www-form-urlencoded; charset=utf-8"
-                )
+                update_session("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
             else:
                 res = SESSION.post(url, data=payload, timeout=timeout)
 
             if res.status_code == 429:
                 sleep(5 * retry)
-                return request_post(
-                    url, payload, timeout, json, jsonify_data, retry + 1
-                )
+                return request_post(url, payload, timeout, json, jsonify_data, retry + 1)
             if res.status_code not in [
                 200,
                 201,
@@ -241,9 +221,7 @@ class RobinhoodProvider(BaseProvider):
             else:
                 return res
 
-        price = round_price(
-            next(iter(get_latest_price(symbol, "ask_price", False)), 0.00)
-        )
+        price = round_price(next(iter(get_latest_price(symbol, "ask_price", False)), 0.00))
         if value:
             qty = round(float(value.decimal) / price, 2)
 
@@ -255,9 +233,7 @@ class RobinhoodProvider(BaseProvider):
         sym_to_i = self._get_cached_value(
             ObjectKey.MISC,
             value="symbol_to_instrument",
-            callable=lambda: {
-                row["symbol"]: row["url"] for row in self._local_instrument_cache
-            },
+            callable=lambda: {row["symbol"]: row["url"] for row in self._local_instrument_cache},
         )
         payload = {
             "account": account,
@@ -296,9 +272,7 @@ class RobinhoodProvider(BaseProvider):
             sleep(t)
             return self.buy_instrument(ticker=ticker, qty=qty)
         elif msg and "Too many requests for fractional orders" in msg:
-            Logger.info(
-                f"RH error: was throttled on fractional orders! Sleeping {FRACTIONAL_SLEEP}"
-            )
+            Logger.info(f"RH error: was throttled on fractional orders! Sleeping {FRACTIONAL_SLEEP}")
             sleep(FRACTIONAL_SLEEP)
             return self.buy_instrument(ticker=ticker, qty=qty)
         if not output.get("id"):
@@ -316,9 +290,7 @@ class RobinhoodProvider(BaseProvider):
         paginating all orders if possible
         so just check the account info for if there
         is any cash held for orders first"""
-        accounts_data = self._get_cached_value(
-            ObjectKey.ACCOUNT, callable=self._provider.load_account_profile
-        )
+        accounts_data = self._get_cached_value(ObjectKey.ACCOUNT, callable=self._provider.load_account_profile)
         if not accounts_data:
             raise ConfigurationError("Could not load account profile, check login")
         if float(accounts_data.get("cash_held_for_orders", 0)) == 0:
@@ -332,12 +304,8 @@ class RobinhoodProvider(BaseProvider):
         orders = [item for item in data if item["cancel"] is not None]
         if len(orders) == len(data):
             # bit the bullet
-            data = request_get(
-                url, "paginate", payload={"updated_at": window.isoformat()}
-            )
-        instrument_to_symbol_map = {
-            row["url"]: row["symbol"] for row in self._local_instrument_cache
-        }
+            data = request_get(url, "paginate", payload={"updated_at": window.isoformat()})
+        instrument_to_symbol_map = {row["url"]: row["symbol"] for row in self._local_instrument_cache}
         for item in orders:
             item["symbol"] = instrument_to_symbol_map[item["instrument"]]
         return set(item["symbol"] for item in orders)
@@ -353,15 +321,11 @@ class RobinhoodProvider(BaseProvider):
 
     def _process_cache_to_dict(self):
         return InstrumentDict(
-            lambda: {
-                row["url"]: row["symbol"] for row in self._refresh_local_instruments()
-            },
+            lambda: {row["url"]: row["symbol"] for row in self._refresh_local_instruments()},
             {row["url"]: row["symbol"] for row in self._local_instrument_cache},
         )
 
-    def _get_local_instrument_symbol(
-        self, instrument: str, refreshed: bool = False
-    ) -> str:
+    def _get_local_instrument_symbol(self, instrument: str, refreshed: bool = False) -> str:
         instrument_to_symbol_map = self._get_cached_value(
             ObjectKey.MISC,
             value="instrument_to_symbol_map",
@@ -396,15 +360,9 @@ class RobinhoodProvider(BaseProvider):
         return {}
 
     def get_holdings(self) -> RealPortfolio:
-        accounts_data = self._get_cached_value(
-            ObjectKey.ACCOUNT, callable=self._provider.load_account_profile
-        )
-        my_stocks = self._get_cached_value(
-            ObjectKey.POSITIONS, callable=self._provider.get_open_stock_positions
-        )
-        unsettled = self._get_cached_value(
-            ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments
-        )
+        accounts_data = self._get_cached_value(ObjectKey.ACCOUNT, callable=self._provider.load_account_profile)
+        my_stocks = self._get_cached_value(ObjectKey.POSITIONS, callable=self._provider.get_open_stock_positions)
+        unsettled = self._get_cached_value(ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments)
 
         pre = {}
         symbols = []
@@ -424,11 +382,7 @@ class RobinhoodProvider(BaseProvider):
             local["weight"] = 0
             pre[ticker] = local
         # grab this _after_, in case we had to refresh instruments
-        inactive_stocks = {
-            row["symbol"]
-            for row in self._local_instrument_cache
-            if row["state"] == "inactive"
-        }
+        inactive_stocks = {row["symbol"] for row in self._local_instrument_cache if row["state"] == "inactive"}
         symbols = [s for s in symbols if s not in inactive_stocks]
         prices = self.get_instrument_prices(symbols)
         total_value = Decimal(0.0)
@@ -451,9 +405,7 @@ class RobinhoodProvider(BaseProvider):
             final.append(local)
         out = [RealPortfolioElement(**row) for row in final]
 
-        cash = Decimal(accounts_data["portfolio_cash"]) - Decimal(
-            accounts_data["cash_held_for_orders"]
-        )
+        cash = Decimal(accounts_data["portfolio_cash"]) - Decimal(accounts_data["cash_held_for_orders"])
         return RealPortfolio(holdings=out, cash=Money(value=cash), provider=self)
 
     def _get_instrument_prices(
@@ -466,12 +418,8 @@ class RobinhoodProvider(BaseProvider):
         batches = []
         for batch in divide_into_batches(ticker_list, BATCH_SIZE):
             if at_day:
-                historicals = self._provider.get_stock_historicals(
-                    batch, interval="day", span="year", bounds="regular"
-                )
-                batches.append(
-                    {s: nearest_multi_value(s, historicals, at_day) for s in batch}
-                )
+                historicals = self._provider.get_stock_historicals(batch, interval="day", span="year", bounds="regular")
+                batches.append({s: nearest_multi_value(s, historicals, at_day) for s in batch})
             else:
                 results = self._provider.get_quotes(batch)
                 batches.append({s: nearest_multi_value(s, results) for s in batch})
@@ -481,16 +429,12 @@ class RobinhoodProvider(BaseProvider):
         return prices
 
     def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
-        my_stocks = self._get_cached_value(
-            ObjectKey.POSITIONS, callable=self._provider.get_open_stock_positions
-        )
+        my_stocks = self._get_cached_value(ObjectKey.POSITIONS, callable=self._provider.get_open_stock_positions)
         instrument_to_symbol_map = self._get_cached_value(
             ObjectKey.MISC,
             callable=self._process_cache_to_dict,
         )
-        divs: dict[str, Money] = self._get_cached_value(
-            ObjectKey.DIVIDENDS, callable=self._get_dividends
-        )
+        divs: dict[str, Money] = self._get_cached_value(ObjectKey.DIVIDENDS, callable=self._get_dividends)
         output = {}
         prices = self.get_instrument_prices([x["symbol"] for x in my_stocks])
         for x in my_stocks:
@@ -499,14 +443,10 @@ class RobinhoodProvider(BaseProvider):
             current_price = prices.get(ticker) or Decimal(0.0)
             current_value = current_price * Decimal(x["quantity"])
             pl = Money(value=current_value - historical_value)
-            output[ticker] = ProfitModel(
-                appreciation=pl, dividends=divs.get(ticker, Money(value=Decimal(0)))
-            )
+            output[ticker] = ProfitModel(appreciation=pl, dividends=divs.get(ticker, Money(value=Decimal(0))))
         for k, v in divs.items():
             if k not in output:
-                output[k] = ProfitModel(
-                    appreciation=Money(value=Decimal(0)), dividends=v
-                )
+                output[k] = ProfitModel(appreciation=Money(value=Decimal(0)), dividends=v)
         return output
 
     def _get_dividends(self) -> DefaultDict[str, Money]:
@@ -516,27 +456,19 @@ class RobinhoodProvider(BaseProvider):
             ObjectKey.MISC,
             callable=self._process_cache_to_dict,
         )
-        [
-            item.update({"symbol": instrument_to_symbol_map[item["instrument"]]})
-            for item in value
-        ]
+        [item.update({"symbol": instrument_to_symbol_map[item["instrument"]]}) for item in value]
         for item in value:
             if item["state"] == "paid":
                 output[item["symbol"]] += Money(value=float(item["amount"]))
         return output
 
-    def get_dividend_details(
-        self, start: datetime | None = None
-    ) -> list[DividendResult]:
+    def get_dividend_details(self, start: datetime | None = None) -> list[DividendResult]:
         value = self._provider.get_dividends()
         instrument_to_symbol_map = self._get_cached_value(
             ObjectKey.MISC,
             callable=self._process_cache_to_dict,
         )
-        [
-            item.update({"symbol": instrument_to_symbol_map[item["instrument"]]})
-            for item in value
-        ]
+        [item.update({"symbol": instrument_to_symbol_map[item["instrument"]]}) for item in value]
         final = []
         for x in value:
             if x["state"] == "paid":

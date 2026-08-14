@@ -28,6 +28,10 @@ jobs:
           pip install wheel
           pip install -r requirements.txt
           pip install -r requirements-test.txt
+          # webull-python-sdk-{mdata,trade} pull in grpcio==1.51.1, which has no
+          # wheel for 3.12+ and fails to build. Only the gRPC/MQTT streaming
+          # modules need it and we use neither, so skip their dependencies.
+          pip install --no-deps webull-python-sdk-mdata webull-python-sdk-trade
       - name: Lint with mypy
         run: |
           # stop the build if there are Python syntax errors or undefined names

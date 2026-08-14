@@ -104,9 +104,7 @@ def test_submit_mfa_waits_for_api_before_clearing_mfa(monkeypatch):
         "check_listening",
         lambda port, address="localhost", timeout=1: port == DEFAULT_TELNET_PORT,
     )
-    monkeypatch.setattr(
-        MooMooProxy, "_wait_for_api_auth_ready", lambda self, timeout=30: True
-    )
+    monkeypatch.setattr(MooMooProxy, "_wait_for_api_auth_ready", lambda self, timeout=30: True)
     monkeypatch.setattr(MooMooProxy, "send_command", fake_send_command)
 
     proxy = MooMooProxy("OpenD.exe")
@@ -130,9 +128,7 @@ def test_submit_mfa_can_use_existing_telnet_connection(monkeypatch):
         return "Total used quota:0,The remaining quota:100"
 
     monkeypatch.setattr(moomoo, "check_listening", fake_check_listening)
-    monkeypatch.setattr(
-        MooMooProxy, "_wait_for_api_auth_ready", lambda self, timeout=30: True
-    )
+    monkeypatch.setattr(MooMooProxy, "_wait_for_api_auth_ready", lambda self, timeout=30: True)
     monkeypatch.setattr(MooMooProxy, "send_command", fake_send_command)
 
     proxy = MooMooProxy("OpenD.exe")
@@ -150,9 +146,7 @@ def test_submit_mfa_keeps_mfa_state_when_api_does_not_start(monkeypatch):
         "check_listening",
         lambda port, address="localhost", timeout=1: port == DEFAULT_TELNET_PORT,
     )
-    monkeypatch.setattr(
-        MooMooProxy, "_wait_for_api_auth_ready", lambda self, timeout=30: False
-    )
+    monkeypatch.setattr(MooMooProxy, "_wait_for_api_auth_ready", lambda self, timeout=30: False)
     monkeypatch.setattr(
         MooMooProxy,
         "send_command",
@@ -187,9 +181,7 @@ def test_interactive_login_checks_existing_opend_auth_state(monkeypatch):
 
     monkeypatch.setattr(moomoo, "check_listening", fake_check_listening)
     monkeypatch.setattr(moomoo, "wait_for_listening", lambda *args, **kwargs: True)
-    monkeypatch.setattr(
-        MooMooProxy, "_wait_for_api_auth_ready", lambda self, timeout=30: True
-    )
+    monkeypatch.setattr(MooMooProxy, "_wait_for_api_auth_ready", lambda self, timeout=30: True)
     monkeypatch.setattr(MooMooProxy, "send_command", fake_send_command)
     monkeypatch.setattr("builtins.input", lambda prompt: "654321")
 
@@ -220,12 +212,8 @@ def test_interactive_login_uses_sdk_probe_when_telnet_has_no_mfa_marker(monkeypa
     auth_ready_results = iter([False, True])
 
     monkeypatch.setattr(moomoo, "check_listening", fake_check_listening)
-    monkeypatch.setattr(
-        MooMooProxy, "_is_api_auth_ready", lambda self: next(auth_ready_results)
-    )
-    monkeypatch.setattr(
-        MooMooProxy, "_wait_for_api_auth_ready", lambda self, timeout=30: True
-    )
+    monkeypatch.setattr(MooMooProxy, "_is_api_auth_ready", lambda self: next(auth_ready_results))
+    monkeypatch.setattr(MooMooProxy, "_wait_for_api_auth_ready", lambda self, timeout=30: True)
     monkeypatch.setattr(MooMooProxy, "send_command", fake_send_command)
     monkeypatch.setattr("builtins.input", lambda prompt: "654321")
 

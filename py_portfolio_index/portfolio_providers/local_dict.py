@@ -46,9 +46,7 @@ class LocalDictProvider(BaseProvider):
     def cash(self) -> Money:
         return self._portfolio.cash or Money(value=0)
 
-    def _get_instrument_price(
-        self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True
-    ) -> Decimal:
+    def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True) -> Decimal:
         value = self._price_dict.get(ticker)
         if not value:
             nvalue = self.default_price_gen.get()
@@ -78,9 +76,7 @@ class LocalDictProvider(BaseProvider):
             value_delta = value
         else:
             value_delta = Money(value=qty * price)
-        self._portfolio += RealPortfolioElement(
-            ticker=ticker, units=qty, value=value_delta
-        )
+        self._portfolio += RealPortfolioElement(ticker=ticker, units=qty, value=value_delta)
 
     def get_unsettled_instruments(self) -> Set[str]:
         # we settle right away

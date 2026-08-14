@@ -220,13 +220,9 @@ class IdealPortfolio(BaseModel):
                     excluded += item.weight
                     item.weight = Decimal(0.0)
 
-        self.holdings = [
-            item for item in self.holdings if item.ticker not in exclusion_list
-        ]
+        self.holdings = [item for item in self.holdings if item.ticker not in exclusion_list]
         self._reweight_portfolio()
-        Logger.info(
-            f"Set the following stocks to weight 0 {reweighted}. Total value excluded {excluded}."
-        )
+        Logger.info(f"Set the following stocks to weight 0 {reweighted}. Total value excluded {excluded}.")
         return self
 
     def reweight(
@@ -250,28 +246,20 @@ class IdealPortfolio(BaseModel):
             if not found:
                 reweighted.append(ticker)
                 total_value += cmin_weight
-                self.holdings.append(
-                    IdealPortfolioElement(ticker=ticker, weight=cmin_weight)
-                )
+                self.holdings.append(IdealPortfolioElement(ticker=ticker, weight=cmin_weight))
 
         self._reweight_portfolio()
-        Logger.info(
-            f"modified the following by weight {cweight} {reweighted}. Total value modified {total_value}."
-        )
+        Logger.info(f"modified the following by weight {cweight} {reweighted}. Total value modified {total_value}.")
         return self
 
-    def reweight_to_present(
-        self, provider: "BaseProvider"
-    ) -> dict[str, ReweightResponse]:
+    def reweight_to_present(self, provider: "BaseProvider") -> dict[str, ReweightResponse]:
         if self.source_date == date.today():
             Logger.info("Already reweighted to present")
             return {}
         output = {}
         imaginary_base = Decimal(1_000_000)
         values = {}
-        valid_assets = [
-            item for item in self.holdings if item.ticker in provider.valid_assets
-        ]
+        valid_assets = [item for item in self.holdings if item.ticker in provider.valid_assets]
         if provider.SUPPORTS_BATCH_HISTORY:
             tickers = [item.ticker for item in valid_assets]
             historic_prices = provider.get_instrument_prices(tickers, self.source_date)
@@ -281,12 +269,8 @@ class IdealPortfolio(BaseModel):
             today_prices = {}
             for item in valid_assets:
                 try:
-                    historic_prices[item.ticker] = provider.get_instrument_price(
-                        item.ticker, self.source_date
-                    )
-                    today_prices[item.ticker] = provider.get_instrument_price(
-                        item.ticker
-                    )
+                    historic_prices[item.ticker] = provider.get_instrument_price(item.ticker, self.source_date)
+                    today_prices[item.ticker] = provider.get_instrument_price(item.ticker)
                 except PriceFetchError:
                     historic_prices[item.ticker] = None
                     today_prices[item.ticker] = None
@@ -434,15 +418,7 @@ class CompositePortfolio:
         # Floor each provider at 0 so a negative balance in one account
         # doesn't reduce purchasing capacity sourced from other accounts.
         zero = Money(value=0)
-        return Money(
-            value=sum(
-                [
-                    max(item.cash, zero)
-                    for item in self.portfolios
-                    if item.cash is not None
-                ]
-            )
-        )
+        return Money(value=sum([max(item.cash, zero) for item in self.portfolios if item.cash is not None]))
 
     def rebuild_cache(self):
         new = RealPortfolio(holdings=[])

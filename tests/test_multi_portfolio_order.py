@@ -49,9 +49,7 @@ def test_composite():
         ]
     )
 
-    composite = CompositePortfolio(
-        portfolios=[provider1.get_holdings(), provider2.get_holdings()]
-    )
+    composite = CompositePortfolio(portfolios=[provider1.get_holdings(), provider2.get_holdings()])
 
     expected_size = 2000
 
@@ -103,9 +101,7 @@ def _build_composite_with_negative_cash():
     )
     provider1._price_dict = {"AAPL": 100, "MSFT": 50}
     provider2._price_dict = provider1._price_dict
-    return provider1, provider2, CompositePortfolio(
-        portfolios=[provider1.get_holdings(), provider2.get_holdings()]
-    )
+    return provider1, provider2, CompositePortfolio(portfolios=[provider1.get_holdings(), provider2.get_holdings()])
 
 
 def test_composite_cash_floors_negative_provider_at_zero():
@@ -147,16 +143,12 @@ def test_composite_order_plan_skips_negative_cash_provider():
     )
     # The negative-cash provider must not produce buys and must not have
     # consumed any of the target_order_size budget.
-    assert LocalDictNoPartialProvider.PROVIDER not in plan or not plan[
-        LocalDictNoPartialProvider.PROVIDER
-    ].to_buy
+    assert LocalDictNoPartialProvider.PROVIDER not in plan or not plan[LocalDictNoPartialProvider.PROVIDER].to_buy
     # The positive-cash provider should still receive its full available budget
     # (capped by the safety threshold of 0.95 applied in the planner).
     partial = plan[LocalDictProvider.PROVIDER]
     assert partial.to_buy, "expected the positive-cash provider to place orders"
-    spent = sum(
-        (o.value or Money(value=0)) for o in partial.to_buy
-    )
+    spent = sum((o.value or Money(value=0)) for o in partial.to_buy)
     # Positive-cash provider has $500; min(500, 1000) capped by 0.95 safety = 475.
     assert spent <= Money(value=475)
     assert spent > Money(value=0)

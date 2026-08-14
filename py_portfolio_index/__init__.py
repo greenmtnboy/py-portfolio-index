@@ -18,6 +18,7 @@ from py_portfolio_index.portfolio_providers.webull import (
 )
 from py_portfolio_index.portfolio_providers.moomoo import MooMooProvider
 from py_portfolio_index.portfolio_providers.schwab import SchwabProvider
+from py_portfolio_index.portfolio_providers.etrade import ETradeProvider
 from py_portfolio_index.config import get_providers
 from py_portfolio_index.models import IdealPortfolio, CompositePortfolio
 from py_portfolio_index.enums import ProviderType
@@ -25,7 +26,7 @@ from py_portfolio_index.models import OrderElement, OrderType, Money
 
 AVAILABLE_PROVIDERS = get_providers()
 
-__version__ = "0.1.56"
+__version__ = "0.1.58"
 
 __all__ = [
     "INDEXES",
@@ -40,6 +41,7 @@ __all__ = [
     "WebullProvider",
     "WebullPaperProvider",
     "SchwabProvider",
+    "ETradeProvider",
     "MooMooProvider",
     "RobinhoodProvider",
     "PurchaseStrategy",

@@ -92,9 +92,7 @@ class BaseProvider(object):
     def cash(self) -> Money:
         return self.get_holdings().cash or Money(value=0)
 
-    def _get_instrument_price(
-        self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True
-    ):
+    def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True):
         raise NotImplementedError
 
     def _get_instrument_prices(
@@ -120,28 +118,20 @@ class BaseProvider(object):
         dividends = sum([x.dividends for x in raw], Money(value=0.0))
         return ProfitModel(appreciation=appreciation, dividends=dividends)
 
-    def get_instrument_prices(
-        self, tickers: List[str], at_day: Optional[date] = None
-    ) -> Dict[str, Optional[Decimal]]:
+    def get_instrument_prices(self, tickers: List[str], at_day: Optional[date] = None) -> Dict[str, Optional[Decimal]]:
         if self._quote_provider:
             return self._quote_provider.get_instrument_prices(tickers, at_day)
         return self._price_cache.get_prices(tickers=tickers, date=at_day)
 
-    def get_instrument_price(
-        self, ticker: str, at_day: Optional[date] = None
-    ) -> Optional[Decimal]:
+    def get_instrument_price(self, ticker: str, at_day: Optional[date] = None) -> Optional[Decimal]:
         if self._quote_provider:
             return self._quote_provider.get_instrument_price(ticker, at_day)
         return self._price_cache.get_price(ticker=ticker, date=at_day)
 
-    def buy_instrument(
-        self, ticker: str, qty: Decimal, value: Optional[Money] = None
-    ) -> bool:
+    def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None) -> bool:
         raise NotImplementedError
 
-    def sell_instrument(
-        self, ticker: str, qty: Decimal, value: Optional[Money] = None
-    ) -> bool:
+    def sell_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None) -> bool:
         raise NotImplementedError
 
     def get_unsettled_instruments(self) -> Set[str]:
@@ -186,9 +176,7 @@ class BaseProvider(object):
             else:
                 to_buy_currency = value / price
 
-            to_buy_units = self._calculate_buy_units(
-                to_buy_currency, fractional_shares, rounding_strategy
-            )
+            to_buy_units = self._calculate_buy_units(to_buy_currency, fractional_shares, rounding_strategy)
 
             if not to_buy_units:
                 Logger.info(f"skipping {key} because no units to buy")
@@ -207,26 +195,18 @@ class BaseProvider(object):
                     if not plan_only:
                         successfully_purchased = self.buy_instrument(key, to_buy_units)
                     if successfully_purchased:
-                        purchasing_power_resolved = (
-                            purchasing_power_resolved - purchasing
-                        )
+                        purchasing_power_resolved = purchasing_power_resolved - purchasing
                         purchased += purchasing
                         diff += abs(value - purchasing)
-                        Logger.info(
-                            f"bought {to_buy_units} of {key}, {purchasing_power_resolved} left"
-                        )
+                        Logger.info(f"bought {to_buy_units} of {key}, {purchasing_power_resolved} left")
                 except Exception as e:
                     print(e)
                     if not skip_errored_stocks:
                         raise e
             if break_flag:
-                Logger.info(
-                    f"No purchasing power left, purchased {print_money(purchased)} of {print_money(target_value)}."
-                )
+                Logger.info(f"No purchasing power left, purchased {print_money(purchased)} of {print_money(target_value)}.")
                 break
-        Logger.info(
-            f"$ diff from ideal for purchased stocks was {print_money(diff)}. {print_per(diff / target_value)} of total purchase goal."
-        )
+        Logger.info(f"$ diff from ideal for purchased stocks was {print_money(diff)}. {print_per(diff / target_value)} of total purchase goal.")
 
     def _calculate_buy_units(
         self,
@@ -244,9 +224,7 @@ class BaseProvider(object):
             elif rounding_strategy == RoundingStrategy.CEILING:
                 return Decimal(ceil(to_buy_currency))
             else:
-                raise ValueError(
-                    "Invalid rounding strategy provided with non-fractional shares."
-                )
+                raise ValueError("Invalid rounding strategy provided with non-fractional shares.")
 
     def handle_order_element(self, element: OrderElement, dry_run: bool = False):
         raw_price = self.get_instrument_price(element.ticker)
@@ -261,9 +239,7 @@ class BaseProvider(object):
         elif element.value:
             raw_price = self.get_instrument_price(element.ticker)
             Logger.info(f"got price of {price} for {element.ticker}")
-            units = round_up_to_place(
-                (element.value / price).decimal, self.MAX_ORDER_DECIMALS
-            )
+            units = round_up_to_place((element.value / price).decimal, self.MAX_ORDER_DECIMALS)
             value = element.value
         else:
             raise OrderError("Order element must have qty or value")
@@ -328,9 +304,7 @@ class BaseProvider(object):
     def _get_dividends(self):
         raise NotImplementedError
 
-    def get_dividend_details(
-        self, start: datetime | None = None
-    ) -> list[DividendResult]:
+    def get_dividend_details(self, start: datetime | None = None) -> list[DividendResult]:
         raise NotImplementedError
 
     def get_dividend_history(self) -> Dict[str, Money]:

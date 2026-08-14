@@ -106,7 +106,6 @@ class DuckDBDatastore(BaseDatastore):
             self.executor.connection.commit()
 
     def initialize(self):
-
         self.executor.execute_raw_sql(
             """
         CREATE OR REPLACE TABLE providers (
@@ -178,9 +177,7 @@ class DuckDBDatastore(BaseDatastore):
             )
         self.executor.connection.commit()
 
-    def persist_holding_data(
-        self, data: list[RealPortfolioElement], provider: ProviderType
-    ):
+    def persist_holding_data(self, data: list[RealPortfolioElement], provider: ProviderType):
         from py_portfolio_index.bin import STOCK_INFO
 
         mapping = defaultdict(list)

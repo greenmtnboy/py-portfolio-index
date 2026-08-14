@@ -45,9 +45,7 @@ def compare_portfolios(
     diff = Decimal(0.0)
     selling = Decimal(0.0)
     buying = Decimal(0.0)
-    target_value: Money = (
-        Money(value=Decimal(target_size)) if target_size else real.value
-    )
+    target_value: Money = Money(value=Decimal(target_size)) if target_size else real.value
     for value in ideal.holdings:
         comparison = real.get_holding(value.ticker)
         if not comparison:
@@ -69,17 +67,11 @@ def compare_portfolios(
         else:
             buying += abs(_diff)
 
-    Logger.info(
-        f"Total portfolio % delta {print_per(diff)}. Overweight {print_per(selling)}, underweight {print_per(buying)}"
-    )
+    Logger.info(f"Total portfolio % delta {print_per(diff)}. Overweight {print_per(selling)}, underweight {print_per(buying)}")
     if buy_order == PurchaseStrategy.LARGEST_DIFF_FIRST:
-        diff_output: Dict[str, ComparisonResult] = {
-            k: v for k, v in sorted(output.items(), key=lambda item: -abs(item[1].diff))
-        }
+        diff_output: Dict[str, ComparisonResult] = {k: v for k, v in sorted(output.items(), key=lambda item: -abs(item[1].diff))}
     elif buy_order == PurchaseStrategy.CHEAPEST_FIRST:
-        diff_output = {
-            k: v for k, v in sorted(output.items(), key=lambda item: abs(item[1].diff))
-        }
+        diff_output = {k: v for k, v in sorted(output.items(), key=lambda item: abs(item[1].diff))}
     else:
         raise ValueError("Invalid purchase strategy")
     to_purchase = {}
@@ -89,18 +81,12 @@ def compare_portfolios(
             continue
         elif diffvalue.diff < 0:
             diff_text = "Overweight"
-            to_sell[key] = (
-                target_value * diffvalue.comparison - target_value * diffvalue.model
-            )
+            to_sell[key] = target_value * diffvalue.comparison - target_value * diffvalue.model
         else:
             diff_text = "Underweight"
-            to_purchase[key] = (
-                target_value * diffvalue.model - target_value * diffvalue.comparison
-            )
+            to_purchase[key] = target_value * diffvalue.model - target_value * diffvalue.comparison
             # to_purchase.append(key)
-        Logger.info(
-            f"{diff_text} {key}, {print_per(diffvalue.model)} target vs {print_per(diffvalue.comparison)} actual. Should be {target_value * diffvalue.model}, is {diffvalue.actual}"
-        )
+        Logger.info(f"{diff_text} {key}, {print_per(diffvalue.model)} target vs {print_per(diffvalue.comparison)} actual. Should be {target_value * diffvalue.model}, is {diffvalue.actual}")
     return to_purchase, to_sell
 
 
@@ -116,9 +102,7 @@ def round_with_strategy(to_buy_currency, rounding_strategy: RoundingStrategy) ->
     return to_buy_units
 
 
-def round_int_with_strategy(
-    to_buy_currency, rounding_strategy: RoundingStrategy
-) -> int:
+def round_int_with_strategy(to_buy_currency, rounding_strategy: RoundingStrategy) -> int:
     if rounding_strategy == RoundingStrategy.CLOSEST:
         to_buy_units = int(round(to_buy_currency, 0))
     elif rounding_strategy == RoundingStrategy.FLOOR:
@@ -160,9 +144,7 @@ def generate_sell_order(
     if round(diffvalue.diff, 4) == 0.0000:
         return None
     elif diffvalue.diff < 0:
-        sell_target: Money = (
-            target_value * diffvalue.comparison - target_value * diffvalue.model
-        )
+        sell_target: Money = target_value * diffvalue.comparison - target_value * diffvalue.model
         price = prices.get(key)
         if not price:
             return None
@@ -218,9 +200,7 @@ def generate_buy_order(
     price = Money(value=_price)
 
     if not fractional_shares:
-        qty = round_int_with_strategy(
-            initial_buy_target / price, RoundingStrategy.FLOOR
-        )
+        qty = round_int_with_strategy(initial_buy_target / price, RoundingStrategy.FLOOR)
         if qty == 0:
             return None
         buy_target = None
@@ -229,9 +209,7 @@ def generate_buy_order(
         qty = None
         buy_target = initial_buy_target
 
-    Logger.debug(
-        f"{diff_text} {key}, {print_per(diffvalue.model)} target vs {print_per(diffvalue.comparison)} actual. Should be {target_value * diffvalue.model}, is {diffvalue.actual}"
-    )
+    Logger.debug(f"{diff_text} {key}, {print_per(diffvalue.model)} target vs {print_per(diffvalue.comparison)} actual. Should be {target_value * diffvalue.model}, is {diffvalue.actual}")
     return OrderElement(
         ticker=key,
         value=buy_target,
@@ -252,22 +230,16 @@ def gen_diff_and_scaling(
     scaling_factor = Money(value=1.0)
 
     if buy_order == PurchaseStrategy.LARGEST_DIFF_FIRST:
-        diff_output: Dict[str, ComparisonResult] = {
-            k: v for k, v in sorted(output.items(), key=lambda item: -abs(item[1].diff))
-        }
+        diff_output: Dict[str, ComparisonResult] = {k: v for k, v in sorted(output.items(), key=lambda item: -abs(item[1].diff))}
     elif buy_order == PurchaseStrategy.CHEAPEST_FIRST:
-        diff_output = {
-            k: v for k, v in sorted(output.items(), key=lambda item: abs(item[1].diff))
-        }
+        diff_output = {k: v for k, v in sorted(output.items(), key=lambda item: abs(item[1].diff))}
     elif buy_order == PurchaseStrategy.PEANUT_BUTTER:
         # divide the difference between where we want to be
         # and where we are
         # across all stocks
         scaling_factor = purchase_power / (target_value - currently_held)
 
-        diff_output = {
-            k: v for k, v in sorted(output.items(), key=lambda item: abs(item[1].diff))
-        }
+        diff_output = {k: v for k, v in sorted(output.items(), key=lambda item: abs(item[1].diff))}
     else:
         raise ValueError("Invalid purchase strategy")
     return scaling_factor, diff_output
@@ -334,13 +306,9 @@ def generate_order_plan(
         else:
             buying += abs(_diff)
 
-    Logger.info(
-        f"Total portfolio % delta {print_per(diff)}. Overweight {print_per(selling)}, underweight {print_per(buying)}, have {purchase_power}"
-    )
+    Logger.info(f"Total portfolio % delta {print_per(diff)}. Overweight {print_per(selling)}, underweight {print_per(buying)}, have {purchase_power}")
 
-    scaling_factor, diff_output = gen_diff_and_scaling(
-        buy_order, output, safe_purchase_power, target_value, currently_held
-    )
+    scaling_factor, diff_output = gen_diff_and_scaling(buy_order, output, safe_purchase_power, target_value, currently_held)
     to_purchase: list[OrderElement] = []
     to_sell: list[OrderElement] = []
     price_missing: set[str] = set()
@@ -349,9 +317,7 @@ def generate_order_plan(
     except PriceFetchError as e:
         for x in e.tickers:
             price_missing.add(x)
-        Logger.info(
-            f"Was unable to fetch prices for {price_missing} tickers, adding to skipped."
-        )
+        Logger.info(f"Was unable to fetch prices for {price_missing} tickers, adding to skipped.")
         if not skip_invalid:
             raise e
         return generate_order_plan(
@@ -362,9 +328,7 @@ def generate_order_plan(
             target_size=target_size,
             purchase_power=purchase_power,
             min_order_value=min_order_value,
-            skip_tickers=(
-                skip_tickers.union(price_missing) if skip_tickers else price_missing
-            ),
+            skip_tickers=(skip_tickers.union(price_missing) if skip_tickers else price_missing),
             fractional_shares=fractional_shares,
             provider=provider,
             existing_orders=current_orders,
@@ -398,9 +362,7 @@ def generate_order_plan(
             if buy_order.value:
                 safe_purchase_power = safe_purchase_power - buy_order.value
             elif buy_order.qty:
-                safe_purchase_power = safe_purchase_power - (
-                    prices[key] * buy_order.qty
-                )
+                safe_purchase_power = safe_purchase_power - (prices[key] * buy_order.qty)
             Logger.debug(f"{safe_purchase_power} left - order is {buy_order}")
             to_purchase.append(buy_order)
         if safe_purchase_power <= 0:
@@ -419,9 +381,7 @@ def generate_composite_order_plan(
     target_order_size: Optional[Money] = None,
     include_sell_orders: bool = False,
 ) -> Mapping[ProviderType, OrderPlan]:
-    provider_to_portfolio_map = {
-        x.provider: x for x in composite.portfolios if x.provider
-    }
+    provider_to_portfolio_map = {x.provider: x for x in composite.portfolios if x.provider}
     zero = Money(value=0)
     if target_order_size:
         purchase_power_money = {}
@@ -432,11 +392,7 @@ def generate_composite_order_plan(
                 purchase_power_money[portfolio.provider.PROVIDER] = local_power
                 target_order_size -= local_power
     else:
-        purchase_power_money = {
-            x.provider.PROVIDER: max(x.cash or zero, zero)
-            for x in composite.portfolios
-            if x.provider
-        }
+        purchase_power_money = {x.provider.PROVIDER: max(x.cash or zero, zero) for x in composite.portfolios if x.provider}
     Logger.debug(f"Purchase power money is {purchase_power_money}")
     providers: List[BaseProvider] = list(provider_to_portfolio_map.keys())  # type: ignore
 
@@ -444,29 +400,21 @@ def generate_composite_order_plan(
         purchase_order_maps = {x.PROVIDER: purchase_order_maps for x in providers}
     processed = set()
     # check each of our p
-    output: defaultdict[ProviderType, OrderPlan] = defaultdict(
-        lambda: OrderPlan(to_buy=[], to_sell=[])
-    )
+    output: defaultdict[ProviderType, OrderPlan] = defaultdict(lambda: OrderPlan(to_buy=[], to_sell=[]))
     skip_tickers: set[str] = set()
     for provider in providers:
         skip_tickers = skip_tickers.union(provider.get_unsettled_instruments())
 
-    purchase_order = sorted(
-        providers, key=lambda x: (x.SUPPORTS_FRACTIONAL_SHARES, x.cash)
-    )
+    purchase_order = sorted(providers, key=lambda x: (x.SUPPORTS_FRACTIONAL_SHARES, x.cash))
     orders: list[OrderElement] = []
     for provider in purchase_order:
-        provider_purchase_power: Money = purchase_power_money.get(
-            provider.PROVIDER
-        ) or Money(value=0)
+        provider_purchase_power: Money = purchase_power_money.get(provider.PROVIDER) or Money(value=0)
         processed.add(provider.PROVIDER)
         port = provider_to_portfolio_map[provider]
         # build the plan across the _entire_ composite portfolio
 
         # if we don't know how much cash we have, skip
-        Logger.info(
-            f"Doing provider {provider.PROVIDER} with {provider_purchase_power}"
-        )
+        Logger.info(f"Doing provider {provider.PROVIDER} with {provider_purchase_power}")
         if not port.cash or port.cash <= Money(value=0):
             Logger.info("No cash left to purchase")
             continue
@@ -501,9 +449,7 @@ def purchase_composite_order_plan(
 ):
     for provider in providers:
         if provider.PROVIDER in orders:
-            provider.purchase_order_plan(
-                orders[provider.PROVIDER], include_sell_orders=include_sell_orders
-            )
+            provider.purchase_order_plan(orders[provider.PROVIDER], include_sell_orders=include_sell_orders)
         else:
             Logger.info(f"Provider {provider.PROVIDER} has no orders to execute")
     return True

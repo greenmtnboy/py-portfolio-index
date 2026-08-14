@@ -24,10 +24,21 @@ def get_providers() -> List[ProviderType]:
     except ImportError:
         pass
     try:
-        from webull import webull  # noqa: F401
+        from py_portfolio_index.portfolio_providers.helpers.webull import (
+            webull_sdk_available,
+        )
 
-        providers.append(ProviderType.WEBULL)
-        providers.append(ProviderType.WEBULL_PAPER)
+        if webull_sdk_available():
+            providers.append(ProviderType.WEBULL)
+    except ImportError:
+        pass
+    try:
+        from py_portfolio_index.portfolio_providers.helpers.etrade import (
+            etrade_auth_available,
+        )
+
+        if etrade_auth_available():
+            providers.append(ProviderType.ETRADE)
     except ImportError:
         pass
     try:

@@ -12,6 +12,7 @@ class ProviderType(str, Enum):
     WEBULL_PAPER = "webull_paper"
     MOOMOO = "moomoo"
     SCHWAB = "schwab"
+    ETRADE = "etrade"
 
 
 class OrderType(Enum):
@@ -40,6 +41,7 @@ class ProviderClass(Enum):
         ProviderType.WEBULL,
         ProviderType.ROBINHOOD,
         ProviderType.SCHWAB,
+        ProviderType.ETRADE,
     ]
 
 

@@ -69,24 +69,16 @@ class IndexInventory(BaseModel):
         if item in self.json_keys:
             with open(self.base / f"{item}.json") as f:
                 parsed = json.loads(f.read())
-                start_date = date.fromisoformat(
-                    parsed.get("as_of", date.today().isoformat())
-                )
+                start_date = date.fromisoformat(parsed.get("as_of", date.today().isoformat()))
                 for row in parsed.get("components", []):
-                    out.append(
-                        IdealPortfolioElement(
-                            ticker=row["ticker"], weight=Decimal(row["weight"])
-                        )
-                    )
+                    out.append(IdealPortfolioElement(ticker=row["ticker"], weight=Decimal(row["weight"])))
         elif item in self.csv_keys:
             with open(self.base / f"{item}.csv") as f:
                 contents = f.read()
                 for row in contents.split("\n"):
                     ticker, weight = row.split(",", 1)
                     start_date = parse_date_from_name(item)
-                    out.append(
-                        IdealPortfolioElement(ticker=ticker, weight=Decimal(weight))
-                    )
+                    out.append(IdealPortfolioElement(ticker=ticker, weight=Decimal(weight)))
         else:
             raise ValueError("No matching file {}".format(item))
 

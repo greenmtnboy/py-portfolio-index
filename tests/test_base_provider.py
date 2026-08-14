@@ -27,9 +27,7 @@ def local_provider():
             "GOOG": Decimal("200.0"),
             "MSFT": Decimal("300.0"),
         }
-        return LocalDictProvider(
-            holdings=holdings, price_dict=price_dict, cash=Money(value=10000)
-        )
+        return LocalDictProvider(holdings=holdings, price_dict=price_dict, cash=Money(value=10000))
     except Exception as e:
         print(f"Fixture setup failed: {e}")
         raise e
@@ -89,9 +87,7 @@ def test_calculate_buy_units_ceiling(local_provider):
 
 def test_purchase_ticker_value_dict_sufficient_funds(local_provider):
     to_buy = {"MSFT": Money(value=3000)}
-    local_provider.purchase_ticker_value_dict(
-        to_buy, purchasing_power=Money(value=5000)
-    )
+    local_provider.purchase_ticker_value_dict(to_buy, purchasing_power=Money(value=5000))
 
     # Check if MSFT was bought
     holdings = local_provider.get_holdings()
@@ -105,9 +101,7 @@ def test_purchase_ticker_value_dict_insufficient_funds(local_provider):
     # We want to buy 3000 worth (10 units)
     # But we only have 1500 purchasing power
     to_buy = {"MSFT": Money(value=3000)}
-    local_provider.purchase_ticker_value_dict(
-        to_buy, purchasing_power=Money(value=1500)
-    )
+    local_provider.purchase_ticker_value_dict(to_buy, purchasing_power=Money(value=1500))
 
     holdings = local_provider.get_holdings()
     msft_holding = holdings.get_holding("MSFT")
@@ -121,9 +115,7 @@ def test_purchase_ticker_value_dict_skip_unsettled(local_provider):
     local_provider.get_unsettled_instruments = lambda: {"MSFT"}
 
     to_buy = {"MSFT": Money(value=3000)}
-    local_provider.purchase_ticker_value_dict(
-        to_buy, purchasing_power=Money(value=5000), ignore_unsettled=True
-    )
+    local_provider.purchase_ticker_value_dict(to_buy, purchasing_power=Money(value=5000), ignore_unsettled=True)
 
     holdings = local_provider.get_holdings()
     msft_holding = holdings.get_holding("MSFT")

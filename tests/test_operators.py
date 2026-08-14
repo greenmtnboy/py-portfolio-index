@@ -17,11 +17,7 @@ from py_portfolio_index.portfolio_providers.common import PriceCache
 
 
 def test_generate_order_plan():
-    real_port = RealPortfolio(
-        holdings=[
-            RealPortfolioElement(ticker="AAPL", units=1.0, value=Money(value=100))
-        ]
-    )
+    real_port = RealPortfolio(holdings=[RealPortfolioElement(ticker="AAPL", units=1.0, value=Money(value=100))])
 
     ideal_port = IdealPortfolio(
         holdings=[

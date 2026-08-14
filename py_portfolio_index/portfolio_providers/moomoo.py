@@ -78,9 +78,7 @@ class MooMooProvider(BaseProvider):
         # if not device_id:
         #     device_id = environ.get(self.DEVICE_ID_ENV, None)
         if not (account and password and trade_token) and not _external_auth:
-            raise ConfigurationError(
-                "Must provide ALL OF account, password, trade_token, and arguments or set environment variables MOOMOO_ACCOUNT, MOOMOO_PASSWORD, MOOMOO_TRADE_TOKEN"
-            )
+            raise ConfigurationError("Must provide ALL OF account, password, trade_token, and arguments or set environment variables MOOMOO_ACCOUNT, MOOMOO_PASSWORD, MOOMOO_TRADE_TOKEN")
         self.proxy = proxy
         self.proxy.validate(account=account, pwd=password)
         self._trade_provider = OpenSecTradeContext(
@@ -91,9 +89,7 @@ class MooMooProvider(BaseProvider):
         )
         self._quote_context = OpenQuoteContext(host="localhost", port=DEFAULT_PORT)
         BaseProvider.__init__(self, quote_provider=quote_provider)
-        self._local_latest_price_cache: Dict[str, Decimal | None] = defaultdict(
-            lambda: None
-        )
+        self._local_latest_price_cache: Dict[str, Decimal | None] = defaultdict(lambda: None)
         self.last_unlocked: datetime | None = None
 
         # Rate limiting for orders: max 15 orders per 30 seconds
@@ -109,10 +105,7 @@ class MooMooProvider(BaseProvider):
         current_time = time.time()
 
         # Remove timestamps older than the rate limit window
-        while (
-            self._order_timestamps
-            and current_time - self._order_timestamps[0] > self._rate_limit_window
-        ):
+        while self._order_timestamps and current_time - self._order_timestamps[0] > self._rate_limit_window:
             self._order_timestamps.popleft()
 
         # Check if we would exceed the rate limit
@@ -136,9 +129,7 @@ class MooMooProvider(BaseProvider):
         self._order_timestamps.append(time.time())
 
     @lru_cache(maxsize=None)
-    def _get_instrument_price(
-        self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True
-    ) -> Optional[Decimal]:
+    def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True) -> Optional[Decimal]:
         # TODO: determine if there is a bulk API
         from moomoo import RET_OK, SubType
 
@@ -158,19 +149,13 @@ class MooMooProvider(BaseProvider):
             # )
             # return Decimal(value=list(historicals.itertuples())[0].vwap)
         else:
-            ret_sub, err_message = self._quote_context.subscribe(
-                ["US." + ticker], [SubType.TICKER], subscribe_push=False
-            )
+            ret_sub, err_message = self._quote_context.subscribe(["US." + ticker], [SubType.TICKER], subscribe_push=False)
             # Subscribe to the K line type first. After the subscription is successful, moomoo OpenD will continue to receive pushes from the server, False means that there is no need to push to the script temporarily
             if ret_sub == RET_OK:  # Subscription successful
-                ret, data = self._quote_context.get_stock_quote(
-                    ["US." + ticker]
-                )  # Get real-time data of subscription stock quotes
+                ret, data = self._quote_context.get_stock_quote(["US." + ticker])  # Get real-time data of subscription stock quotes
                 if ret == RET_OK:
                     return list(data.itertuples())[0]
-            raise PriceFetchError(
-                [ticker], f"Subscription failed, could not get price: {err_message}"
-            )
+            raise PriceFetchError([ticker], f"Subscription failed, could not get price: {err_message}")
 
     def _buy_instrument(
         self,
@@ -183,10 +168,7 @@ class MooMooProvider(BaseProvider):
         # Check rate limit before attempting to place order
         self._check_order_rate_limit()
 
-        if (
-            not self.last_unlocked
-            or (datetime.now() - self.last_unlocked).seconds > 300
-        ):
+        if not self.last_unlocked or (datetime.now() - self.last_unlocked).seconds > 300:
             ret, data = self._trade_provider.unlock_trade(password=self._trade_token)
             if ret == RET_OK:
                 self.last_unlocked = datetime.now()
@@ -209,9 +191,7 @@ class MooMooProvider(BaseProvider):
         else:
             raise OrderError(f"place_order error: {data} debug: {qty} {value}")
 
-    def buy_instrument(
-        self, ticker: str, qty: Decimal, value: Optional[Money] = None
-    ) -> bool:
+    def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None) -> bool:
         if qty:
             orders_kwargs_list: List[Dict[str, Money | None | Decimal]] = [
                 {
@@ -286,16 +266,10 @@ class MooMooProvider(BaseProvider):
         raise ConfigurationError("Could not get positions")
 
     def get_holdings(self) -> RealPortfolio:
-        accounts_data = self._get_cached_value(
-            ObjectKey.ACCOUNT, callable=self._get_portfolio
-        )
-        my_stocks = self._get_cached_value(
-            ObjectKey.POSITIONS, callable=self._get_positions
-        )
+        accounts_data = self._get_cached_value(ObjectKey.ACCOUNT, callable=self._get_portfolio)
+        my_stocks = self._get_cached_value(ObjectKey.POSITIONS, callable=self._get_positions)
 
-        unsettled = self._get_cached_value(
-            ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments
-        )
+        unsettled = self._get_cached_value(ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments)
 
         pre = {}
         symbols = []
@@ -345,18 +319,12 @@ class MooMooProvider(BaseProvider):
         return prices
 
     def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
-        my_stocks = self._get_cached_value(
-            ObjectKey.POSITIONS, callable=self._get_positions
-        )
-        dividends = self._get_cached_value(
-            ObjectKey.DIVIDENDS, callable=self._get_dividends
-        )
+        my_stocks = self._get_cached_value(ObjectKey.POSITIONS, callable=self._get_positions)
+        dividends = self._get_cached_value(ObjectKey.DIVIDENDS, callable=self._get_dividends)
         output = {}
         for x in my_stocks:
             ticker = x.code.split(".")[-1]
-            output[ticker] = ProfitModel(
-                appreciation=Money(value=Decimal(x.pl_val)), dividends=dividends[ticker]
-            )
+            output[ticker] = ProfitModel(appreciation=Money(value=Decimal(x.pl_val)), dividends=dividends[ticker])
         return output
 
     def _get_dividends(self) -> defaultdict[str, Money]:

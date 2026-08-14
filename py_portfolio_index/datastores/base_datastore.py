@@ -31,9 +31,7 @@ class BaseDatastore:
             from trilogy.hooks.query_debugger import DebuggingHook
 
             hooks.append(DebuggingHook())
-        self.executor = Dialects.DUCK_DB.default_executor(
-            environment=env, conf=DuckDBConfig(path=self.duckdb_path)
-        )
+        self.executor = Dialects.DUCK_DB.default_executor(environment=env, conf=DuckDBConfig(path=self.duckdb_path))
         for _ in self.executor.parse_file(Path(__file__).parent / "entrypoint.preql"):
             pass
         return self.executor
@@ -66,9 +64,7 @@ class BaseDatastore:
             return self.executor.execute_text(query)[-1]
         return self.executor.execute_query(query)
 
-    def get_watermarks(
-        self, object_key: ObjectKey, provider_type: ProviderType | None = None
-    ) -> tuple[datetime | None, datetime | None]:
+    def get_watermarks(self, object_key: ObjectKey, provider_type: ProviderType | None = None) -> tuple[datetime | None, datetime | None]:
         if object_key == ObjectKey.DIVIDENDS:
             query = "dividend.date"
         else:
@@ -79,9 +75,7 @@ class BaseDatastore:
             max({query}) as end;
         """
         if provider_type:
-            base_query = (
-                f"WHERE dividend.provider.name='{provider_type.value}' " + base_query
-            )
+            base_query = f"WHERE dividend.provider.name='{provider_type.value}' " + base_query
         results = list(self.query(base_query).fetchall())
         if not results:
             return None, None
@@ -90,7 +84,5 @@ class BaseDatastore:
     def persist_dividend_data(self, data: list[DividendResult]):
         raise NotImplementedError
 
-    def persist_holding_data(
-        self, data: list[RealPortfolioElement], provider: ProviderType
-    ):
+    def persist_holding_data(self, data: list[RealPortfolioElement], provider: ProviderType):
         raise NotImplementedError

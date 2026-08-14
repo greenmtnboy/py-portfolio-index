@@ -20,9 +20,7 @@ DEFAULT_TIMEOUT = 60 * 60
 
 
 class PriceCache(object):
-    def __init__(
-        self, fetcher, single_fetcher=None, timeout: int = DEFAULT_TIMEOUT
-    ) -> None:
+    def __init__(self, fetcher, single_fetcher=None, timeout: int = DEFAULT_TIMEOUT) -> None:
         self.fetcher = fetcher
         self.single_fetcher = single_fetcher
         self.store: defaultdict[str, dict[str, Decimal | None]] = defaultdict(dict)
@@ -42,9 +40,7 @@ class PriceCache(object):
         label = self.date_to_label(date)
         cached: dict[str, Decimal | None] = self.store[label]
         if ticker in cached and label == "INSTANT":
-            if (
-                datetime.now() - self.instant_refresh_times[ticker]
-            ).seconds > self.default_timeout:
+            if (datetime.now() - self.instant_refresh_times[ticker]).seconds > self.default_timeout:
                 del cached[ticker]
         if ticker in cached:
             return cached[ticker]
@@ -77,9 +73,7 @@ class PriceCache(object):
         missing = [x for x in tickers if x not in found]
         if missing:
             try:
-                prices: dict[str, Decimal | None] = self.fetcher(
-                    missing, date, fail_on_missing=fail_on_missing
-                )
+                prices: dict[str, Decimal | None] = self.fetcher(missing, date, fail_on_missing=fail_on_missing)
             except PriceFetchError:
                 if fail_on_missing:
                     raise
@@ -94,9 +88,7 @@ class PriceCache(object):
         return found
 
 
-def time_endpoint(
-    logger: Optional[logging.Logger] = None, log_level: int = logging.INFO
-) -> Callable:
+def time_endpoint(logger: Optional[logging.Logger] = None, log_level: int = logging.INFO) -> Callable:
     """
     Decorator to measure and log endpoint execution time.
 
