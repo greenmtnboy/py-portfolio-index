@@ -26,7 +26,7 @@ from py_portfolio_index.models import OrderElement, OrderType, Money
 
 AVAILABLE_PROVIDERS = get_providers()
 
-__version__ = "0.1.58"
+__version__ = "0.1.59"
 
 __all__ = [
     "INDEXES",
