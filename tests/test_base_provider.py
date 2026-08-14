@@ -1,8 +1,10 @@
-import pytest
 from decimal import Decimal
+
+import pytest
+
+from py_portfolio_index.enums import RoundingStrategy
 from py_portfolio_index.models import Money, RealPortfolioElement
 from py_portfolio_index.portfolio_providers.local_dict import LocalDictProvider
-from py_portfolio_index.enums import RoundingStrategy
 
 
 @pytest.fixture
@@ -11,13 +13,13 @@ def local_provider():
         holdings = [
             RealPortfolioElement(
                 ticker="AAPL",
-                units=Decimal("10"),
+                units=Decimal(10),
                 value=Money(value=1500),
                 weight=Decimal(0),
             ),
             RealPortfolioElement(
                 ticker="GOOG",
-                units=Decimal("5"),
+                units=Decimal(5),
                 value=Money(value=1000),
                 weight=Decimal(0),
             ),
@@ -30,7 +32,7 @@ def local_provider():
         return LocalDictProvider(holdings=holdings, price_dict=price_dict, cash=Money(value=10000))
     except Exception as e:
         print(f"Fixture setup failed: {e}")
-        raise e
+        raise
 
 
 def test_calculate_buy_units_fractional(local_provider):

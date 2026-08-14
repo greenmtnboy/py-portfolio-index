@@ -1,6 +1,7 @@
-import socket as socket
+import socket
 import subprocess
 import time
+
 from py_portfolio_index.exceptions import (
     ConfigurationError,
     ExtraAuthenticationStepException,
@@ -40,7 +41,7 @@ def check_listening(port: int, address: str = "localhost", timeout: float = 1):
         s.settimeout(timeout)
         s.connect((address, port))
         return True
-    except socket.error:
+    except OSError:
         return False
     finally:
         s.close()

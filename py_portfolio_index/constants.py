@@ -1,4 +1,5 @@
-from logging import getLogger, Logger as baseLogger
+from logging import Logger as baseLogger
+from logging import getLogger
 
 LOGGER_NAME = "py_portfolio_index"
 

@@ -21,10 +21,11 @@ from __future__ import annotations
 import json
 import time
 import webbrowser
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 from urllib.parse import urlencode
 
 from platformdirs import user_cache_dir
@@ -67,7 +68,7 @@ def token_path(sandbox: bool = False) -> Path:
     return Path(user_cache_dir(CACHE_DIR, ensure_exists=True)) / file
 
 
-def token_is_current(token: dict, now: Optional[datetime] = None) -> bool:
+def token_is_current(token: dict, now: datetime | None = None) -> bool:
     """Whether a cached token could still be alive.
 
     E*TRADE access tokens expire at midnight US Eastern on the day they were
@@ -83,7 +84,7 @@ def token_is_current(token: dict, now: Optional[datetime] = None) -> bool:
     return created_day == now.astimezone(eastern).date()
 
 
-def load_cached_token(sandbox: bool = False) -> Optional[dict]:
+def load_cached_token(sandbox: bool = False) -> dict | None:
     file = token_path(sandbox)
     if not file.exists():
         return None
@@ -169,7 +170,7 @@ def create_login_context(
     api_secret: str,
     sandbox: bool = False,
     callback_url: str = "oob",
-) -> Optional[ETradeAuthContext]:
+) -> ETradeAuthContext | None:
     """Begin a split authorization flow for UI-driven hosts.
 
     Returns None when a cached token is already usable (renewing it as a side
@@ -243,7 +244,7 @@ def get_authenticated_session(
     api_secret: str,
     sandbox: bool = False,
     interactive: bool = True,
-    verifier_func: Optional[Callable[[str], str]] = None,
+    verifier_func: Callable[[str], str] | None = None,
 ) -> Any:
     """Return an OAuth1Session holding a live E*TRADE access token.
 

@@ -1,10 +1,11 @@
 import time
 import uuid
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from os import environ
-from typing import Any, Callable, DefaultDict, Dict, List, Optional, Set
+from typing import Any
 
 from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.constants import Logger
@@ -64,7 +65,7 @@ class ETradeAPIError(Exception):
         self.status_code = status_code
 
 
-def _ensure_list(value: Any) -> List[dict]:
+def _ensure_list(value: Any) -> list[dict]:
     """Some E*TRADE payloads collapse single-element arrays to a bare object."""
     if value is None:
         return []
@@ -114,7 +115,7 @@ class ETradeProvider(BaseProvider):
         account_id: str | None = None,
         sandbox: bool | None = None,
         external_auth: bool = False,
-        verifier_func: Optional[Callable[[str], str]] = None,
+        verifier_func: Callable[[str], str] | None = None,
     ):
         if not api_key:
             api_key = environ.get(self.API_KEY_ENV, None)
@@ -142,7 +143,7 @@ class ETradeProvider(BaseProvider):
 
     ## plumbing
 
-    def _request(self, method: str, path: str, params: Optional[dict] = None, json_body: Optional[dict] = None) -> dict:
+    def _request(self, method: str, path: str, params: dict | None = None, json_body: dict | None = None) -> dict:
         for attempt in range(RATE_LIMIT_RETRIES + 1):
             response = self._session.request(
                 method,
@@ -164,7 +165,7 @@ class ETradeProvider(BaseProvider):
             raise ETradeAPIError(response.status_code, response.text or response.reason or "")
         return response.json()
 
-    def _get(self, path: str, params: Optional[dict] = None) -> dict:
+    def _get(self, path: str, params: dict | None = None) -> dict:
         return self._request("GET", path, params=params)
 
     def _post(self, path: str, json_body: dict) -> dict:
@@ -195,13 +196,13 @@ class ETradeProvider(BaseProvider):
 
     def _get_instrument_prices(
         self,
-        tickers: List[str],
-        at_day: Optional[date] = None,
+        tickers: list[str],
+        at_day: date | None = None,
         fail_on_missing: bool = True,
-    ) -> Dict[str, Optional[Decimal]]:
+    ) -> dict[str, Decimal | None]:
         if at_day:
             raise NotImplementedError("E*TRADE's API has no historical price endpoint; only live quotes are available.")
-        prices: Dict[str, Optional[Decimal]] = {}
+        prices: dict[str, Decimal | None] = {}
         for batch in divide_into_batches(list(tickers), QUOTE_BATCH_SIZE):
             try:
                 payload = self._get(f"/v1/market/quote/{','.join(batch)}.json")
@@ -219,16 +220,16 @@ class ETradeProvider(BaseProvider):
             raise PriceFetchError(missing, f"No E*TRADE price found for {missing}")
         return {ticker: prices.get(ticker) for ticker in tickers}
 
-    def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True) -> Optional[Decimal]:
+    def _get_instrument_price(self, ticker: str, at_day: date | None = None, fail_on_missing: bool = True) -> Decimal | None:
         return self._get_instrument_prices([ticker], at_day=at_day, fail_on_missing=fail_on_missing)[ticker]
 
     ## account state
 
-    def get_positions(self) -> List[dict]:
-        results: List[dict] = []
+    def get_positions(self) -> list[dict]:
+        results: list[dict] = []
         page = None
         for _ in range(MAX_PAGES):
-            params: Dict[str, Any] = {"count": MAX_PAGE_SIZE}
+            params: dict[str, Any] = {"count": MAX_PAGE_SIZE}
             if page:
                 params["pageNumber"] = page
             try:
@@ -259,11 +260,11 @@ class ETradeProvider(BaseProvider):
             raise
         return payload.get("BalanceResponse", {})
 
-    def get_open_orders(self) -> List[dict]:
-        results: List[dict] = []
+    def get_open_orders(self) -> list[dict]:
+        results: list[dict] = []
         marker = None
         for _ in range(MAX_PAGES):
-            params: Dict[str, Any] = {"status": "OPEN", "count": MAX_PAGE_SIZE}
+            params: dict[str, Any] = {"status": "OPEN", "count": MAX_PAGE_SIZE}
             if marker:
                 params["marker"] = marker
             try:
@@ -280,7 +281,7 @@ class ETradeProvider(BaseProvider):
         Logger.error(f"Stopped paginating E*TRADE orders after {MAX_PAGES} pages; results may be incomplete")
         return results
 
-    def get_unsettled_instruments(self) -> Set[str]:
+    def get_unsettled_instruments(self) -> set[str]:
         tickers = set()
         for order in self.get_open_orders():
             for detail in _ensure_list(order.get("OrderDetail")):
@@ -319,7 +320,7 @@ class ETradeProvider(BaseProvider):
         cash = _to_decimal(computed.get("cashAvailableForInvestment") if computed.get("cashAvailableForInvestment") is not None else computed.get("netCash"))
         return RealPortfolio(holdings=holdings, cash=Money(value=cash), provider=self)
 
-    def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
+    def get_per_ticker_profit_or_loss(self) -> dict[str, ProfitModel]:
         positions = self._get_cached_value(ObjectKey.POSITIONS, callable=self.get_positions)
         dividends = self.get_dividend_history()
         results = {}
@@ -397,21 +398,21 @@ class ETradeProvider(BaseProvider):
         except ETradeAPIError as e:
             raise OrderError(f"Failed to {side.lower()} {qty} of {ticker}: {e}")
 
-    def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None) -> bool:
+    def buy_instrument(self, ticker: str, qty: Decimal, value: Money | None = None) -> bool:
         self._place_order(ticker, qty, "BUY")
         return True
 
-    def sell_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None) -> bool:
+    def sell_instrument(self, ticker: str, qty: Decimal, value: Money | None = None) -> bool:
         self._place_order(ticker, qty, "SELL")
         return True
 
     ## transactions and dividends
 
-    def _get_raw_transactions(self) -> List[dict]:
-        results: List[dict] = []
+    def _get_raw_transactions(self) -> list[dict]:
+        results: list[dict] = []
         marker = None
         for _ in range(MAX_PAGES):
-            params: Dict[str, Any] = {"count": MAX_PAGE_SIZE}
+            params: dict[str, Any] = {"count": MAX_PAGE_SIZE}
             if marker:
                 params["marker"] = marker
             try:
@@ -428,7 +429,7 @@ class ETradeProvider(BaseProvider):
         Logger.error(f"Stopped paginating E*TRADE transactions after {MAX_PAGES} pages; results may be incomplete")
         return results
 
-    def get_transactions(self) -> List[Transaction]:
+    def get_transactions(self) -> list[Transaction]:
         results = []
         for row in self._get_cached_value(ObjectKey.MISC, value="transactions", callable=self._get_raw_transactions):
             order_type = TRANSACTION_TYPE_MAP.get(row.get("transactionType"))
@@ -450,7 +451,7 @@ class ETradeProvider(BaseProvider):
             )
         return results
 
-    def get_dividend_details(self, start: datetime | None = None) -> List[DividendResult]:
+    def get_dividend_details(self, start: datetime | None = None) -> list[DividendResult]:
         results = []
         for row in self._get_cached_value(ObjectKey.DIVIDENDS_DETAIL, callable=self._get_raw_transactions):
             # covers "Dividend" and "Qualified Dividend" style labels
@@ -473,8 +474,8 @@ class ETradeProvider(BaseProvider):
             )
         return results
 
-    def _get_dividends(self) -> Dict[str, Money]:
-        totals: DefaultDict[str, Money] = defaultdict(lambda: Money(value=0))
+    def _get_dividends(self) -> dict[str, Money]:
+        totals: defaultdict[str, Money] = defaultdict(lambda: Money(value=0))
         for item in self.get_dividend_details():
             totals[item.ticker] += item.amount
         return dict(totals)

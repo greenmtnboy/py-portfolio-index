@@ -1,10 +1,12 @@
-from py_portfolio_index.enums import ObjectKey, ProviderType
 from datetime import datetime
-from trilogy import Environment, Dialects, Executor
 from pathlib import Path
+
+from trilogy import Dialects, Environment, Executor
 from trilogy.dialect.config import DuckDBConfig
-from py_portfolio_index.models import DividendResult, RealPortfolioElement
 from trilogy.engine import ResultProtocol
+
+from py_portfolio_index.enums import ObjectKey, ProviderType
+from py_portfolio_index.models import DividendResult, RealPortfolioElement
 
 
 class DBApiConnectionWrapper:

@@ -1,11 +1,10 @@
 import csv
 from io import StringIO
-from typing import List
 
 from py_portfolio_index.models import Transaction
 
 
-def transactions_to_csv(transactions: List[Transaction], include_fee: bool = True) -> str:
+def transactions_to_csv(transactions: list[Transaction], include_fee: bool = True) -> str:
     """
     Convert a list of Transaction objects to CSV format.
 

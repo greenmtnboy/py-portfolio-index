@@ -1,14 +1,15 @@
-from collections import defaultdict
-from datetime import date, datetime, timezone
-from decimal import Decimal
-from os import environ
-from typing import Any, Dict, List, Optional, Set
 import json
 import re
 import uuid
+from collections import defaultdict
+from datetime import date, datetime, timezone
+from decimal import Decimal
+from functools import partial
+from os import environ
+from typing import Any
 
 from py_portfolio_index.common import divide_into_batches
-from py_portfolio_index.constants import Logger, CACHE_DIR
+from py_portfolio_index.constants import CACHE_DIR, Logger
 from py_portfolio_index.enums import ProviderType
 from py_portfolio_index.exceptions import (
     ConfigurationError,
@@ -66,7 +67,7 @@ def _from_webull_symbol(symbol: str) -> str:
     return symbol.replace(_SYMBOL_SEPARATOR, ".")
 
 
-def _parse_invalid_symbols(error: Exception) -> Set[str]:
+def _parse_invalid_symbols(error: Exception) -> set[str]:
     """Pull the rejected symbols out of an INVALID_SYMBOL error message.
 
     Webull answers a batch containing any unknown symbol with a 417 naming all
@@ -121,7 +122,7 @@ class WebullProvider(BaseProvider):
         self._account_id = self._resolve_account_id(account_id)
 
         # symbol -> {"instrument_id": str, "category": str}
-        self._local_instrument_cache: Dict[str, Dict[str, str]] = {}
+        self._local_instrument_cache: dict[str, dict[str, str]] = {}
         if not skip_cache:
             self._load_local_instrument_cache()
 
@@ -175,17 +176,17 @@ class WebullProvider(BaseProvider):
 
     ## instrument resolution
 
-    def _snapshot_batch(self, symbols: List[str], category: str) -> tuple[Dict[str, dict], List[str]]:
+    def _snapshot_batch(self, symbols: list[str], category: str) -> tuple[dict[str, dict], list[str]]:
         """Snapshot one batch, returning rows keyed by symbol plus any rejects.
 
         A single unrecognized symbol fails the entire request, so we peel the
         rejected symbols off the error and retry with the remainder.
         """
         remaining = list(symbols)
-        rejected: List[str] = []
+        rejected: list[str] = []
         while remaining:
             try:
-                response = call_with_retries(lambda: self._api.market_data.get_snapshot(remaining, category))
+                response = call_with_retries(partial(self._api.market_data.get_snapshot, remaining, category))
             except self._server_exception as e:
                 if getattr(e, "get_error_code", lambda: None)() != "INVALID_SYMBOL":
                     raise
@@ -205,14 +206,14 @@ class WebullProvider(BaseProvider):
             return rows, rejected
         return {}, rejected
 
-    def _fetch_snapshots(self, symbols: List[str]) -> Dict[str, dict]:
+    def _fetch_snapshots(self, symbols: list[str]) -> dict[str, dict]:
         """Snapshot symbols, discovering and caching each one's category.
 
         Symbols with a known category are grouped so they cost one request per
         category; unknown ones are probed against each category in turn.
         """
-        by_category: defaultdict[str, List[str]] = defaultdict(list)
-        unknown: List[str] = []
+        by_category: defaultdict[str, list[str]] = defaultdict(list)
+        unknown: list[str] = []
         for ticker in symbols:
             symbol = _to_webull_symbol(ticker)
             cached = self._local_instrument_cache.get(ticker)
@@ -221,8 +222,8 @@ class WebullProvider(BaseProvider):
             else:
                 unknown.append(symbol)
 
-        rows: Dict[str, dict] = {}
-        found_categories: Dict[str, str] = {}
+        rows: dict[str, dict] = {}
+        found_categories: dict[str, str] = {}
 
         for category, group in by_category.items():
             for batch in divide_into_batches(group, SNAPSHOT_BATCH_SIZE):
@@ -234,7 +235,7 @@ class WebullProvider(BaseProvider):
         for category in US_EQUITY_CATEGORIES:
             if not unknown:
                 break
-            still_unknown: List[str] = []
+            still_unknown: list[str] = []
             for batch in divide_into_batches(unknown, SNAPSHOT_BATCH_SIZE):
                 found, rejected = self._snapshot_batch(batch, category)
                 rows.update(found)
@@ -256,7 +257,7 @@ class WebullProvider(BaseProvider):
 
         return {_from_webull_symbol(symbol): row for symbol, row in rows.items()}
 
-    def _get_instrument(self, ticker: str) -> Dict[str, str]:
+    def _get_instrument(self, ticker: str) -> dict[str, str]:
         """Resolve a ticker to its Webull instrument id and category."""
         cached = self._local_instrument_cache.get(ticker)
         if cached:
@@ -271,12 +272,12 @@ class WebullProvider(BaseProvider):
 
     def _get_instrument_prices(
         self,
-        tickers: List[str],
-        at_day: Optional[date] = None,
+        tickers: list[str],
+        at_day: date | None = None,
         fail_on_missing: bool = True,
-    ) -> Dict[str, Optional[Decimal]]:
+    ) -> dict[str, Decimal | None]:
         if at_day:
-            prices: Dict[str, Optional[Decimal]] = {}
+            prices: dict[str, Decimal | None] = {}
             for ticker in tickers:
                 prices[ticker] = self._get_historical_price(ticker, at_day, fail_on_missing=fail_on_missing)
             return prices
@@ -287,10 +288,10 @@ class WebullProvider(BaseProvider):
             raise PriceFetchError(missing, f"No Webull price found for {missing}")
         return {ticker: (Decimal(rows[ticker]["price"]) if rows.get(ticker, {}).get("price") is not None else None) for ticker in tickers}
 
-    def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True) -> Optional[Decimal]:
+    def _get_instrument_price(self, ticker: str, at_day: date | None = None, fail_on_missing: bool = True) -> Decimal | None:
         return self._get_instrument_prices([ticker], at_day=at_day, fail_on_missing=fail_on_missing)[ticker]
 
-    def _get_historical_price(self, ticker: str, at_day: date, fail_on_missing: bool = True) -> Optional[Decimal]:
+    def _get_historical_price(self, ticker: str, at_day: date, fail_on_missing: bool = True) -> Decimal | None:
         """Close on the last session at or before at_day.
 
         Webull's bar API only takes a count of bars back from today, so we ask
@@ -331,7 +332,7 @@ class WebullProvider(BaseProvider):
 
     ## account state
 
-    def _get_paginated(self, fetch, items_keys: tuple[str, ...], cursor_key: str) -> List[dict]:
+    def _get_paginated(self, fetch, items_keys: tuple[str, ...], cursor_key: str) -> list[dict]:
         """Walk one of Webull's cursor-paginated listings.
 
         The listings are inconsistent about casing (``has_next`` on positions,
@@ -339,11 +340,11 @@ class WebullProvider(BaseProvider):
         empty, so both the page key and the continuation flag are matched
         leniently.
         """
-        results: List[dict] = []
+        results: list[dict] = []
         cursor = None
         for _ in range(MAX_PAGES):
-            payload = call_with_retries(lambda: fetch(cursor)).json() or {}
-            page: List[dict] = []
+            payload = call_with_retries(partial(fetch, cursor)).json() or {}
+            page: list[dict] = []
             for key in items_keys:
                 value = payload.get(key)
                 if isinstance(value, list):
@@ -359,7 +360,7 @@ class WebullProvider(BaseProvider):
         Logger.error(f"Stopped paginating Webull {items_keys[0]} after {MAX_PAGES} pages; results may be incomplete")
         return results
 
-    def get_positions(self) -> List[dict]:
+    def get_positions(self) -> list[dict]:
         try:
             return self._get_paginated(
                 lambda cursor: self._api.account.get_account_position(
@@ -380,7 +381,7 @@ class WebullProvider(BaseProvider):
             raise ConfigurationError(f"Could not fetch Webull account balance: {e}")
         return response.json() or {}
 
-    def get_open_orders(self) -> List[dict]:
+    def get_open_orders(self) -> list[dict]:
         try:
             return self._get_paginated(
                 lambda cursor: self._api.order.list_open_orders(
@@ -394,7 +395,7 @@ class WebullProvider(BaseProvider):
         except self._server_exception as e:
             raise ConfigurationError(f"Could not fetch Webull open orders: {e}")
 
-    def get_unsettled_instruments(self) -> Set[str]:
+    def get_unsettled_instruments(self) -> set[str]:
         tickers = set()
         for order in self.get_open_orders():
             symbol = order.get("symbol")
@@ -428,7 +429,7 @@ class WebullProvider(BaseProvider):
         cash = Decimal(balance.get("total_cash_balance") or 0)
         return RealPortfolio(holdings=holdings, cash=Money(value=cash), provider=self)
 
-    def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
+    def get_per_ticker_profit_or_loss(self) -> dict[str, ProfitModel]:
         positions = self._get_cached_value(ObjectKey.POSITIONS, callable=self.get_positions)
         # Webull's OpenAPI exposes no dividend history, so appreciation is the
         # only component we can report; see _get_dividends.
@@ -481,7 +482,7 @@ class WebullProvider(BaseProvider):
             raise OrderError(f"Failed to {side.lower()} {qty} of {ticker}: {response.text}")
 
     @staticmethod
-    def _split_fractional(qty: Decimal) -> List[Decimal]:
+    def _split_fractional(qty: Decimal) -> list[Decimal]:
         """Split a fractional quantity into whole and fractional legs.
 
         Webull books a fractional order above one share as two child orders,
@@ -492,25 +493,25 @@ class WebullProvider(BaseProvider):
             return [Decimal(whole), qty - whole]
         return [qty]
 
-    def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None) -> bool:
+    def buy_instrument(self, ticker: str, qty: Decimal, value: Money | None = None) -> bool:
         for leg in self._split_fractional(qty):
             self._place_order(ticker, leg, "BUY")
         return True
 
-    def sell_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None) -> bool:
+    def sell_instrument(self, ticker: str, qty: Decimal, value: Money | None = None) -> bool:
         for leg in self._split_fractional(qty):
             self._place_order(ticker, leg, "SELL")
         return True
 
     ## unsupported by the official API
 
-    def get_transactions(self) -> List[Transaction]:
+    def get_transactions(self) -> list[Transaction]:
         raise NotImplementedError("Webull's OpenAPI only exposes the current day's orders for US " "accounts, so a complete transaction history cannot be built.")
 
-    def _get_dividends(self) -> Dict[str, Money]:
+    def _get_dividends(self) -> dict[str, Money]:
         raise NotImplementedError("Webull's OpenAPI has no dividend endpoint; dividend history is " "unavailable for this provider.")
 
-    def get_dividend_details(self, start: datetime | None = None) -> List[DividendResult]:
+    def get_dividend_details(self, start: datetime | None = None) -> list[DividendResult]:
         raise NotImplementedError("Webull's OpenAPI has no dividend endpoint; dividend history is " "unavailable for this provider.")
 
 

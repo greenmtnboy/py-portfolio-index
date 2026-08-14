@@ -1,19 +1,19 @@
-from py_portfolio_index.operators import (
-    generate_order_plan,
-    generate_composite_order_plan,
-    generate_auto_target_size,
-)
+from py_portfolio_index.enums import PurchaseStrategy
 from py_portfolio_index.models import (
-    RealPortfolio,
-    RealPortfolioElement,
-    Money,
+    CompositePortfolio,
     IdealPortfolio,
     IdealPortfolioElement,
-    CompositePortfolio,
+    Money,
+    RealPortfolio,
+    RealPortfolioElement,
 )
-from py_portfolio_index.enums import PurchaseStrategy
-from py_portfolio_index.portfolio_providers.local_dict import LocalDictProvider
+from py_portfolio_index.operators import (
+    generate_auto_target_size,
+    generate_composite_order_plan,
+    generate_order_plan,
+)
 from py_portfolio_index.portfolio_providers.common import PriceCache
+from py_portfolio_index.portfolio_providers.local_dict import LocalDictProvider
 
 
 def test_generate_order_plan():
@@ -82,6 +82,6 @@ def test_generate_composite__order_plan():
 
     expected = {"AAPL": Money(value=300), "MSFT": Money(value=500)}
     assert len(order_plan.keys()) == 1, "order plan should have one provider key"
-    for provider, order_plan in order_plan.items():
-        for x in order_plan.to_buy:
+    for provider_plan in order_plan.values():
+        for x in provider_plan.to_buy:
             assert x.value == expected[x.ticker]

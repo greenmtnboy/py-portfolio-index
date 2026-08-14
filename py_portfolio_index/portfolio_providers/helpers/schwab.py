@@ -1,24 +1,24 @@
+import atexit
 import contextlib
 import json
 import multiprocessing
 import os
-import psutil
 import queue
-import requests
 import sys
 import time
 import urllib
-import urllib3
 import warnings
-
-
-from py_portfolio_index.constants import CACHE_DIR
-from platformdirs import user_cache_dir
-from pathlib import Path
 from dataclasses import dataclass
 from os import remove
+from pathlib import Path
 from typing import TYPE_CHECKING
-import atexit
+
+import psutil
+import requests
+import urllib3
+from platformdirs import user_cache_dir
+
+from py_portfolio_index.constants import CACHE_DIR
 
 if TYPE_CHECKING:
     from authlib.integrations.httpx_client import OAuth2Client
@@ -169,9 +169,9 @@ def __fetch_and_register_token_from_redirect(
     token_path,
     asyncio,
 ):
+    from authlib.integrations.httpx_client import AsyncOAuth2Client, OAuth2Client
     from schwab.client import AsyncClient, Client
     from schwab.debug import register_redactions
-    from authlib.integrations.httpx_client import AsyncOAuth2Client, OAuth2Client
 
     token = oauth.fetch_token(
         TOKEN_ENDPOINT,
@@ -239,7 +239,6 @@ def create_login_context(
         pass
     except Exception:
         remove(token_path)
-        pass
     if callback_timeout is None:
         callback_timeout = 0
     if callback_timeout < 0:
@@ -291,7 +290,7 @@ def create_login_context(
                 warnings.filterwarnings("ignore", category=urllib3.exceptions.InsecureRequestWarning)
 
                 _ = requests.get(
-                    "https://127.0.0.1:{}/schwab-py-internal/status".format(callback_port),
+                    f"https://127.0.0.1:{callback_port}/schwab-py-internal/status",
                     verify=False,
                 )
             break
@@ -301,7 +300,7 @@ def create_login_context(
         time.sleep(0.1)
 
     oauth = OAuth2Client(api_key, redirect_uri=callback_url)
-    authorization_url, state = oauth.create_authorization_url("https://api.schwabapi.com/v1/oauth/authorize")
+    authorization_url, _state = oauth.create_authorization_url("https://api.schwabapi.com/v1/oauth/authorize")
 
     return SchwabAuthContext(
         authorization_url=authorization_url,

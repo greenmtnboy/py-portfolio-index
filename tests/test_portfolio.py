@@ -1,14 +1,12 @@
 from py_portfolio_index.models import (
-    RealPortfolio,
-    RealPortfolioElement,
     CompositePortfolio,
     Money,
+    RealPortfolio,
+    RealPortfolioElement,
 )
 
 
 def test_portfolio():
-    assert 1 == 1
-
     base = RealPortfolio(
         holdings=[
             RealPortfolioElement(ticker="AAPL", units=1, value=Money(value=1)),

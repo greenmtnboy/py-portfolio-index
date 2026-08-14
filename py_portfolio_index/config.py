@@ -1,6 +1,6 @@
 from dataclasses import dataclass
+
 from py_portfolio_index.enums import Currency, ProviderType
-from typing import List
 
 
 @dataclass
@@ -8,7 +8,7 @@ class Config:
     default_currency = Currency.USD
 
 
-def get_providers() -> List[ProviderType]:
+def get_providers() -> list[ProviderType]:
     providers = []
     try:
         from alpaca.trading.client import TradingClient  # noqa: F401

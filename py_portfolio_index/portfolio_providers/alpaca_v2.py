@@ -1,26 +1,28 @@
+import json
+from collections import defaultdict
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
+from os import environ
+from typing import cast
+
+import requests
+
+from py_portfolio_index.common import divide_into_batches
+from py_portfolio_index.enums import Currency, OrderType, ProviderType
+from py_portfolio_index.exceptions import ConfigurationError, OrderError
 from py_portfolio_index.models import (
-    RealPortfolio,
-    RealPortfolioElement,
+    DividendResult,
     Money,
     ProfitModel,
+    RealPortfolio,
+    RealPortfolioElement,
+    Transaction,
 )
-from py_portfolio_index.exceptions import ConfigurationError, OrderError
 from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
-    CachedValue,
     ObjectKey,
 )
-from decimal import Decimal
-from typing import Optional, Dict, List, Set, DefaultDict, cast
-from datetime import date, datetime, timezone, timedelta
-from py_portfolio_index.common import divide_into_batches
-from py_portfolio_index.enums import Currency, ProviderType, OrderType
-from py_portfolio_index.models import DividendResult, Transaction
-from os import environ
 from py_portfolio_index.portfolio_providers.common import PriceCache
-from collections import defaultdict
-import requests
-import json
 
 MAX_OPEN_ORDER_SIZE = 500
 
@@ -47,16 +49,14 @@ class AlpacaProvider(BaseProvider):
 
     LEGACY_BASE = "https://api.alpaca.markets"
 
-    CACHE: dict[str, CachedValue] = {}
-
     def __init__(
         self,
         key_id: str | None = None,
         secret_key: str | None = None,
         paper: bool = False,
     ):
-        from alpaca.trading.client import TradingClient
         from alpaca.data.historical import StockHistoricalDataClient
+        from alpaca.trading.client import TradingClient
 
         if not key_id:
             key_id = environ.get(self.API_KEY_VARIABLE, None)
@@ -73,7 +73,7 @@ class AlpacaProvider(BaseProvider):
         #     key_id=key_id, secret_key=secret_key, base_url=URL(TARGET_URL)
         # )
         BaseProvider.__init__(self)
-        self._valid_assets: Set[str] = set()
+        self._valid_assets: set[str] = set()
         # for non supported APIs
         self._legacy_headers = {
             "content-type": "application/json",
@@ -86,8 +86,8 @@ class AlpacaProvider(BaseProvider):
         )
 
     @property
-    def valid_assets(self) -> Set[str]:
-        from alpaca.trading.client import GetAssetsRequest, Asset
+    def valid_assets(self) -> set[str]:
+        from alpaca.trading.client import Asset, GetAssetsRequest
         from alpaca.trading.requests import AssetClass
 
         if not self._valid_assets:
@@ -96,12 +96,12 @@ class AlpacaProvider(BaseProvider):
 
     def _get_instrument_prices(
         self,
-        tickers: List[str],
-        at_day: Optional[date] = None,
+        tickers: list[str],
+        at_day: date | None = None,
         fail_on_missing: bool = True,
-    ) -> Dict[str, Optional[Decimal]]:
+    ) -> dict[str, Decimal | None]:
+        from alpaca.data.requests import Adjustment, StockBarsRequest
         from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
-        from alpaca.data.requests import StockBarsRequest, Adjustment
 
         if at_day:
             today = datetime.now(tz=timezone.utc)
@@ -159,12 +159,12 @@ class AlpacaProvider(BaseProvider):
 
     def _get_instrument_prices_wrapper(
         self,
-        tickers: List[str],
-        at_day: Optional[date] = None,
+        tickers: list[str],
+        at_day: date | None = None,
         fail_on_missing: bool = True,
-    ) -> Dict[str, Optional[Decimal]]:
+    ) -> dict[str, Decimal | None]:
         batches = divide_into_batches(list(tickers), self.SUPPORTS_BATCH_HISTORY)
-        final: Dict[str, Optional[Decimal]] = {}
+        final: dict[str, Decimal | None] = {}
         for batch in batches:
             final = {
                 **final,
@@ -172,21 +172,21 @@ class AlpacaProvider(BaseProvider):
             }
         return final
 
-    def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True) -> Optional[Decimal]:
+    def _get_instrument_price(self, ticker: str, at_day: date | None = None, fail_on_missing: bool = True) -> Decimal | None:
         return self._price_cache.get_prices(tickers=[ticker], date=at_day)[ticker]
 
-    def get_transactions(self) -> List[Transaction]:
+    def get_transactions(self) -> list[Transaction]:
         """
         Get all filled transactions from Alpaca API.
         Only returns orders that have been filled (executed).
         Uses timestamp-based pagination as order ID pagination is not available in current alpaca-py.
         """
-        from alpaca.trading.requests import GetOrdersRequest, QueryOrderStatus
-        from alpaca.trading.enums import OrderSide
         from alpaca.common.enums import Sort
+        from alpaca.trading.enums import OrderSide
         from alpaca.trading.models import Order
+        from alpaca.trading.requests import GetOrdersRequest, QueryOrderStatus
 
-        all_orders: List[Order] = []
+        all_orders: list[Order] = []
         CHUNK_SIZE = 500  # Maximum allowed per API docs
         until_time = None  # Start from the most recent
 
@@ -200,7 +200,7 @@ class AlpacaProvider(BaseProvider):
                 direction=Sort.DESC,  # Get most recent first
             )
 
-            response = cast(List[Order], self.trading_client.get_orders(filter=filter_request))
+            response = cast(list[Order], self.trading_client.get_orders(filter=filter_request))
 
             if not response:  # No more orders
                 break
@@ -224,7 +224,7 @@ class AlpacaProvider(BaseProvider):
                 unique_orders.append(order)
                 seen_ids.add(order.id)
 
-        transactions: List[Transaction] = []
+        transactions: list[Transaction] = []
 
         for order in unique_orders:
             # Skip orders that don't have filled price, quantity, or symbol
@@ -258,10 +258,10 @@ class AlpacaProvider(BaseProvider):
 
         return transactions
 
-    def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
-        from alpaca.trading.requests import MarketOrderRequest
-        from alpaca.trading.enums import OrderSide, TimeInForce
+    def buy_instrument(self, ticker: str, qty: Decimal, value: Money | None = None):
         from alpaca.common.exceptions import APIError
+        from alpaca.trading.enums import OrderSide, TimeInForce
+        from alpaca.trading.requests import MarketOrderRequest
 
         if value:
             order_qty = None
@@ -284,10 +284,10 @@ class AlpacaProvider(BaseProvider):
             raise OrderError(message=f"Failed to buy {ticker} {qty} {e}: {message}")
         return True
 
-    def sell_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
-        from alpaca.trading.requests import MarketOrderRequest
-        from alpaca.trading.enums import OrderSide, TimeInForce
+    def sell_instrument(self, ticker: str, qty: Decimal, value: Money | None = None):
         from alpaca.common.exceptions import APIError
+        from alpaca.trading.enums import OrderSide, TimeInForce
+        from alpaca.trading.requests import MarketOrderRequest
 
         if value:
             order_qty = None
@@ -330,10 +330,11 @@ class AlpacaProvider(BaseProvider):
         )
         if len(open_orders) == MAX_OPEN_ORDER_SIZE:
             raise ValueError("Returned max number of open orders - cannot continue safely")
-        return set([o.symbol for o in open_orders])
+        return {o.symbol for o in open_orders}
 
     def get_holdings(self):
         from decimal import Decimal
+
         from alpaca.common.exceptions import APIError
 
         try:
@@ -348,7 +349,7 @@ class AlpacaProvider(BaseProvider):
             message = error.get("message", None)
             if message == "forbidden":
                 raise ConfigurationError("Account credentials invalid")
-            raise e
+            raise
         unsettled_elements = [
             RealPortfolioElement(
                 ticker=ticker,
@@ -388,11 +389,11 @@ class AlpacaProvider(BaseProvider):
         out.extend(extra_unsettled)
         return RealPortfolio(holdings=out, cash=cash, provider=self)
 
-    def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
+    def get_per_ticker_profit_or_loss(self) -> dict[str, ProfitModel]:
         my_stocks = self._get_cached_value(ObjectKey.POSITIONS, callable=self.trading_client.get_all_positions)
         raw_divs = [x for x in self._get_dividends() if x["status"] == "executed"]
 
-        divs: DefaultDict[str, Money] = defaultdict(lambda: Money(value=Decimal(0)))
+        divs: defaultdict[str, Money] = defaultdict(lambda: Money(value=Decimal(0)))
         for z in raw_divs:
             divs[z["symbol"]] += Money(value=Decimal(z["net_amount"]))
         base = {
@@ -429,7 +430,7 @@ class AlpacaProvider(BaseProvider):
                 try:
                     params["page_token"] = response[-1]["id"]
                 except (KeyError, IndexError) as e:
-                    raise ValueError(f"Could not find page token in response {str(response)}") from e
+                    raise ValueError(f"Could not find page token in response {response!s}") from e
         return all_data
 
     def get_dividend_details(self, start: datetime | None = None) -> list[DividendResult]:

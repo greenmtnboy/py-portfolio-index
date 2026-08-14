@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from scripts.ingest_index_data import (
     fetch_crsp_indexes,
@@ -66,7 +66,7 @@ def test_fetch_crsp_indexes_normalizes_csv():
     csv_text = "TradeDate,Foo,Index,Ticker,Other,Weight\n" "03/31/2026,,Total Market,NVDA,,0.067\n" "03/31/2026,,Total Market,AAPL,,0.0629\n"
 
     snapshot = fetch_crsp_indexes(
-        start=datetime(2026, 4, 1),
+        start=datetime(2026, 4, 1, tzinfo=timezone.utc),
         request_get=lambda *args, **kwargs: FakeResponse(text=csv_text),
     )[0]
 

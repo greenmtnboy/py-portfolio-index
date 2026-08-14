@@ -1,4 +1,4 @@
-from py_portfolio_index.models import RealPortfolio, RealPortfolioElement, Money
+from py_portfolio_index.models import Money, RealPortfolio, RealPortfolioElement
 
 
 def test_serialization():

@@ -1,42 +1,42 @@
 from __future__ import annotations
-from math import floor, ceil
-from typing import Dict, Union, Optional, Set, List, Callable, Any
+
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import date, datetime, timezone
 from decimal import Decimal
-from datetime import date
+from math import ceil, floor
+from typing import Any
 
 from py_portfolio_index.common import (
+    get_basic_stock_info,
     print_money,
     print_per,
     round_up_to_place,
-    get_basic_stock_info,
 )
 from py_portfolio_index.constants import Logger
-from py_portfolio_index.enums import RoundingStrategy, ProviderType, OrderType
+from py_portfolio_index.enums import ObjectKey, OrderType, ProviderType, RoundingStrategy
 from py_portfolio_index.exceptions import OrderError
 from py_portfolio_index.models import (
-    Money,
-    OrderPlan,
-    OrderElement,
-    StockInfo,
-    ProfitModel,
     DividendResult,
+    Money,
+    OrderElement,
+    OrderPlan,
+    ProfitModel,
+    RealPortfolio,
+    StockInfo,
     Transaction,
 )
-from py_portfolio_index.models import RealPortfolio
-from dataclasses import dataclass, field
-from datetime import datetime
 from py_portfolio_index.portfolio_providers.common import PriceCache
-from py_portfolio_index.enums import ObjectKey
 
 
 @dataclass
 class CachedValue:
     value: Any
     fetcher: Callable
-    set: datetime = field(default_factory=datetime.now)
+    set: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class BaseProvider(object):
+class BaseProvider:
     PROVIDER: ProviderType = ProviderType.DUMMY
     MIN_ORDER_VALUE = Money(value=1)
     MAX_ORDER_DECIMALS = 2
@@ -44,7 +44,7 @@ class BaseProvider(object):
     SUPPORTS_FRACTIONAL_SHARES = True
 
     def __init__(self, quote_provider: BaseProvider | None = None) -> None:
-        self.stock_info_cache: Dict[str, StockInfo] = {}
+        self.stock_info_cache: dict[str, StockInfo] = {}
         self._price_cache: PriceCache = PriceCache(
             fetcher=self._get_instrument_prices,
             single_fetcher=self._get_instrument_price,
@@ -52,7 +52,7 @@ class BaseProvider(object):
         self.CACHE: dict[str, CachedValue] = {}
         self._quote_provider = quote_provider
 
-    def clear_cache(self, skip_clearing: List[str]):
+    def clear_cache(self, skip_clearing: list[str]):
         for value in self.CACHE.values():
             if value in skip_clearing:
                 continue
@@ -63,9 +63,9 @@ class BaseProvider(object):
     def _get_cached_value(
         self,
         key: ObjectKey,
-        value: Optional[Any] = None,
+        value: Any | None = None,
         max_age_seconds: int = 60 * 60,
-        callable: Optional[Callable] = None,
+        callable: Callable | None = None,
     ) -> Any:
         if value:
             skey = f"{key}_{value}"
@@ -77,7 +77,7 @@ class BaseProvider(object):
             cached = CachedValue(value=None, fetcher=callable)
             self.CACHE[skey] = cached
         if cached.value:
-            age = datetime.now() - cached.set
+            age = datetime.now(timezone.utc) - cached.set
             if age.seconds < max_age_seconds:
                 return cached.value
         cached.value = cached.fetcher()
@@ -85,20 +85,20 @@ class BaseProvider(object):
         return cached.value
 
     @property
-    def valid_assets(self) -> Set[str]:
+    def valid_assets(self) -> set[str]:
         return set()
 
     @property
     def cash(self) -> Money:
         return self.get_holdings().cash or Money(value=0)
 
-    def _get_instrument_price(self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True):
+    def _get_instrument_price(self, ticker: str, at_day: date | None = None, fail_on_missing: bool = True):
         raise NotImplementedError
 
     def _get_instrument_prices(
         self,
-        ticker: List[str],
-        at_day: Optional[date] = None,
+        ticker: list[str],
+        at_day: date | None = None,
         fail_on_missing: bool = True,
     ):
         raise NotImplementedError
@@ -106,10 +106,10 @@ class BaseProvider(object):
     def get_holdings(self) -> RealPortfolio:
         raise NotImplementedError
 
-    def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
+    def get_per_ticker_profit_or_loss(self) -> dict[str, ProfitModel]:
         raise NotImplementedError
 
-    def get_transactions(self) -> List[Transaction]:
+    def get_transactions(self) -> list[Transaction]:
         raise NotImplementedError
 
     def get_profit_or_loss(self) -> ProfitModel:
@@ -118,29 +118,29 @@ class BaseProvider(object):
         dividends = sum([x.dividends for x in raw], Money(value=0.0))
         return ProfitModel(appreciation=appreciation, dividends=dividends)
 
-    def get_instrument_prices(self, tickers: List[str], at_day: Optional[date] = None) -> Dict[str, Optional[Decimal]]:
+    def get_instrument_prices(self, tickers: list[str], at_day: date | None = None) -> dict[str, Decimal | None]:
         if self._quote_provider:
             return self._quote_provider.get_instrument_prices(tickers, at_day)
         return self._price_cache.get_prices(tickers=tickers, date=at_day)
 
-    def get_instrument_price(self, ticker: str, at_day: Optional[date] = None) -> Optional[Decimal]:
+    def get_instrument_price(self, ticker: str, at_day: date | None = None) -> Decimal | None:
         if self._quote_provider:
             return self._quote_provider.get_instrument_price(ticker, at_day)
         return self._price_cache.get_price(ticker=ticker, date=at_day)
 
-    def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None) -> bool:
+    def buy_instrument(self, ticker: str, qty: Decimal, value: Money | None = None) -> bool:
         raise NotImplementedError
 
-    def sell_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None) -> bool:
+    def sell_instrument(self, ticker: str, qty: Decimal, value: Money | None = None) -> bool:
         raise NotImplementedError
 
-    def get_unsettled_instruments(self) -> Set[str]:
+    def get_unsettled_instruments(self) -> set[str]:
         raise NotImplementedError
 
     def purchase_ticker_value_dict(
         self,
-        to_buy: Dict[str, Money],
-        purchasing_power: Union[Money, Decimal, int, float],
+        to_buy: dict[str, Money],
+        purchasing_power: Money | Decimal | float,
         plan_only: bool = False,
         fractional_shares: bool = True,
         skip_errored_stocks=False,
@@ -166,9 +166,9 @@ class BaseProvider(object):
                     raise ValueError(f"No price found for this instrument: {key}")
                 price: Money = Money(value=raw_price)
                 Logger.info(f"got price of {price} for {key}")
-            except Exception as e:
+            except Exception:
                 if not skip_errored_stocks:
-                    raise e
+                    raise
                 else:
                     continue
             if price == Money(value=0):
@@ -202,7 +202,7 @@ class BaseProvider(object):
                 except Exception as e:
                     print(e)
                     if not skip_errored_stocks:
-                        raise e
+                        raise
             if break_flag:
                 Logger.info(f"No purchasing power left, purchased {print_money(purchased)} of {print_money(target_value)}.")
                 break
@@ -294,9 +294,9 @@ class BaseProvider(object):
                     continue
                 self.handle_order_element(item, dry_run=plan_only)
             except Exception as e:
-                Logger.error(f"Failed to purchase {item.ticker}:{str(e)}.")
+                Logger.error(f"Failed to purchase {item.ticker}:{e!s}.")
                 if not skip_errored_stocks:
-                    raise e
+                    raise
 
     def refresh(self):
         pass
@@ -307,7 +307,7 @@ class BaseProvider(object):
     def get_dividend_details(self, start: datetime | None = None) -> list[DividendResult]:
         raise NotImplementedError
 
-    def get_dividend_history(self) -> Dict[str, Money]:
+    def get_dividend_history(self) -> dict[str, Money]:
         return self._get_cached_value(ObjectKey.DIVIDENDS, callable=self._get_dividends)
 
     def _shutdown(self):

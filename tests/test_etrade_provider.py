@@ -13,7 +13,6 @@ from py_portfolio_index.portfolio_providers import etrade as etrade_provider
 from py_portfolio_index.portfolio_providers.etrade import ETradeProvider
 from py_portfolio_index.portfolio_providers.helpers import etrade as etrade_helper
 
-
 ## auth helper
 
 
@@ -342,8 +341,8 @@ def test_get_holdings(provider):
     holdings = provider.get_holdings()
     assert holdings.cash.value == Decimal("250.5")
     aapl = holdings.get_holding("AAPL")
-    assert aapl.units == Decimal("10")
-    assert aapl.value.value == Decimal("1500")
+    assert aapl.units == Decimal(10)
+    assert aapl.value.value == Decimal(1500)
     assert aapl.weight == Decimal("0.75")
     assert not aapl.unsettled
     # GOOG has an open order against it
@@ -352,9 +351,9 @@ def test_get_holdings(provider):
 
 def test_get_per_ticker_profit_or_loss(provider):
     pl = provider.get_per_ticker_profit_or_loss()
-    assert pl["AAPL"].appreciation.value == Decimal("100")
+    assert pl["AAPL"].appreciation.value == Decimal(100)
     assert pl["AAPL"].dividends.value == Decimal("12.34")
-    assert pl["GOOG"].appreciation.value == Decimal("-50")
+    assert pl["GOOG"].appreciation.value == Decimal(-50)
 
 
 def test_get_instrument_prices(provider):
@@ -371,7 +370,7 @@ def test_historical_prices_unsupported(provider):
 
 
 def test_buy_previews_then_places(provider):
-    assert provider.buy_instrument("AAPL", Decimal("2"))
+    assert provider.buy_instrument("AAPL", Decimal(2))
     order_calls = [call for call in provider._session.calls if "/orders/" in call[1]]
     assert [call[1].split("/orders/")[-1] for call in order_calls] == [
         "preview.json",
@@ -395,7 +394,7 @@ def test_get_transactions(provider):
     txn = transactions[0]
     assert txn.ticker == "AAPL"
     assert txn.type == OrderType.BUY
-    assert txn.qty == Decimal("2")
+    assert txn.qty == Decimal(2)
     assert txn.unitPrice.value == Decimal("100.5")
     assert txn.date == date(2025, 8, 7)
 

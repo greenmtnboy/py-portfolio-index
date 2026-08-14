@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import sys
 from collections import OrderedDict
+from collections.abc import Callable
 from time import sleep
 from types import ModuleType
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from py_portfolio_index.constants import Logger
 
@@ -65,7 +66,7 @@ def _install_vendored_shims() -> None:
     # submodules, resolved through that dead meta_path hook, that fail. Import
     # it normally so its other exports (iterkeys, PY2, ...) stay intact and
     # register just the `moves` names the SDK reaches for.
-    import webullsdkcore.vendored.six as six
+    from webullsdkcore.vendored import six
 
     six_moves = ModuleType("webullsdkcore.vendored.six.moves")
     six_moves_urllib = ModuleType("webullsdkcore.vendored.six.moves.urllib")

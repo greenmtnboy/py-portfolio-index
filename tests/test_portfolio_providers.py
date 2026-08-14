@@ -1,5 +1,6 @@
-from py_portfolio_index.portfolio_providers.common import PriceCache
 from random import randint
+
+from py_portfolio_index.portfolio_providers.common import PriceCache
 
 GENERATED = {}
 

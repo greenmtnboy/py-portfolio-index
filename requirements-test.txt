@@ -1,5 +1,7 @@
 mypy
-ruff
+# the code conforms to 0.16's default rule set; each ruff minor adds rules to
+# that default, so bound it and widen deliberately
+ruff<0.17
 requests
 types-requests
 alpaca-py
