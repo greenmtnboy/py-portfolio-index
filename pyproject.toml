@@ -1,3 +1,9 @@
 [tool.ruff]
 # Allow lines to be as long as 200 characters.
 line-length = 200
+
+[tool.ruff.lint]
+# Pin the rule set explicitly rather than inheriting ruff's default, which
+# changed in 0.16 and pulled in style/upgrade rules we don't lint for.
+# These are the syntax-error and undefined-name checks CI cares about.
+select = ["E4", "E7", "E9", "F"]
