@@ -31,8 +31,9 @@ Note that provider dependencies must be installed independently for each provide
 
 - alpaca - `pip install alpaca-trade-api` or `pip install py-portfolio-index[alpaca]`
 - robinhood - `pip install robin_stocks` or `pip install py-portfolio-index[robinhood]`
-- webull - `pip install webull` or `pip install py-portfolio-index[webull]`
+- webull - `pip install py-portfolio-index[webull]` (see the [Webull](#webull) section for a Python 3.12+ caveat)
 - scwhab - `pip install schwab-py` or `pip install py-portfolio-index[schwab]`
+- etrade - `pip install requests-oauthlib` or `pip install py-portfolio-index[etrade]`
 
 #### Considerations
 
@@ -149,14 +150,46 @@ provider.purchase_order_plan(plan = planned_orders, fractional_shares=False, ski
 
 Webull support is mature. Follow similar patterns to the above examples, but use the WebullProvider.
 
-This currently uses [this unoffical API package](https://github.com/tedchou12/webull), and requires you 
-to follow device-id authorization path from their docs. 
+This uses the [official Webull OpenAPI SDK](https://github.com/webull-inc/openapi-python-sdk). Generate an
+app key and app secret from the developer portal for your region, then pass them in or set
+`WEBULL_API_KEY` and `WEBULL_API_SECRET`.
 
 ```python
 
 from py_portfolio_index import WebullProvider
 
+provider = WebullProvider()
+
+# or explicitly
+provider = WebullProvider(app_key="...", app_secret="...", region_id="us")
 ```
+
+If your credentials cover more than one Webull account, pass `account_id=` or set `WEBULL_ACCOUNT_ID`;
+otherwise the first account is used and a warning is logged naming it.
+
+#### Installation on Python 3.12+
+
+`webull-python-sdk-mdata` and `webull-python-sdk-trade` pull in `grpcio==1.51.1` (via
+`webull-python-sdk-quotes-core` and `webull-python-sdk-trade-events-core`). That version has no wheel for
+recent Pythons and fails to build from source. Only the gRPC and MQTT streaming modules need it, and this
+library uses neither, so install those two packages without their dependencies:
+
+```bash
+pip install webull-python-sdk-core requests
+pip install --no-deps webull-python-sdk-mdata webull-python-sdk-trade
+```
+
+The SDK also vendors a copy of `requests` and `six` that cannot be imported on Python 3.12+ (the vendored
+`requests` imports the removed `cgi` module, and the vendored `six` registers an import hook that no longer
+exists). `py_portfolio_index.portfolio_providers.helpers.webull` transparently redirects those vendored
+module names at the real libraries, so no action is needed beyond having `requests` installed.
+
+#### Unsupported operations
+
+Webull's OpenAPI exposes no dividend endpoint, and only surfaces the current day's orders for US accounts.
+`get_dividend_details`, `_get_dividends` and `get_transactions` therefore raise `NotImplementedError`, and
+per-ticker profit reports appreciation only. There is also no paper-trading endpoint, so
+`WebullPaperProvider` raises `ConfigurationError`.
 
 
 ### Schwab
@@ -171,6 +204,43 @@ to create an app on the schwab website and follow the authorization path from th
 from py_portfolio_index import SchwabProvider
 
 ```
+
+### E*TRADE
+
+E*TRADE support is experimental. Follow similar patterns to the above examples, but use the ETradeProvider.
+
+This talks to the [E*TRADE v1 REST API](https://developer.etrade.com/home) directly over OAuth 1.0a.
+Request an API key and secret from the E*TRADE developer portal, then either pass them in or set
+`ETRADE_API_KEY` and `ETRADE_API_SECRET`.
+
+```python
+
+from py_portfolio_index import ETradeProvider
+
+# opens a browser to authorize; paste the verification code back when prompted
+provider = ETradeProvider()
+
+# sandbox keys should target the sandbox environment
+provider = ETradeProvider(sandbox=True)  # or set ETRADE_SANDBOX=true
+
+```
+
+Authorization notes:
+
+- E*TRADE's default OAuth setup only supports the out-of-band flow: a browser opens to E*TRADE,
+  and you paste the displayed verification code back into the terminal. E*TRADE will register a
+  redirect callback URL for your app on request to their API support team; once registered, pass a
+  custom `verifier_func` to capture the `oauth_verifier` from the redirect instead of prompting.
+- Access tokens expire at midnight US Eastern every day, so expect one authorization prompt per
+  day. Within a day, tokens are cached and renewed automatically.
+
+If your credentials cover more than one account, pass `account_id=` or set `ETRADE_ACCOUNT_ID`
+(either the numeric account id or the accountIdKey work); otherwise the first active account is
+used and a warning is logged.
+
+E*TRADE's API only accepts whole-share equity orders (no fractional shares), and has no historical
+price endpoint, so date-based lookups raise `NotImplementedError`. Dividend history and transactions
+are built from the account transactions endpoint.
 
 ## Composite Portfolios
 

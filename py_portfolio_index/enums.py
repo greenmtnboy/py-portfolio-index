@@ -1,4 +1,4 @@
-from enum import IntEnum, Enum
+from enum import Enum, IntEnum
 
 
 class ProviderType(str, Enum):
@@ -12,6 +12,7 @@ class ProviderType(str, Enum):
     WEBULL_PAPER = "webull_paper"
     MOOMOO = "moomoo"
     SCHWAB = "schwab"
+    ETRADE = "etrade"
 
 
 class OrderType(Enum):
@@ -30,17 +31,18 @@ class ObjectKey(Enum):
 
 
 class ProviderClass(Enum):
-    PAPER = [
+    PAPER = (
         ProviderType.ALPACA_PAPER,
         ProviderType.WEBULL_PAPER,
         ProviderType.LOCAL_DICT,
-    ]
-    REAL = [
+    )
+    REAL = (
         ProviderType.ALPACA,
         ProviderType.WEBULL,
         ProviderType.ROBINHOOD,
         ProviderType.SCHWAB,
-    ]
+        ProviderType.ETRADE,
+    )
 
 
 class PurchaseStrategy(IntEnum):

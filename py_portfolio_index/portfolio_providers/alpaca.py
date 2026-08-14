@@ -1,11 +1,11 @@
-from py_portfolio_index.models import RealPortfolio, RealPortfolioElement
-from .base_portfolio import BaseProvider
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Optional
-from datetime import date, datetime, timezone, timedelta
-from functools import lru_cache
-from py_portfolio_index.models import Money
 from os import environ
+
+from py_portfolio_index.models import Money, RealPortfolio, RealPortfolioElement
+
+from .base_portfolio import BaseProvider
+from .common import instance_cache
 
 
 class AlpacaProviderLegacy(BaseProvider):
@@ -23,23 +23,13 @@ class AlpacaProviderLegacy(BaseProvider):
         if not secret_key:
             secret_key = environ.get("ALPACA_API_SECRET", None)
         if not (key_id and secret_key):
-            raise ValueError(
-                "Must provide key_id and secret_key or set environment variables ALPACA_API_KEY and ALPACA_API_SECRET "
-            )
-        TARGET_URL = (
-            "https://paper-api.alpaca.markets"
-            if paper
-            else "https://api.alpaca.markets"
-        )
-        self.api = tradeapi.REST(
-            key_id=key_id, secret_key=secret_key, base_url=URL(TARGET_URL)
-        )
+            raise ValueError("Must provide key_id and secret_key or set environment variables ALPACA_API_KEY and ALPACA_API_SECRET ")
+        TARGET_URL = "https://paper-api.alpaca.markets" if paper else "https://api.alpaca.markets"
+        self.api = tradeapi.REST(key_id=key_id, secret_key=secret_key, base_url=URL(TARGET_URL))
         BaseProvider.__init__(self)
 
-    @lru_cache(maxsize=None)
-    def _get_instrument_price(
-        self, ticker: str, at_day: Optional[date] = None
-    ) -> Optional[Decimal]:
+    @instance_cache
+    def _get_instrument_price(self, ticker: str, at_day: date | None = None) -> Decimal | None:
         from alpaca_trade_api.rest import TimeFrame, TimeFrameUnit
 
         if at_day:
@@ -73,7 +63,7 @@ class AlpacaProviderLegacy(BaseProvider):
                 return Decimal(raw[0].h)
             return Decimal(raw.ap)
 
-    def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
+    def buy_instrument(self, ticker: str, qty: Decimal, value: Money | None = None):
         qty_float = float(qty)
         self.api.submit_order(
             symbol=ticker,
@@ -86,9 +76,11 @@ class AlpacaProviderLegacy(BaseProvider):
 
     def get_unsettled_instruments(self):
         open_orders = self.api.list_orders(
-            status="open", limit=100, nested=True  # show nested multi-leg orders
+            status="open",
+            limit=100,
+            nested=True,  # show nested multi-leg orders
         )
-        return set([o.symbol for o in open_orders])
+        return {o.symbol for o in open_orders}
 
     def get_holdings(self):
         from decimal import Decimal

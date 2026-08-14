@@ -1,13 +1,10 @@
 import csv
 from io import StringIO
-from typing import List
 
 from py_portfolio_index.models import Transaction
 
 
-def transactions_to_csv(
-    transactions: List[Transaction], include_fee: bool = True
-) -> str:
+def transactions_to_csv(transactions: list[Transaction], include_fee: bool = True) -> str:
     """
     Convert a list of Transaction objects to CSV format.
 
@@ -48,11 +45,7 @@ def transactions_to_csv(
         activity_type = map_transaction_type_to_activity(transaction.type)
 
         # Extract unit price value (assuming Money has a value attribute)
-        unit_price = (
-            float(transaction.unitPrice.value)
-            if hasattr(transaction.unitPrice, "value")
-            else float(transaction.unitPrice)
-        )
+        unit_price = float(transaction.unitPrice.value) if hasattr(transaction.unitPrice, "value") else float(transaction.unitPrice)
 
         # Get currency (assuming Currency enum has string values)
         currency_str = str(transaction.currency.name)

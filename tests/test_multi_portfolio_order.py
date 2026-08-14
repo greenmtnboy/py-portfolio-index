@@ -1,24 +1,24 @@
+from logging import DEBUG, StreamHandler
+
+from py_portfolio_index.constants import Logger
+from py_portfolio_index.enums import ProviderType, PurchaseStrategy
 from py_portfolio_index.models import (
-    RealPortfolioElement,
     CompositePortfolio,
-    Money,
     IdealPortfolio,
     IdealPortfolioElement,
-)
-from py_portfolio_index.enums import PurchaseStrategy
-from py_portfolio_index.portfolio_providers.local_dict import (
-    LocalDictProvider,
-    LocalDictNoPartialProvider,
+    Money,
+    RealPortfolioElement,
 )
 from py_portfolio_index.operators import (
-    generate_auto_target_size,
-    generate_composite_order_plan,
     OrderElement,
     OrderType,
+    generate_auto_target_size,
+    generate_composite_order_plan,
 )
-from py_portfolio_index.enums import ProviderType
-from py_portfolio_index.constants import Logger
-from logging import StreamHandler, DEBUG
+from py_portfolio_index.portfolio_providers.local_dict import (
+    LocalDictNoPartialProvider,
+    LocalDictProvider,
+)
 
 Logger.addHandler(StreamHandler())
 Logger.setLevel(DEBUG)
@@ -49,9 +49,7 @@ def test_composite():
         ]
     )
 
-    composite = CompositePortfolio(
-        portfolios=[provider1.get_holdings(), provider2.get_holdings()]
-    )
+    composite = CompositePortfolio(portfolios=[provider1.get_holdings(), provider2.get_holdings()])
 
     expected_size = 2000
 
@@ -79,7 +77,8 @@ def test_composite():
         OrderElement(
             ticker="AAPL",
             order_type=OrderType.BUY,
-            value=Money(value="759.9999999999999644728632120"),
+            # $800 cash * the 0.95 safety threshold, exactly.
+            value=Money(value="760"),
             qty=None,
             price=Money(value=100),
             provider=ProviderType.LOCAL_DICT,
@@ -103,9 +102,7 @@ def _build_composite_with_negative_cash():
     )
     provider1._price_dict = {"AAPL": 100, "MSFT": 50}
     provider2._price_dict = provider1._price_dict
-    return provider1, provider2, CompositePortfolio(
-        portfolios=[provider1.get_holdings(), provider2.get_holdings()]
-    )
+    return provider1, provider2, CompositePortfolio(portfolios=[provider1.get_holdings(), provider2.get_holdings()])
 
 
 def test_composite_cash_floors_negative_provider_at_zero():
@@ -130,7 +127,7 @@ def test_generate_auto_target_size_floors_negative_cash():
 
 
 def test_composite_order_plan_skips_negative_cash_provider():
-    provider1, provider2, composite = _build_composite_with_negative_cash()
+    _, _, composite = _build_composite_with_negative_cash()
     ideal = IdealPortfolio(
         holdings=[
             IdealPortfolioElement(ticker="AAPL", weight=0.5),
@@ -147,16 +144,12 @@ def test_composite_order_plan_skips_negative_cash_provider():
     )
     # The negative-cash provider must not produce buys and must not have
     # consumed any of the target_order_size budget.
-    assert LocalDictNoPartialProvider.PROVIDER not in plan or not plan[
-        LocalDictNoPartialProvider.PROVIDER
-    ].to_buy
+    assert LocalDictNoPartialProvider.PROVIDER not in plan or not plan[LocalDictNoPartialProvider.PROVIDER].to_buy
     # The positive-cash provider should still receive its full available budget
     # (capped by the safety threshold of 0.95 applied in the planner).
     partial = plan[LocalDictProvider.PROVIDER]
     assert partial.to_buy, "expected the positive-cash provider to place orders"
-    spent = sum(
-        (o.value or Money(value=0)) for o in partial.to_buy
-    )
+    spent = sum((o.value or Money(value=0)) for o in partial.to_buy)
     # Positive-cash provider has $500; min(500, 1000) capped by 0.95 safety = 475.
     assert spent <= Money(value=475)
     assert spent > Money(value=0)

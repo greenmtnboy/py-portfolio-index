@@ -1,14 +1,17 @@
 import random
-from typing import List, Dict, Optional, Set
 from datetime import date
+from decimal import Decimal
+
+from py_portfolio_index.enums import ProviderType
 from py_portfolio_index.models import (
+    Money,
     RealPortfolio,
     RealPortfolioElement,
 )
-from py_portfolio_index.models import Money
-from py_portfolio_index.enums import ProviderType
-from decimal import Decimal
+
 from .base_portfolio import BaseProvider
+
+DEFAULT_CASH = 10000
 
 
 class FixedGen:
@@ -20,7 +23,7 @@ class FixedGen:
 
 
 class RandGen:
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: int | None = None):
         random.seed(seed)
 
     def get(self):
@@ -32,23 +35,21 @@ class LocalDictProvider(BaseProvider):
 
     def __init__(
         self,
-        holdings: List[RealPortfolioElement],
-        price_dict: Optional[Dict[str, Decimal]] = None,
+        holdings: list[RealPortfolioElement],
+        price_dict: dict[str, Decimal] | None = None,
         default_price_gen=RandGen,
-        cash: Money = Money(value=10000),
+        cash: Money | None = None,
     ):
         BaseProvider.__init__(self)
         self._price_dict = price_dict or {}
-        self._portfolio = RealPortfolio(holdings=holdings, provider=self, cash=cash)
+        self._portfolio = RealPortfolio(holdings=holdings, provider=self, cash=cash if cash is not None else Money(value=DEFAULT_CASH))
         self.default_price_gen = default_price_gen()
 
     @property
     def cash(self) -> Money:
         return self._portfolio.cash or Money(value=0)
 
-    def _get_instrument_price(
-        self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True
-    ) -> Decimal:
+    def _get_instrument_price(self, ticker: str, at_day: date | None = None, fail_on_missing: bool = True) -> Decimal:
         value = self._price_dict.get(ticker)
         if not value:
             nvalue = self.default_price_gen.get()
@@ -58,10 +59,10 @@ class LocalDictProvider(BaseProvider):
 
     def _get_instrument_prices(
         self,
-        tickers: List[str],
-        at_day: Optional[date] = None,
+        tickers: list[str],
+        at_day: date | None = None,
         fail_on_missing: bool = True,
-    ) -> Dict[str, Decimal]:
+    ) -> dict[str, Decimal]:
         for ticker in tickers:
             value = self._price_dict.get(ticker)
             if not value:
@@ -69,7 +70,7 @@ class LocalDictProvider(BaseProvider):
                 self._price_dict[ticker] = nvalue
         return {ticker: self._price_dict[ticker] for ticker in tickers}
 
-    def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
+    def buy_instrument(self, ticker: str, qty: Decimal, value: Money | None = None):
         price = self.get_instrument_price(ticker)
         if not price:
             raise ValueError("No available price for this instrument")
@@ -78,11 +79,9 @@ class LocalDictProvider(BaseProvider):
             value_delta = value
         else:
             value_delta = Money(value=qty * price)
-        self._portfolio += RealPortfolioElement(
-            ticker=ticker, units=qty, value=value_delta
-        )
+        self._portfolio += RealPortfolioElement(ticker=ticker, units=qty, value=value_delta)
 
-    def get_unsettled_instruments(self) -> Set[str]:
+    def get_unsettled_instruments(self) -> set[str]:
         # we settle right away
         return set()
 

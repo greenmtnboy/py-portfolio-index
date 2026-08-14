@@ -476,9 +476,7 @@ class Telnet:
                         else:
                             self.sock.sendall(IAC + WONT + opt)
                     elif cmd in (WILL, WONT):
-                        self.msg(
-                            "IAC %s %d", cmd == WILL and "WILL" or "WONT", ord(opt)
-                        )
+                        self.msg("IAC %s %d", cmd == WILL and "WILL" or "WONT", ord(opt))
                         if self.option_callback:
                             self.option_callback(self.sock, cmd, opt)
                         else:

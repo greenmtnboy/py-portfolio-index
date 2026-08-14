@@ -1,14 +1,16 @@
+import os
+
+import pytest
+
 from py_portfolio_index.datastores.duckdb_datastore import DuckDBDatastore
 from py_portfolio_index.models import (
-    RealPortfolioElement,
     Money,
+    RealPortfolioElement,
 )
 from py_portfolio_index.portfolio_providers.local_dict import (
-    LocalDictProvider,
     LocalDictNoPartialProvider,
+    LocalDictProvider,
 )
-import os
-import pytest
 
 
 def test_datastore():

@@ -1,21 +1,21 @@
-from datetime import date
-from typing import (
-    List,
-    Optional,
-    Set,
-    Union,
-    TYPE_CHECKING,
-    Collection,
-    runtime_checkable,
-    Protocol,
-)
-from pydantic import BaseModel, Field, field_validator
-from py_portfolio_index.enums import Currency, ProviderType, OrderType
-from py_portfolio_index.constants import Logger
-from py_portfolio_index.exceptions import PriceFetchError
+from collections.abc import Collection
+from dataclasses import dataclass, field
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from enum import Enum
-from dataclasses import dataclass, field
+from typing import (
+    TYPE_CHECKING,
+    Optional,
+    Protocol,
+    Union,
+    runtime_checkable,
+)
+
+from pydantic import BaseModel, Field, field_validator
+
+from py_portfolio_index.constants import Logger
+from py_portfolio_index.enums import Currency, OrderType, ProviderType
+from py_portfolio_index.exceptions import PriceFetchError
 
 if TYPE_CHECKING:
     from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
@@ -28,7 +28,7 @@ class ProviderProtocol(Protocol):
     def handle_order_element(self, element: "OrderElement") -> bool:
         pass
 
-    def get_unsettled_instruments(self) -> Set[str]:
+    def get_unsettled_instruments(self) -> set[str]:
         pass
 
 
@@ -183,8 +183,8 @@ class ReweightResponse:
 
 
 class IdealPortfolio(BaseModel):
-    holdings: List[IdealPortfolioElement]
-    source_date: Optional[date] = Field(default_factory=date.today)
+    holdings: list[IdealPortfolioElement]
+    source_date: date | None = Field(default_factory=date.today)
 
     def normalize(self):
         """Ensure component weights go to 100"""
@@ -192,7 +192,7 @@ class IdealPortfolio(BaseModel):
 
     def add_stock(self, ticker: str, weight: Decimal, rebalance: bool = True):
         new = IdealPortfolioElement(ticker=ticker, weight=weight)
-        if any([item.ticker == ticker for item in self.holdings]):
+        if any(item.ticker == ticker for item in self.holdings):
             raise ValueError(f"Stock {ticker} already in portfolio")
         self.holdings.append(new)
         if rebalance:
@@ -210,30 +210,26 @@ class IdealPortfolio(BaseModel):
             item.weight = item.weight * scaling_factor
         self.holdings = sorted(self.holdings, key=lambda x: x.weight, reverse=True)
 
-    def exclude(self, exclusion_list: List[str]):
+    def exclude(self, exclusion_list: list[str]):
         reweighted = []
-        excluded = Decimal(0.0)
+        excluded = Decimal("0.0")
         for ticker in exclusion_list:
             for item in self.holdings:
                 if item.ticker == ticker:
                     reweighted.append(ticker)
                     excluded += item.weight
-                    item.weight = Decimal(0.0)
+                    item.weight = Decimal("0.0")
 
-        self.holdings = [
-            item for item in self.holdings if item.ticker not in exclusion_list
-        ]
+        self.holdings = [item for item in self.holdings if item.ticker not in exclusion_list]
         self._reweight_portfolio()
-        Logger.info(
-            f"Set the following stocks to weight 0 {reweighted}. Total value excluded {excluded}."
-        )
+        Logger.info(f"Set the following stocks to weight 0 {reweighted}. Total value excluded {excluded}.")
         return self
 
     def reweight(
         self,
-        ticker_list: List[str],
-        weight: Union[Decimal, float],
-        min_weight: Union[Decimal, float] = Decimal(0.005),
+        ticker_list: list[str],
+        weight: Decimal | float,
+        min_weight: Decimal | float = Decimal("0.005"),
     ):
         cweight = Decimal(weight)
         cmin_weight = Decimal(min_weight)
@@ -250,28 +246,20 @@ class IdealPortfolio(BaseModel):
             if not found:
                 reweighted.append(ticker)
                 total_value += cmin_weight
-                self.holdings.append(
-                    IdealPortfolioElement(ticker=ticker, weight=cmin_weight)
-                )
+                self.holdings.append(IdealPortfolioElement(ticker=ticker, weight=cmin_weight))
 
         self._reweight_portfolio()
-        Logger.info(
-            f"modified the following by weight {cweight} {reweighted}. Total value modified {total_value}."
-        )
+        Logger.info(f"modified the following by weight {cweight} {reweighted}. Total value modified {total_value}.")
         return self
 
-    def reweight_to_present(
-        self, provider: "BaseProvider"
-    ) -> dict[str, ReweightResponse]:
-        if self.source_date == date.today():
+    def reweight_to_present(self, provider: "BaseProvider") -> dict[str, ReweightResponse]:
+        if self.source_date == datetime.now(timezone.utc).astimezone().date():
             Logger.info("Already reweighted to present")
             return {}
         output = {}
         imaginary_base = Decimal(1_000_000)
         values = {}
-        valid_assets = [
-            item for item in self.holdings if item.ticker in provider.valid_assets
-        ]
+        valid_assets = [item for item in self.holdings if item.ticker in provider.valid_assets]
         if provider.SUPPORTS_BATCH_HISTORY:
             tickers = [item.ticker for item in valid_assets]
             historic_prices = provider.get_instrument_prices(tickers, self.source_date)
@@ -281,12 +269,8 @@ class IdealPortfolio(BaseModel):
             today_prices = {}
             for item in valid_assets:
                 try:
-                    historic_prices[item.ticker] = provider.get_instrument_price(
-                        item.ticker, self.source_date
-                    )
-                    today_prices[item.ticker] = provider.get_instrument_price(
-                        item.ticker
-                    )
+                    historic_prices[item.ticker] = provider.get_instrument_price(item.ticker, self.source_date)
+                    today_prices[item.ticker] = provider.get_instrument_price(item.ticker)
                 except PriceFetchError:
                     historic_prices[item.ticker] = None
                     today_prices[item.ticker] = None
@@ -308,7 +292,7 @@ class IdealPortfolio(BaseModel):
             if item.weight > 0:
                 ratio = round(((new_weight - item.weight) / item.weight) * 100, 2)
             else:
-                ratio = Decimal(0.0)
+                ratio = Decimal("0.0")
             output[item.ticker] = ReweightResponse(
                 original=item.weight,
                 new=new_weight,
@@ -319,7 +303,7 @@ class IdealPortfolio(BaseModel):
             item.weight = new_weight
         # change our source date to today
         # so we don't reweight again
-        self.source_date = date.today()
+        self.source_date = datetime.now(timezone.utc).astimezone().date()
         self._reweight_portfolio()
         return output
 
@@ -328,7 +312,7 @@ class RealPortfolioElement(IdealPortfolioElement):
     ticker: str
     units: Decimal
     value: Money
-    weight: Decimal = Decimal(0.0)
+    weight: Decimal = Decimal("0.0")
     unsettled: bool = False
     dividends: Money = Money(value=0, currency=Currency.USD)
     appreciation: Money = Money(value=0, currency=Currency.USD)
@@ -348,8 +332,8 @@ class RealPortfolioElement(IdealPortfolioElement):
 
 
 class RealPortfolio(BaseModel):
-    holdings: List[RealPortfolioElement]
-    provider: Optional[ProviderProtocol] = None
+    holdings: list[RealPortfolioElement]
+    provider: ProviderProtocol | None = None
     cash: Money = Field(default_factory=lambda: Money(value=0, currency=Currency.USD))
     profit_and_loss: None | ProfitModel = None
 
@@ -368,7 +352,7 @@ class RealPortfolio(BaseModel):
 
     @property
     def value(self) -> Money:
-        values: List[Money] = [item.value for item in self.holdings]
+        values: list[Money] = [item.value for item in self.holdings]
         if self.cash:
             values += [self.cash]
         return Money(value=sum(values))
@@ -407,7 +391,7 @@ class RealPortfolio(BaseModel):
                 self.add_holding(item, reweight=False)
             self._reweight_portfolio()
         else:
-            raise ValueError(f"{type(other)} cannot be added to portfolio element")
+            raise TypeError(f"{type(other)} cannot be added to portfolio element")
         return self
 
     def refresh(self):
@@ -424,8 +408,8 @@ class CompositePortfolio:
     """Provides a view on children portfolios, to enable planning
     across multiple providers"""
 
-    def __init__(self, portfolios: List[RealPortfolio]):
-        self.portfolios: List[RealPortfolio] = portfolios
+    def __init__(self, portfolios: list[RealPortfolio]):
+        self.portfolios: list[RealPortfolio] = portfolios
         self._internal_base = RealPortfolio(holdings=[])
         self.rebuild_cache()
 
@@ -434,15 +418,7 @@ class CompositePortfolio:
         # Floor each provider at 0 so a negative balance in one account
         # doesn't reduce purchasing capacity sourced from other accounts.
         zero = Money(value=0)
-        return Money(
-            value=sum(
-                [
-                    max(item.cash, zero)
-                    for item in self.portfolios
-                    if item.cash is not None
-                ]
-            )
-        )
+        return Money(value=sum([max(item.cash, zero) for item in self.portfolios if item.cash is not None]))
 
     def rebuild_cache(self):
         new = RealPortfolio(holdings=[])
@@ -459,7 +435,7 @@ class CompositePortfolio:
         return self.internal_base.value
 
     @property
-    def holdings(self) -> List[RealPortfolioElement]:
+    def holdings(self) -> list[RealPortfolioElement]:
         return self.internal_base.holdings
 
     def get_holding(self, ticker: str) -> RealPortfolioElement | None:
@@ -478,7 +454,7 @@ class OrderElement(BaseModel):
     value: Money | None
     qty: float | int | None
     price: Money | None = None
-    provider: Optional[ProviderType] = None
+    provider: ProviderType | None = None
 
     @property
     def inferred_value(self) -> Money:
@@ -490,7 +466,7 @@ class OrderElement(BaseModel):
 
     def __add__(self, other):
         if not isinstance(other, OrderElement):
-            raise ValueError(f"Cannot add {type(other)} to OrderElement")
+            raise TypeError(f"Cannot add {type(other)} to OrderElement")
         if self.ticker != other.ticker:
             raise ValueError("Cannot add different tickers")
         if self.order_type != other.order_type:
@@ -512,11 +488,11 @@ class OrderElement(BaseModel):
 
 
 class OrderPlan(BaseModel):
-    to_buy: List[OrderElement]
-    to_sell: List[OrderElement]
+    to_buy: list[OrderElement]
+    to_sell: list[OrderElement]
 
     @property
-    def all_orders(self) -> List[OrderElement]:
+    def all_orders(self) -> list[OrderElement]:
         return self.to_buy + self.to_sell
 
     @property
@@ -532,7 +508,7 @@ class OrderPlan(BaseModel):
         if other == 0:
             return self
         if not isinstance(other, OrderPlan):
-            raise ValueError(f"Cannot add {type(other)} to OrderPlan")
+            raise TypeError(f"Cannot add {type(other)} to OrderPlan")
         for x in other.to_buy:
             found = False
             for y in self.to_buy:
@@ -612,8 +588,8 @@ class StockInfo(BaseModel):
     category: str | None = None
     tradable: bool | None = None
     market_cap: str | None = None
-    tags: List[str] = Field(default_factory=list)
-    indexes: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    indexes: list[str] = Field(default_factory=list)
 
 
 class DividendResult(BaseModel):
@@ -621,4 +597,4 @@ class DividendResult(BaseModel):
     date: date
     amount: Money
     provider: ProviderType
-    external_id: Optional[str] = None
+    external_id: str | None = None

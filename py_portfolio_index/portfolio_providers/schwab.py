@@ -1,31 +1,31 @@
-from decimal import Decimal
+import re
+from collections import defaultdict
 from datetime import date, datetime
-from typing import Optional, List, Dict, DefaultDict, Any
-from py_portfolio_index.constants import CACHE_DIR
+from decimal import Decimal
+from os import environ, remove
+from pathlib import Path
+from time import sleep
+from typing import Any
+
+from platformdirs import user_cache_dir
+from pytz import UTC
+
+from py_portfolio_index.common import divide_into_batches
+from py_portfolio_index.constants import CACHE_DIR, UNKNOWN_TICKER, Logger
+from py_portfolio_index.enums import ProviderType
+from py_portfolio_index.exceptions import ConfigurationError, OrderError
 from py_portfolio_index.models import (
-    RealPortfolio,
-    RealPortfolioElement,
+    DividendResult,
     Money,
     ProfitModel,
+    RealPortfolio,
+    RealPortfolioElement,
 )
-from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
     ObjectKey,
 )
-from py_portfolio_index.exceptions import ConfigurationError
-from py_portfolio_index.constants import Logger, UNKNOWN_TICKER
-from py_portfolio_index.exceptions import OrderError
-from py_portfolio_index.enums import ProviderType
-from py_portfolio_index.models import DividendResult
-from collections import defaultdict
-from functools import lru_cache
-from os import environ, remove
-from pathlib import Path
-from platformdirs import user_cache_dir
-from pytz import UTC
-from time import sleep
-import re
+from py_portfolio_index.portfolio_providers.common import instance_cache
 
 FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
@@ -116,7 +116,7 @@ def api_helper(request):
     except Exception as e:
         if is_auth_error(e):
             raise ConfigurationError(str(e))
-        raise e
+        raise
     return raw.json()
 
 
@@ -153,13 +153,9 @@ class SchwabProvider(BaseProvider):
         # if not device_id:
         #     device_id = environ.get(self.DEVICE_ID_ENV, None)
         if not (api_key and app_secret):
-            raise ConfigurationError(
-                "Must provide ALL OF api_key and app_secret arguments or set environment variables SCHWAB_API_KEY, SCHWAB_APP_SECRET "
-            )
+            raise ConfigurationError("Must provide ALL OF api_key and app_secret arguments or set environment variables SCHWAB_API_KEY, SCHWAB_APP_SECRET ")
 
-        token_path = (
-            Path(user_cache_dir(CACHE_DIR, ensure_exists=True)) / "schwab_token.json"
-        )
+        token_path = Path(user_cache_dir(CACHE_DIR, ensure_exists=True)) / "schwab_token.json"
         from schwab import auth
         from schwab.utils import Utils
 
@@ -167,9 +163,7 @@ class SchwabProvider(BaseProvider):
             c = auth.client_from_token_file(token_path, api_key, app_secret=app_secret)
         except FileNotFoundError:
             if external_auth:
-                raise ConfigurationError(
-                    "External authentication flag set but invalid auth"
-                )
+                raise ConfigurationError("External authentication flag set but invalid auth")
 
             c = auth.client_from_login_flow(
                 api_key,
@@ -182,23 +176,20 @@ class SchwabProvider(BaseProvider):
         BaseProvider.__init__(self)
         self._provider = c
         try:
-            self._account_hash = api_helper(self._provider.get_account_numbers)[0][
-                "hashValue"
-            ]
+            self._account_hash = api_helper(self._provider.get_account_numbers)[0]["hashValue"]
         except Exception as e:
             remove(token_path)
-            raise ConfigurationError(
-                f"Authentication is expired: {str(e)}. Removed token."
-            )
+            raise ConfigurationError(f"Authentication is expired: {e!s}. Removed token.")
         self._utils = Utils(self._provider, account_hash=self._account_hash)
         self._local_description_lookup_cache: dict[str, str] = {}
         if not skip_cache:
             self._load_local_description_lookup_cache()
 
     def _load_local_description_lookup_cache(self):
-        from platformdirs import user_cache_dir
-        from pathlib import Path
         import json
+        from pathlib import Path
+
+        from platformdirs import user_cache_dir
 
         path = Path(user_cache_dir("py_portfolio_index", ensure_exists=True))
         file = path / CACHE_DESC_PATH
@@ -209,19 +200,18 @@ class SchwabProvider(BaseProvider):
             self._local_description_lookup_cache = json.load(f)
 
     def _save_local_description_lookup_cache(self):
-        from platformdirs import user_cache_dir
-        from pathlib import Path
         import json
+        from pathlib import Path
+
+        from platformdirs import user_cache_dir
 
         path = Path(user_cache_dir("py_portfolio_index", ensure_exists=True))
         file = path / CACHE_DESC_PATH
         with open(file, "w") as f:
             json.dump(self._local_description_lookup_cache, f)
 
-    @lru_cache(maxsize=None)
-    def _get_instrument_price(
-        self, ticker: str, at_day: Optional[date] = None, fail_on_missing: bool = True
-    ) -> Optional[Decimal]:
+    @instance_cache
+    def _get_instrument_price(self, ticker: str, at_day: date | None = None, fail_on_missing: bool = True) -> Decimal | None:
         stored = self._price_cache.get_prices(tickers=[ticker], date=at_day)
         if stored:
             return stored[ticker]
@@ -245,34 +235,27 @@ class SchwabProvider(BaseProvider):
         self,
         symbol: str,
         qty: int,
-        value: Optional[Money] = None,
-        price: Optional[Decimal] = None,
+        value: Money | None = None,
+        price: Decimal | None = None,
     ) -> None:
-        from schwab.orders.equities import equity_buy_market, Duration, Session
         from httpx import Request
+        from schwab.orders.equities import Duration, Session, equity_buy_market
 
         order: Request = self._provider.place_order(
             self._account_hash,
-            order_spec=equity_buy_market(symbol, quantity=int(qty))
-            .set_duration(Duration.DAY)
-            .set_session(Session.NORMAL)
-            .build(),
+            order_spec=equity_buy_market(symbol, quantity=int(qty)).set_duration(Duration.DAY).set_session(Session.NORMAL).build(),
         )
         try:
             _ = self._utils.extract_order_id(order)
         except Exception as e:
             if "order not successful: status 429" in str(e):
-                Logger.info(
-                    f"RH error: was throttled on fractional orders! Sleeping {FRACTIONAL_SLEEP}"
-                )
+                Logger.info(f"RH error: was throttled on fractional orders! Sleeping {FRACTIONAL_SLEEP}")
                 sleep(FRACTIONAL_SLEEP)
-                return self._buy_instrument(
-                    symbol=symbol, qty=qty, value=value, price=price
-                )
-            raise e
+                return self._buy_instrument(symbol=symbol, qty=qty, value=value, price=price)
+            raise
         return None
 
-    def buy_instrument(self, ticker: str, qty: Decimal, value: Optional[Money] = None):
+    def buy_instrument(self, ticker: str, qty: Decimal, value: Money | None = None):
         if qty:
             orders_kwargs: dict[str, Decimal | Money | None] = {
                 "qty": qty,
@@ -285,25 +268,19 @@ class SchwabProvider(BaseProvider):
             self._buy_instrument(ticker, **orders_kwargs)  # type: ignore
         except Exception as e:
             if is_auth_error(e):
-                raise ConfigurationError(
-                    f"Could not buy {ticker}: {str(e)}; assuming session expired"
-                )
-            raise OrderError(f"Could not buy {ticker}: {str(e)}")
+                raise ConfigurationError(f"Could not buy {ticker}: {e!s}; assuming session expired")
+            raise OrderError(f"Could not buy {ticker}: {e!s}")
         return True
 
     def get_unsettled_instruments(self) -> set[str]:
-        orders = []
+        orders: list[dict] = []
         for status in (
             self._provider.Order.Status.PENDING_ACTIVATION,
             self._provider.Order.Status.QUEUED,
             self._provider.Order.Status.WORKING,
         ):
-            orders = api_helper(
-                lambda: self._provider.get_orders_for_account(
-                    account_hash=self._account_hash, status=status
-                )
-            )
-        return set(safe_get_symbol(item) for item in orders)
+            orders.extend(api_helper(lambda status=status: self._provider.get_orders_for_account(account_hash=self._account_hash, status=status)))
+        return {safe_get_symbol(item) for item in orders}
 
     def _get_stock_info(self, ticker: str) -> dict:
         return api_helper(
@@ -342,30 +319,22 @@ class SchwabProvider(BaseProvider):
         except ConfigurationError:
             raise
         except KeyError as e:
-            raise ConfigurationError(
-                f"Could not fetch portfolio on {str(e)}; assuming session expired"
-            )
+            raise ConfigurationError(f"Could not fetch portfolio on {e!s}; assuming session expired")
         except Exception as e:
             if is_auth_error(e):
-                raise ConfigurationError(
-                    f"Could not fetch portfolio: {str(e)}; assuming session expired"
-                )
-            raise e
+                raise ConfigurationError(f"Could not fetch portfolio: {e!s}; assuming session expired")
+            raise
 
     def get_holdings(self) -> RealPortfolio:
-        accounts_data = self._get_cached_value(
-            ObjectKey.ACCOUNT, callable=self.get_portfolio
-        )
+        accounts_data = self._get_cached_value(ObjectKey.ACCOUNT, callable=self.get_portfolio)
         my_stocks = accounts_data["positions"]
 
-        unsettled = self._get_cached_value(
-            ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments
-        )
+        unsettled = self._get_cached_value(ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments)
 
         pre = {}
         symbols = []
         for row in my_stocks:
-            local: Dict[str, Any] = {}
+            local: dict[str, Any] = {}
             local["units"] = row["longQuantity"]
             # unclear what is happening here, but skip this for now
             ticker = safe_get_symbol(row)
@@ -375,7 +344,7 @@ class SchwabProvider(BaseProvider):
             local["weight"] = 0
             pre[ticker] = local
         prices = self._price_cache.get_prices(symbols)
-        total_value = Decimal(0.0)
+        total_value = Decimal("0.0")
         for s in symbols:
             price = prices[s]
             if not price:
@@ -396,36 +365,30 @@ class SchwabProvider(BaseProvider):
 
     def _get_instrument_prices(
         self,
-        tickers: List[str],
-        at_day: Optional[date] = None,
+        tickers: list[str],
+        at_day: date | None = None,
         fail_on_missing: bool = True,
-    ) -> Dict[str, Optional[Decimal]]:
-        batches: List[Dict[str, Optional[Decimal]]] = []
-        prices: Dict[str, Optional[Decimal]] = {}
+    ) -> dict[str, Decimal | None]:
+        batches: list[dict[str, Decimal | None]] = []
+        prices: dict[str, Decimal | None] = {}
 
         for list_batch in divide_into_batches(tickers, 100):
             if at_day:
                 start_datetime, end_datetime = date_to_datetimes(at_day)
                 for ticker in list_batch:
                     historicals = api_helper(
-                        lambda ticker=ticker: self._provider.get_price_history_every_day(
+                        lambda ticker=ticker, start_datetime=start_datetime, end_datetime=end_datetime: self._provider.get_price_history_every_day(
                             symbol=ticker,
                             start_datetime=start_datetime,
                             end_datetime=end_datetime,
                         )
                     )
-                    batches.append(
-                        {ticker: Decimal(value=historicals["candles"][0]["close"])}
-                    )
+                    batches.append({ticker: Decimal(value=historicals["candles"][0]["close"])})
             else:
-                quotes = api_helper(
-                    lambda: self._provider.get_quotes(symbols=list_batch)
-                )
+                quotes = api_helper(lambda list_batch=list_batch: self._provider.get_quotes(symbols=list_batch))
                 for ticker in list_batch:
                     if ticker in quotes:
-                        prices[ticker] = Decimal(
-                            value=quotes[ticker]["quote"]["lastPrice"]
-                        )
+                        prices[ticker] = Decimal(value=quotes[ticker]["quote"]["lastPrice"])
                     else:
                         prices[ticker] = None
         for fbatch in batches:
@@ -442,10 +405,8 @@ class SchwabProvider(BaseProvider):
             )
         )
 
-    def get_per_ticker_profit_or_loss(self) -> Dict[str, ProfitModel]:
-        account_info = self._get_cached_value(
-            ObjectKey.ACCOUNT, callable=self.get_portfolio
-        )
+    def get_per_ticker_profit_or_loss(self) -> dict[str, ProfitModel]:
+        account_info = self._get_cached_value(ObjectKey.ACCOUNT, callable=self.get_portfolio)
 
         dividends = self._get_dividends()
 
@@ -479,31 +440,23 @@ class SchwabProvider(BaseProvider):
         return ticker or UNKNOWN_TICKER, changes
 
     def _get_dividends(self) -> defaultdict[str, Money]:
-        dividends: dict = self._get_cached_value(
-            ObjectKey.DIVIDENDS_DETAIL, callable=self._get_dividends_wrapper
-        )
+        dividends: dict = self._get_cached_value(ObjectKey.DIVIDENDS_DETAIL, callable=self._get_dividends_wrapper)
         base: list[dict] = []
 
         changes: bool = False
         for item in dividends:
             ticker, item_searched = self._fuzzy_ticker_lookup(item["description"])
             changes = changes or item_searched
-            base.append(
-                {"value": Money(value=Decimal(item["netAmount"])), "ticker": ticker}
-            )
+            base.append({"value": Money(value=Decimal(item["netAmount"])), "ticker": ticker})
         if changes:
             self._save_local_description_lookup_cache()
-        final: DefaultDict[str, Money] = defaultdict(lambda: Money(value=0))
+        final: defaultdict[str, Money] = defaultdict(lambda: Money(value=0))
         for dividend_item in base:
             final[dividend_item["ticker"]] += dividend_item["value"]
         return final
 
-    def get_dividend_details(
-        self, start: datetime | None = None
-    ) -> list[DividendResult]:
-        dividends: dict = self._get_cached_value(
-            ObjectKey.DIVIDENDS, callable=self._get_dividends_wrapper
-        )
+    def get_dividend_details(self, start: datetime | None = None) -> list[DividendResult]:
+        dividends: dict = self._get_cached_value(ObjectKey.DIVIDENDS, callable=self._get_dividends_wrapper)
         final = []
         changes = False
         for item in dividends:

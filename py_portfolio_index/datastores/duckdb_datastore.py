@@ -1,10 +1,12 @@
-from decimal import Decimal
-from py_portfolio_index.datastores.base_datastore import BaseDatastore
-from py_portfolio_index.models import DividendResult, RealPortfolioElement
-from py_portfolio_index.enums import ProviderType
-from py_portfolio_index.constants import UNKNOWN_TICKER
 import hashlib
 from collections import defaultdict
+from decimal import Decimal
+from typing import ClassVar
+
+from py_portfolio_index.constants import UNKNOWN_TICKER
+from py_portfolio_index.datastores.base_datastore import BaseDatastore
+from py_portfolio_index.enums import ProviderType
+from py_portfolio_index.models import DividendResult, RealPortfolioElement
 
 
 def get_integer_id(value):
@@ -34,7 +36,7 @@ def map_provider(ptype: ProviderType):
 
 
 class DuckDBDatastore(BaseDatastore):
-    EXPECTED_TABLES = ["providers", "dividends", "symbols", "ticker_holdings"]
+    EXPECTED_TABLES: ClassVar[list[str]] = ["providers", "dividends", "symbols", "ticker_holdings"]
 
     def __init__(self, db_path: str, debug: bool = False):
         super().__init__(duckdb_path=db_path, debug=debug)
@@ -106,7 +108,6 @@ class DuckDBDatastore(BaseDatastore):
             self.executor.connection.commit()
 
     def initialize(self):
-
         self.executor.execute_raw_sql(
             """
         CREATE OR REPLACE TABLE providers (
@@ -178,18 +179,16 @@ class DuckDBDatastore(BaseDatastore):
             )
         self.executor.connection.commit()
 
-    def persist_holding_data(
-        self, data: list[RealPortfolioElement], provider: ProviderType
-    ):
+    def persist_holding_data(self, data: list[RealPortfolioElement], provider: ProviderType):
         from py_portfolio_index.bin import STOCK_INFO
 
         mapping = defaultdict(list)
         for x in data:
             mapping[x.ticker.strip().lower()].append(x)
         unknown_qty, unknown_value, unknown_basis = (
-            Decimal(0.0),
-            Decimal(0.0),
-            Decimal(0.0),
+            Decimal("0.0"),
+            Decimal("0.0"),
+            Decimal("0.0"),
         )
         for x in data:
             if x.ticker in STOCK_INFO:
@@ -205,7 +204,6 @@ class DuckDBDatastore(BaseDatastore):
                                             where symbols.ticker = :ticker
                 ON CONFLICT DO UPDATE SET qty = EXCLUDED.qty, cost_basis = EXCLUDED.cost_basis, value = EXCLUDED.value;
                                             """,
-                    #
                     {
                         "ticker": x.ticker,
                         "provider": map_provider(provider),
@@ -218,7 +216,7 @@ class DuckDBDatastore(BaseDatastore):
                 unknown_qty += x.units
                 unknown_value += x.value.decimal
                 unknown_basis += x.value.decimal - x.appreciation.decimal
-        if unknown_qty > Decimal(0.0):
+        if unknown_qty > Decimal("0.0"):
             self.executor.execute_raw_sql(
                 """INSERT INTO ticker_holdings
                                         SELECT 

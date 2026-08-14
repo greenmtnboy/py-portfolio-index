@@ -1,9 +1,14 @@
 mypy
-ruff
+# the code conforms to 0.16's default rule set; each ruff minor adds rules to
+# that default, so bound it and widen deliberately
+ruff<0.17
 requests
 types-requests
 alpaca-py
-webull
+webull-python-sdk-core
+# webull-python-sdk-mdata and webull-python-sdk-trade must be installed with
+# --no-deps; see the install step in .github/workflows/pythonpackage.yml
 types-pytz
 schwab-py
+requests-oauthlib
 python-dotenv

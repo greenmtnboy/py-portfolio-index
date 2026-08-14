@@ -1,5 +1,5 @@
-from py_portfolio_index.models import Money
 from py_portfolio_index.enums import Currency
+from py_portfolio_index.models import Money
 
 
 def test_parsing():
