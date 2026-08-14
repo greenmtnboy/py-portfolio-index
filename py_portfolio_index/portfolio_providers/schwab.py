@@ -273,13 +273,13 @@ class SchwabProvider(BaseProvider):
         return True
 
     def get_unsettled_instruments(self) -> set[str]:
-        orders = []
+        orders: list[dict] = []
         for status in (
             self._provider.Order.Status.PENDING_ACTIVATION,
             self._provider.Order.Status.QUEUED,
             self._provider.Order.Status.WORKING,
         ):
-            orders = api_helper(lambda status=status: self._provider.get_orders_for_account(account_hash=self._account_hash, status=status))
+            orders.extend(api_helper(lambda status=status: self._provider.get_orders_for_account(account_hash=self._account_hash, status=status)))
         return {safe_get_symbol(item) for item in orders}
 
     def _get_stock_info(self, ticker: str) -> dict:
