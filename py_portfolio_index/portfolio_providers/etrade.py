@@ -81,6 +81,20 @@ def _to_decimal(value: Any) -> Decimal:
     return Decimal(str(value))
 
 
+def _position_gain(row: dict) -> Decimal:
+    """Unrealized gain on a position since purchase.
+
+    Positions report totalGain directly; totalGainLoss only exists on the
+    portfolio-level Totals object. Fall back to marketValue - totalCost for
+    any row that omits totalGain but still carries its cost basis.
+    """
+    if row.get("totalGain") is not None:
+        return _to_decimal(row["totalGain"])
+    if row.get("totalCost") is not None:
+        return _to_decimal(row.get("marketValue")) - _to_decimal(row["totalCost"])
+    return Decimal(0)
+
+
 def _ms_to_date(epoch_ms: Any) -> date:
     return datetime.fromtimestamp(int(epoch_ms) / 1000, tz=timezone.utc).date()
 
@@ -312,7 +326,7 @@ class ETradeProvider(BaseProvider):
                     value=Money(value=value),
                     weight=(value / total_value) if total_value else Decimal(0),
                     unsettled=ticker in unsettled,
-                    appreciation=Money(value=_to_decimal(row.get("totalGainLoss"))),
+                    appreciation=Money(value=_position_gain(row)),
                     dividends=Money(value=Decimal(0)),
                 )
             )
@@ -329,7 +343,7 @@ class ETradeProvider(BaseProvider):
             if not ticker:
                 continue
             results[ticker] = ProfitModel(
-                appreciation=Money(value=_to_decimal(row.get("totalGainLoss"))),
+                appreciation=Money(value=_position_gain(row)),
                 dividends=dividends.get(ticker, Money(value=0)),
             )
         # dividends from positions since sold still count toward P&L
