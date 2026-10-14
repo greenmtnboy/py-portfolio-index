@@ -225,13 +225,14 @@ PORTFOLIO = {
                         "Product": {"symbol": "AAPL"},
                         "quantity": 10,
                         "marketValue": 1500.0,
-                        "totalGainLoss": 100.0,
+                        "totalCost": 1400.0,
+                        "totalGain": 100.0,
                     },
                     {
                         "Product": {"symbol": "GOOG"},
                         "quantity": 5,
                         "marketValue": 500.0,
-                        "totalGainLoss": -50.0,
+                        "totalCost": 550.0,
                     },
                 ]
             }
@@ -353,7 +354,18 @@ def test_get_per_ticker_profit_or_loss(provider):
     pl = provider.get_per_ticker_profit_or_loss()
     assert pl["AAPL"].appreciation.value == Decimal(100)
     assert pl["AAPL"].dividends.value == Decimal("12.34")
+    # GOOG omits totalGain, so it falls back to marketValue - totalCost
     assert pl["GOOG"].appreciation.value == Decimal(-50)
+
+
+def test_holdings_carry_appreciation(provider):
+    holdings = provider.get_holdings()
+    assert holdings.get_holding("AAPL").appreciation.value == Decimal(100)
+    assert holdings.get_holding("GOOG").appreciation.value == Decimal(-50)
+
+
+def test_position_gain_without_cost_basis_is_zero():
+    assert etrade_provider._position_gain({"marketValue": 10.0}) == Decimal(0)
 
 
 def test_get_instrument_prices(provider):
