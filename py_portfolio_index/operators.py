@@ -378,13 +378,7 @@ def generate_composite_order_plan(
     safety_threshold: Decimal = Decimal("0.95"),
     target_order_size: Money | None = None,
     include_sell_orders: bool = False,
-    skip_tickers: set[str] | None = None,
 ) -> Mapping[ProviderType, OrderPlan]:
-    """Plan orders across every provider in the composite portfolio.
-
-    skip_tickers keeps those tickers in the target allocation but places no
-    orders for them, so their share of purchase power flows to other holdings.
-    """
     provider_to_portfolio_map = {x.provider: x for x in composite.portfolios if x.provider}
     zero = Money(value=0)
     if target_order_size:
@@ -405,7 +399,7 @@ def generate_composite_order_plan(
     processed = set()
     # check each of our p
     output: defaultdict[ProviderType, OrderPlan] = defaultdict(lambda: OrderPlan(to_buy=[], to_sell=[]))
-    skip_tickers = set(skip_tickers or ())
+    skip_tickers: set[str] = set()
     for provider in providers:
         skip_tickers = skip_tickers.union(provider.get_unsettled_instruments())
 
