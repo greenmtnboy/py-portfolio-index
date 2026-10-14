@@ -85,3 +85,38 @@ def test_generate_composite__order_plan():
     for provider_plan in order_plan.values():
         for x in provider_plan.to_buy:
             assert x.value == expected[x.ticker]
+
+
+def test_generate_composite_order_plan_skip_tickers():
+    provider = LocalDictProvider(
+        holdings=[
+            RealPortfolioElement(ticker="AAPL", units=1.0, value=Money(value=100)),
+            RealPortfolioElement(ticker="UNIL", units=1.0, value=Money(value=1000)),
+        ],
+        cash=Money(value=800),
+    )
+    composite = CompositePortfolio([provider.get_holdings()])
+    ideal = IdealPortfolio(
+        holdings=[
+            IdealPortfolioElement(ticker="AAPL", weight=0.5),
+            IdealPortfolioElement(ticker="MSFT", weight=0.5),
+        ]
+    )
+    order_plan = generate_composite_order_plan(
+        composite,
+        ideal,
+        target_size=generate_auto_target_size(composite, ideal),
+        purchase_order_maps=PurchaseStrategy.LARGEST_DIFF_FIRST,
+        skip_tickers={"MSFT"},
+    )
+    unskipped = generate_composite_order_plan(
+        composite,
+        ideal,
+        target_size=generate_auto_target_size(composite, ideal),
+        purchase_order_maps=PurchaseStrategy.LARGEST_DIFF_FIRST,
+    )
+    assert {x.ticker for plan in unskipped.values() for x in plan.to_buy} == {"AAPL", "MSFT"}
+    tickers = {x.ticker for plan in order_plan.values() for x in plan.to_buy}
+    assert tickers == {"AAPL"}
+    # skipping only affects orders; the target allocation is untouched
+    assert {x.ticker for x in ideal.holdings} == {"AAPL", "MSFT"}
