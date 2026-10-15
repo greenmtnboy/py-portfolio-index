@@ -27,6 +27,16 @@ from py_portfolio_index.portfolio_providers.common import PriceCache
 MAX_OPEN_ORDER_SIZE = 500
 
 
+def _with_known_exchange(raw: dict) -> dict:
+    """alpaca-py validates exchange against a closed enum that lags new venues (e.g. TXSE);
+    blank out exchanges it doesn't know so one new listing can't break the whole response."""
+    from alpaca.trading.enums import AssetExchange
+
+    if raw.get("exchange") not in AssetExchange._value2member_map_:
+        return {**raw, "exchange": AssetExchange.EMPTY.value}
+    return raw
+
+
 def filter_prices_response(ticker: str, response, earliest: bool = True) -> Decimal | None:
     try:
         ticker_vals = response[ticker]
@@ -85,13 +95,26 @@ class AlpacaProvider(BaseProvider):
             single_fetcher=self._get_instrument_price,
         )
 
+    def get_all_assets(self, request=None) -> list:
+        from alpaca.trading.models import Asset
+
+        params = request.to_request_fields() if request is not None else {}
+        raw = cast(list[dict], self.trading_client.get("/assets", params))
+        return [Asset(**_with_known_exchange(x)) for x in raw]
+
+    def get_all_positions(self) -> list:
+        from alpaca.trading.models import Position
+
+        raw = cast(list[dict], self.trading_client.get("/positions"))
+        return [Position(**_with_known_exchange(x)) for x in raw]
+
     @property
     def valid_assets(self) -> set[str]:
-        from alpaca.trading.client import Asset, GetAssetsRequest
+        from alpaca.trading.client import GetAssetsRequest
         from alpaca.trading.requests import AssetClass
 
         if not self._valid_assets:
-            self._valid_assets = {(x.symbol if isinstance(x, Asset) else x) for x in self.trading_client.get_all_assets(GetAssetsRequest(status=None, exchange=None, asset_class=AssetClass.US_EQUITY))}
+            self._valid_assets = {x.symbol for x in self.get_all_assets(GetAssetsRequest(status=None, exchange=None, asset_class=AssetClass.US_EQUITY))}
         return self._valid_assets
 
     def _get_instrument_prices(
@@ -146,15 +169,14 @@ class AlpacaProvider(BaseProvider):
             return {ticker: filter_prices_response(ticker, raw, earliest=False) for ticker in tickers}
 
     def _get_stock_info(self, ticker: str) -> dict:
-        from alpaca.trading.client import Asset
-
-        info = self.trading_client.get_asset(ticker)
-        if not isinstance(info, Asset):
+        # read the raw payload so exchanges alpaca-py doesn't model yet still come through
+        info = self.trading_client.get(f"/assets/{ticker}")
+        if not isinstance(info, dict):
             return {}
         return {
-            "name": info.name,
-            "exchange": info.exchange,
-            "tradable": bool(info.tradable),
+            "name": info.get("name"),
+            "exchange": info.get("exchange"),
+            "tradable": bool(info.get("tradable")),
         }
 
     def _get_instrument_prices_wrapper(
@@ -338,7 +360,7 @@ class AlpacaProvider(BaseProvider):
         from alpaca.common.exceptions import APIError
 
         try:
-            my_stocks = self._get_cached_value(ObjectKey.POSITIONS, callable=self.trading_client.get_all_positions)
+            my_stocks = self._get_cached_value(ObjectKey.POSITIONS, callable=self.get_all_positions)
             account = self._get_cached_value(ObjectKey.ACCOUNT, callable=self.trading_client.get_account)
             unsettled = self._get_cached_value(ObjectKey.UNSETTLED, callable=self.get_unsettled_instruments)
             unsettled_cash = self._get_unsettled_cash()
@@ -390,7 +412,7 @@ class AlpacaProvider(BaseProvider):
         return RealPortfolio(holdings=out, cash=cash, provider=self)
 
     def get_per_ticker_profit_or_loss(self) -> dict[str, ProfitModel]:
-        my_stocks = self._get_cached_value(ObjectKey.POSITIONS, callable=self.trading_client.get_all_positions)
+        my_stocks = self._get_cached_value(ObjectKey.POSITIONS, callable=self.get_all_positions)
         raw_divs = [x for x in self._get_dividends() if x["status"] == "executed"]
 
         divs: defaultdict[str, Money] = defaultdict(lambda: Money(value=Decimal(0)))

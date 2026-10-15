@@ -4,7 +4,7 @@ mypy
 ruff<0.17
 requests
 types-requests
-alpaca-py
+alpaca-py>=0.44.0
 webull-python-sdk-core
 # webull-python-sdk-mdata and webull-python-sdk-trade must be installed with
 # --no-deps; see the install step in .github/workflows/pythonpackage.yml

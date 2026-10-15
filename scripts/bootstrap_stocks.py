@@ -32,7 +32,7 @@ def fetch_alpaca_stock_info(provider: PaperAlpacaProvider) -> list[StockInfo]:
         status=AssetStatus.ACTIVE,
         asset_class=AssetClass.US_EQUITY,
     )
-    assets = provider.trading_client.get_all_assets(request)
+    assets = provider.get_all_assets(request)
     stock_info = []
     for asset in assets:
         exchange = asset.exchange.value
