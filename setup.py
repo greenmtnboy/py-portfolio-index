@@ -45,7 +45,7 @@ setuptools.setup(
     },
     install_requires=install_requires,
     extras_require={
-        "alpaca": ["alpaca-py"],
+        "alpaca": ["alpaca-py>=0.44.0"],
         "robinhood": ["robin-stocks"],
         "webull": [
             "webull-python-sdk-core",

@@ -75,3 +75,10 @@ def test_stock_info_keeps_unknown_exchange():
         "exchange": "TXSE",
         "tradable": True,
     }
+
+
+def test_exchanges_alpaca_py_knows_pass_through():
+    # ASCX was added to alpaca-py's enum in 0.44; once TXSE lands it will flow through the same way
+    provider = make_provider({"/positions": [make_position("NEWCO", "ASCX")]})
+
+    assert provider.get_all_positions()[0].exchange.value == "ASCX"
