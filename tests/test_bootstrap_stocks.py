@@ -27,13 +27,12 @@ def test_fetch_alpaca_stock_info_filters_and_normalizes_assets():
         ),
     ]
 
-    class FakeTradingClient:
-        def get_all_assets(self, request):
-            assert request.status == AssetStatus.ACTIVE
-            assert request.asset_class == AssetClass.US_EQUITY
-            return assets
+    def get_all_assets(request):
+        assert request.status == AssetStatus.ACTIVE
+        assert request.asset_class == AssetClass.US_EQUITY
+        return assets
 
-    provider = SimpleNamespace(trading_client=FakeTradingClient())
+    provider = SimpleNamespace(get_all_assets=get_all_assets)
 
     results = fetch_alpaca_stock_info(provider)
 
