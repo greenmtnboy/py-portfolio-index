@@ -32,7 +32,18 @@ def map_provider(ptype: ProviderType):
         ProviderType.WEBULL: 3,
         ProviderType.MOOMOO: 4,
         ProviderType.SCHWAB: 5,
+        ProviderType.ETRADE: 6,
     }[ptype]
+
+
+PROVIDER_NAMES = {
+    1: "Robinhood",
+    2: "Alpaca",
+    3: "Webull",
+    4: "Moomoo",
+    5: "Schwab",
+    6: "E*TRADE",
+}
 
 
 class DuckDBDatastore(BaseDatastore):
@@ -116,11 +127,11 @@ class DuckDBDatastore(BaseDatastore):
         );
         """
         )
-        self.executor.execute_raw_sql("INSERT INTO providers VALUES (1, 'Robinhood')")
-        self.executor.execute_raw_sql("INSERT INTO providers VALUES (2, 'Alpaca')")
-        self.executor.execute_raw_sql("INSERT INTO providers VALUES (3, 'Webull')")
-        self.executor.execute_raw_sql("INSERT INTO providers VALUES (4, 'Moomoo')")
-        self.executor.execute_raw_sql("INSERT INTO providers VALUES (5, 'Schwab')")
+        for provider_id, name in PROVIDER_NAMES.items():
+            self.executor.execute_raw_sql(
+                "INSERT INTO providers VALUES (:id, :name)",
+                {"id": provider_id, "name": name},
+            )
 
         self.executor.execute_raw_sql(
             """
@@ -185,6 +196,20 @@ class DuckDBDatastore(BaseDatastore):
         mapping = defaultdict(list)
         for x in data:
             mapping[x.ticker.strip().lower()].append(x)
+        provider_id = map_provider(provider)
+        if provider_id in PROVIDER_NAMES:
+            # databases created before a provider was added lack its row
+            self.executor.execute_raw_sql(
+                "INSERT INTO providers VALUES (:id, :name) ON CONFLICT DO NOTHING;",
+                {"id": provider_id, "name": PROVIDER_NAMES[provider_id]},
+            )
+        # each call is a full snapshot of the provider's holdings: clear the
+        # previous one so sold positions drop out and the pooled unknown-ticker
+        # row can be written again without a primary key collision
+        self.executor.execute_raw_sql(
+            "DELETE FROM ticker_holdings WHERE provider = :provider;",
+            {"provider": provider_id},
+        )
         unknown_qty, unknown_value, unknown_basis = (
             Decimal("0.0"),
             Decimal("0.0"),
@@ -206,7 +231,7 @@ class DuckDBDatastore(BaseDatastore):
                                             """,
                     {
                         "ticker": x.ticker,
-                        "provider": map_provider(provider),
+                        "provider": provider_id,
                         "qty": x.units,
                         "cost_basis": x.value.decimal - x.appreciation.decimal,
                         "value": x.value.decimal,
@@ -230,7 +255,7 @@ class DuckDBDatastore(BaseDatastore):
                 """,
                 {
                     "ticker": UNKNOWN_TICKER,
-                    "provider": map_provider(provider),
+                    "provider": provider_id,
                     "qty": unknown_qty,
                     "cost_basis": unknown_basis,
                     "value": unknown_value,
