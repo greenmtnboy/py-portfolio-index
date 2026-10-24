@@ -40,6 +40,9 @@ QUOTE_BATCH_SIZE = 25
 MAX_PAGE_SIZE = 50
 # guard against paginating forever if the API keeps reporting another page
 MAX_PAGES = 100
+# the transactions endpoint has been seen to stall indefinitely; fail rather
+# than hang whatever is waiting on it
+REQUEST_TIMEOUT_SECONDS = 60
 
 # E*TRADE's clientOrderId is limited to 20 alphanumeric characters
 CLIENT_ORDER_ID_LENGTH = 20
@@ -97,6 +100,18 @@ def _position_gain(row: dict) -> Decimal:
 
 def _ms_to_date(epoch_ms: Any) -> date:
     return datetime.fromtimestamp(int(epoch_ms) / 1000, tz=timezone.utc).date()
+
+
+def _transaction_symbol(row: dict) -> str | None:
+    """Ticker of a transaction row.
+
+    Unlike positions and orders, transactions spell the key lowercase
+    (brokerage.product). displaySymbol is a fallback only: on trades it is
+    often a single space.
+    """
+    brokerage = row.get("brokerage", {})
+    symbol = brokerage.get("product", {}).get("symbol") or str(brokerage.get("displaySymbol") or "").strip()
+    return symbol or None
 
 
 class ETradeProvider(BaseProvider):
@@ -165,6 +180,7 @@ class ETradeProvider(BaseProvider):
                 params=params,
                 json=json_body,
                 headers={"Accept": "application/json"},
+                timeout=REQUEST_TIMEOUT_SECONDS,
             )
             if response.status_code != 429 or attempt == RATE_LIMIT_RETRIES:
                 break
@@ -424,6 +440,8 @@ class ETradeProvider(BaseProvider):
 
     def _get_raw_transactions(self) -> list[dict]:
         results: list[dict] = []
+        seen_ids: set[str] = set()
+        seen_markers: set[str] = set()
         marker = None
         for _ in range(MAX_PAGES):
             params: dict[str, Any] = {"count": MAX_PAGE_SIZE}
@@ -436,10 +454,20 @@ class ETradeProvider(BaseProvider):
                     raise ConfigurationError(f"Could not fetch E*TRADE transactions: {e}")
                 raise
             response = payload.get("TransactionListResponse", {})
-            results.extend(_ensure_list(response.get("Transaction")))
+            page = _ensure_list(response.get("Transaction"))
+            # consecutive pages overlap by a few rows
+            for row in page:
+                transaction_id = str(row.get("transactionId"))
+                if transaction_id not in seen_ids:
+                    seen_ids.add(transaction_id)
+                    results.append(row)
+            # moreTransactions can't be trusted: the first page reports False
+            # while totalCount says hundreds remain. Follow the marker until a
+            # short page instead.
             marker = response.get("marker")
-            if not marker or not response.get("moreTransactions", True):
+            if not marker or marker in seen_markers or len(page) < MAX_PAGE_SIZE:
                 return results
+            seen_markers.add(marker)
         Logger.error(f"Stopped paginating E*TRADE transactions after {MAX_PAGES} pages; results may be incomplete")
         return results
 
@@ -450,7 +478,7 @@ class ETradeProvider(BaseProvider):
             if not order_type:
                 continue
             brokerage = row.get("brokerage", {})
-            symbol = brokerage.get("Product", {}).get("symbol")
+            symbol = _transaction_symbol(row)
             if not symbol:
                 continue
             results.append(
@@ -471,7 +499,7 @@ class ETradeProvider(BaseProvider):
             # covers "Dividend" and "Qualified Dividend" style labels
             if "dividend" not in str(row.get("transactionType", "")).lower():
                 continue
-            symbol = row.get("brokerage", {}).get("Product", {}).get("symbol")
+            symbol = _transaction_symbol(row)
             if not symbol:
                 continue
             event_date = _ms_to_date(row["transactionDate"])

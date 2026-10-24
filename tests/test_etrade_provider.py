@@ -261,31 +261,46 @@ PLACE = {"PlaceOrderResponse": {"OrderIds": [{"orderId": 5}]}}
 # 2025-08-07 00:00:00 UTC
 TRANSACTION_DATE_MS = 1754524800000
 
+# shaped like live responses: unlike positions, transactions key the product
+# lowercase, and displaySymbol on trades is often a lone space
 TRANSACTIONS = {
     "TransactionListResponse": {
         "Transaction": [
             {
                 "transactionType": "Bought",
                 "transactionDate": TRANSACTION_DATE_MS,
-                "transactionId": 1,
-                "brokerage": {"Product": {"symbol": "AAPL"}, "quantity": 2, "price": 100.5},
+                "transactionId": "1",
+                "amount": -201.0,
+                "brokerage": {
+                    "product": {"symbol": "AAPL", "securityType": "EQ"},
+                    "quantity": 2,
+                    "price": 100.5,
+                    "displaySymbol": " ",
+                },
             },
             {
                 "transactionType": "Qualified Dividend",
                 "transactionDate": TRANSACTION_DATE_MS,
-                "transactionId": 2,
+                "transactionId": "2",
                 "amount": 12.34,
-                "brokerage": {"Product": {"symbol": "AAPL"}},
+                "brokerage": {
+                    "product": {"symbol": "AAPL", "securityType": "EQ"},
+                    "quantity": 0,
+                    "price": 0,
+                    "displaySymbol": "AAPL",
+                },
             },
             {
-                "transactionType": "Interest",
+                "transactionType": "Interest Income",
                 "transactionDate": TRANSACTION_DATE_MS,
-                "transactionId": 3,
+                "transactionId": "3",
                 "amount": 0.5,
-                "brokerage": {},
+                "brokerage": {"quantity": 0, "price": 0, "displaySymbol": " "},
             },
         ],
         "moreTransactions": False,
+        "transactionCount": 3,
+        "totalCount": 3,
     }
 }
 
@@ -296,7 +311,7 @@ class FakeApiSession:
     def __init__(self):
         self.calls = []
 
-    def request(self, method, url, params=None, json=None, headers=None):
+    def request(self, method, url, params=None, json=None, headers=None, timeout=None):
         self.calls.append((method, url, params, json))
         routes = {
             "/v1/accounts/list.json": ACCOUNT_LIST,
@@ -417,3 +432,58 @@ def test_get_dividend_details(provider):
     assert dividends[0].ticker == "AAPL"
     assert dividends[0].amount.value == Decimal("12.34")
     assert dividends[0].external_id == "2"
+
+
+def _dividend_row(transaction_id: int) -> dict:
+    return {
+        "transactionType": "Dividend",
+        "transactionDate": TRANSACTION_DATE_MS,
+        "transactionId": str(transaction_id),
+        "amount": 1.0,
+        "brokerage": {"product": {"symbol": "AMT", "securityType": "EQ"}, "displaySymbol": "AMT"},
+    }
+
+
+class PagedTransactionsSession(FakeApiSession):
+    """Pages transactions the way the live API does.
+
+    The first page claims moreTransactions False despite a marker and a
+    totalCount beyond it, and consecutive pages repeat a row.
+    """
+
+    PAGES = {
+        None: ([1, 2], "m1", False),
+        "m1": ([2, 3], "m2", True),
+        "m2": ([4], "m3", False),
+    }
+
+    def request(self, method, url, params=None, json=None, headers=None, timeout=None):
+        if "/transactions.json" not in url:
+            return super().request(method, url, params=params, json=json, headers=headers, timeout=timeout)
+        self.calls.append((method, url, params, json))
+        ids, marker, more = self.PAGES[(params or {}).get("marker")]
+        return FakeResponse(
+            payload={
+                "TransactionListResponse": {
+                    "Transaction": [_dividend_row(i) for i in ids],
+                    "marker": marker,
+                    "moreTransactions": more,
+                    "transactionCount": len(ids),
+                    "totalCount": 5,
+                }
+            }
+        )
+
+
+def test_transactions_follow_marker_past_misleading_more_flag(monkeypatch):
+    session = PagedTransactionsSession()
+    monkeypatch.setattr(etrade_provider, "get_authenticated_session", lambda *args, **kwargs: session)
+    monkeypatch.setattr(etrade_provider, "MAX_PAGE_SIZE", 2)
+    instance = ETradeProvider(api_key="key", api_secret="secret", sandbox=True)
+
+    dividends = instance.get_dividend_details()
+
+    assert [d.external_id for d in dividends] == ["1", "2", "3", "4"]
+    markers = [params.get("marker") for _, url, params, _ in session.calls if "/transactions.json" in url]
+    # stops on the short third page rather than chasing its marker
+    assert markers == [None, "m1", "m2"]
