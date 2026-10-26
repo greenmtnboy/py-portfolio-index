@@ -1,6 +1,6 @@
 import re
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from os import environ, remove
 from pathlib import Path
@@ -8,7 +8,6 @@ from time import sleep
 from typing import Any
 
 from platformdirs import user_cache_dir
-from pytz import UTC
 
 from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.constants import CACHE_DIR, UNKNOWN_TICKER, Logger
@@ -63,7 +62,7 @@ def date_to_datetimes(at_day: date) -> tuple[datetime, datetime]:
         minute=0,
         second=0,
         microsecond=0,
-        tzinfo=UTC,
+        tzinfo=timezone.utc,
     )
     end_datetime = datetime(
         day=at_day.day,
@@ -73,7 +72,7 @@ def date_to_datetimes(at_day: date) -> tuple[datetime, datetime]:
         minute=59,
         second=59,
         microsecond=0,
-        tzinfo=UTC,
+        tzinfo=timezone.utc,
     )
     return start_datetime, end_datetime
 

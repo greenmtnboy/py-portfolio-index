@@ -27,10 +27,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
 
 from platformdirs import user_cache_dir
-from pytz import UTC
-from pytz import timezone as pytz_timezone
 
 from py_portfolio_index.constants import CACHE_DIR, Logger
 from py_portfolio_index.exceptions import ConfigurationError
@@ -44,7 +43,7 @@ TOKEN_CACHE_FILE = "etrade_token.json"
 SANDBOX_TOKEN_CACHE_FILE = "etrade_sandbox_token.json"
 
 # tokens die at midnight in this zone regardless of where the user is
-_TOKEN_EXPIRY_ZONE = "US/Eastern"
+_TOKEN_EXPIRY_ZONE = "America/New_York"
 
 
 def etrade_auth_available() -> bool:
@@ -78,9 +77,9 @@ def token_is_current(token: dict, now: datetime | None = None) -> bool:
     created = token.get("created")
     if not isinstance(created, (int, float)):
         return False
-    eastern = pytz_timezone(_TOKEN_EXPIRY_ZONE)
+    eastern = ZoneInfo(_TOKEN_EXPIRY_ZONE)
     now = now or datetime.now(tz=timezone.utc)
-    created_day = datetime.fromtimestamp(created, tz=UTC).astimezone(eastern).date()
+    created_day = datetime.fromtimestamp(created, tz=timezone.utc).astimezone(eastern).date()
     return created_day == now.astimezone(eastern).date()
 
 

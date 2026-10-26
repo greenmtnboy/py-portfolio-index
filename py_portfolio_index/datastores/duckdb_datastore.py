@@ -110,10 +110,25 @@ class DuckDBDatastore(BaseDatastore):
                 "country": "Unknown",
             }
         ]
-        for x in final:
-            self.executor.execute_raw_sql(
-                "INSERT INTO symbols VALUES (:id, :ticker, :name, :sector, :industry, :state, :city, :country);",
-                x,
+        # one bulk load: row-at-a-time inserts of every known ticker took ~15s
+        import pandas as pd
+
+        columns = ["id", "ticker", "name", "sector", "industry", "state", "city", "country"]
+        # trilogy types its connection as a protocol; the duckdb handle under it is
+        # what can scan a DataFrame
+        raw = getattr(getattr(self.executor.connection, "connection", None), "dbapi_connection", None)
+        if raw is not None and hasattr(raw, "register"):
+            raw.register("_symbols_load", pd.DataFrame(final, columns=columns))
+            try:
+                raw.execute(f"INSERT INTO symbols ({', '.join(columns)}) SELECT {', '.join(columns)} FROM _symbols_load")
+            finally:
+                raw.unregister("_symbols_load")
+        else:
+            from sqlalchemy import text
+
+            self.executor.connection.execute(
+                text(f"INSERT INTO symbols ({', '.join(columns)}) VALUES ({', '.join(':' + c for c in columns)})"),
+                final,
             )
         if commit:
             self.executor.connection.commit()
