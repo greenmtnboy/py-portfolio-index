@@ -213,14 +213,15 @@ class IdealPortfolio(BaseModel):
     def exclude(self, exclusion_list: list[str]):
         reweighted = []
         excluded = Decimal("0.0")
-        for ticker in exclusion_list:
-            for item in self.holdings:
-                if item.ticker == ticker:
-                    reweighted.append(ticker)
-                    excluded += item.weight
-                    item.weight = Decimal("0.0")
+        # lists like funds run to tens of thousands of tickers
+        exclusion_set = set(exclusion_list)
+        for item in self.holdings:
+            if item.ticker in exclusion_set:
+                reweighted.append(item.ticker)
+                excluded += item.weight
+                item.weight = Decimal("0.0")
 
-        self.holdings = [item for item in self.holdings if item.ticker not in exclusion_list]
+        self.holdings = [item for item in self.holdings if item.ticker not in exclusion_set]
         self._reweight_portfolio()
         Logger.info(f"Set the following stocks to weight 0 {reweighted}. Total value excluded {excluded}.")
         return self

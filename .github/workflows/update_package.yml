@@ -35,6 +35,7 @@ jobs:
               run: |
                 python scripts/ingest_index_data.py
                 python scripts/clean_stock_lists_invalid_tickers.py
+                python scripts/build_fund_list.py
                 python scripts/bootstrap_stocks.py
                 python scripts/ingest_edgar_data.py
                 python scripts/ingest_finance_db.py

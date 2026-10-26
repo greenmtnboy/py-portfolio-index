@@ -5,10 +5,10 @@ from decimal import Decimal
 from os import environ
 from time import sleep
 
-from py_portfolio_index.common import divide_into_batches
+from py_portfolio_index.common import divide_into_batches, round_down_to_place
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import ProviderType
-from py_portfolio_index.exceptions import ConfigurationError, PriceFetchError
+from py_portfolio_index.exceptions import ConfigurationError, OrderError, PriceFetchError
 from py_portfolio_index.models import (
     DividendResult,
     Money,
@@ -225,7 +225,10 @@ class RobinhoodProvider(BaseProvider):
 
         price = round_price(next(iter(get_latest_price(symbol, "ask_price", False)), 0.00))
         if value:
-            qty = round(float(value.decimal) / price, 2)
+            # round down: rounding to nearest buys up to half a hundredth of a share more than asked
+            qty = float(round_down_to_place(value.decimal / Decimal(str(price)), 2))
+        if qty <= 0:
+            raise OrderError(f"{value} of {symbol} is less than the smallest share increment")
 
         account = self._get_cached_value(
             ObjectKey.MISC,
@@ -272,11 +275,11 @@ class RobinhoodProvider(BaseProvider):
                 t = 30
             Logger.info(f"RH error: was throttled! Sleeping {t}")
             sleep(t)
-            return self.buy_instrument(ticker=ticker, qty=qty)
+            return self.buy_instrument(ticker=ticker, qty=qty, value=value)
         elif msg and "Too many requests for fractional orders" in msg:
             Logger.info(f"RH error: was throttled on fractional orders! Sleeping {FRACTIONAL_SLEEP}")
             sleep(FRACTIONAL_SLEEP)
-            return self.buy_instrument(ticker=ticker, qty=qty)
+            return self.buy_instrument(ticker=ticker, qty=qty, value=value)
         if not output.get("id"):
             if msg:
                 Logger.error(msg)
