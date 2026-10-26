@@ -32,14 +32,13 @@ def test_generate_order_plan():
         target_size=1000,
         buy_order=PurchaseStrategy.LARGEST_DIFF_FIRST,
         price_fetcher=PriceCache(
-            fetcher=lambda tickers, date: {y: 100 for y in tickers},
+            fetcher=lambda tickers, date, fail_on_missing=True: {y: 100 for y in tickers},
         ).get_prices,
     )
 
-    expected = {"AAPL": Money(value=400), "MSFT": Money(value=500)}
-
-    for x in order_plan.to_buy:
-        assert x.value == expected[x.ticker]
+    # compare the whole mapping: a plan that failed to price anything used to
+    # come back empty and pass a per-order loop
+    assert {x.ticker: x.value for x in order_plan.to_buy} == {"AAPL": Money(value=400), "MSFT": Money(value=500)}
 
 
 def test_generate_composite__order_plan():

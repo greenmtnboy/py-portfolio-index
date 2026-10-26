@@ -426,6 +426,8 @@ class CompositePortfolio:
         for item in self.portfolios:
             new += item
         self._internal_base = new
+        # planning looks up every ticker in an index, so don't rebuild this per lookup
+        self._holding_index = new._index
 
     @property
     def internal_base(self):
@@ -440,7 +442,7 @@ class CompositePortfolio:
         return self.internal_base.holdings
 
     def get_holding(self, ticker: str) -> RealPortfolioElement | None:
-        return self.internal_base.get_holding(ticker)
+        return self._holding_index.get(ticker)
 
     def get_provider_portfolio(self, provider: "ProviderType") -> RealPortfolio:
         for port in self.portfolios:
@@ -472,17 +474,25 @@ class OrderElement(BaseModel):
             raise ValueError("Cannot add different tickers")
         if self.order_type != other.order_type:
             raise ValueError("Cannot add different order types")
-        if self.value and other.value:
-            return OrderElement(
-                ticker=self.ticker,
-                order_type=self.order_type,
-                value=self.value + other.value,
-            )
-        elif self.qty and other.qty:
+        if self.provider != other.provider:
+            raise ValueError("Cannot add orders for different providers")
+        if self.qty and other.qty:
             return OrderElement(
                 ticker=self.ticker,
                 order_type=self.order_type,
                 qty=self.qty + other.qty,
+                value=self.value + other.value if self.value and other.value else None,
+                price=self.price or other.price,
+                provider=self.provider,
+            )
+        elif self.value and other.value:
+            return OrderElement(
+                ticker=self.ticker,
+                order_type=self.order_type,
+                value=self.value + other.value,
+                qty=None,
+                price=self.price or other.price,
+                provider=self.provider,
             )
         else:
             raise ValueError("Cannot add value and qty based orders")
@@ -510,25 +520,14 @@ class OrderPlan(BaseModel):
             return self
         if not isinstance(other, OrderPlan):
             raise TypeError(f"Cannot add {type(other)} to OrderPlan")
-        for x in other.to_buy:
-            found = False
-            for y in self.to_buy:
-                if x.ticker == y.ticker:
-                    x = x + y
-                    found = True
-                    break
-            if not found:
-                self.to_buy.append(x)
-
-        for sx in other.to_sell:
-            found = False
-            for sy in self.to_sell:
-                if sx.ticker == sy.ticker:
-                    sx = sx + sy
-                    found = True
-                    break
-            if not found:
-                self.to_sell.append(sx)
+        for orders, incoming in ((self.to_buy, other.to_buy), (self.to_sell, other.to_sell)):
+            for x in incoming:
+                for idx, y in enumerate(orders):
+                    if x.ticker == y.ticker:
+                        orders[idx] = y + x
+                        break
+                else:
+                    orders.append(x)
         return self
 
 

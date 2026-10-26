@@ -24,7 +24,7 @@ from py_portfolio_index.portfolio_providers.webull import (
 
 AVAILABLE_PROVIDERS = get_providers()
 
-__version__ = "0.1.69"
+__version__ = "0.1.70"
 
 __all__ = [
     "INDEXES",

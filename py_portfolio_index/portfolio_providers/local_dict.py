@@ -75,11 +75,13 @@ class LocalDictProvider(BaseProvider):
         if not price:
             raise ValueError("No available price for this instrument")
         if value:
-            qty = value / price
+            qty = (value / price).decimal
             value_delta = value
         else:
             value_delta = Money(value=qty * price)
         self._portfolio += RealPortfolioElement(ticker=ticker, units=qty, value=value_delta)
+        self._portfolio.cash -= value_delta
+        return True
 
     def get_unsettled_instruments(self) -> set[str]:
         # we settle right away

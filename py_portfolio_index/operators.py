@@ -142,21 +142,29 @@ def generate_sell_order(
     target_value: Money,
     diffvalue: ComparisonResult,
     provider: ProviderType | None = None,
+    min_order_value: Money = MIN_ORDER_MONEY,
 ) -> OrderElement | None:
     if round(diffvalue.diff, 4) == 0.0000:
         return None
     elif diffvalue.diff < 0:
         sell_target: Money = target_value * diffvalue.comparison - target_value * diffvalue.model
-        price = prices.get(key)
-        if not price:
+        # as with buys, raising a small excess to the minimum would oversell it
+        if sell_target < min_order_value:
             return None
+        _price = prices.get(key)
+        if not _price:
+            return None
+        price = Money(value=_price)
+        # whole shares, rounded down, so a sell never goes past the target
         qty = round_int_with_strategy(sell_target / price, RoundingStrategy.FLOOR)
-        sell_target = max(sell_target, MIN_ORDER_MONEY)
+        if qty == 0:
+            return None
         return OrderElement(
             ticker=key,
-            value=sell_target,
+            value=price * qty,
             order_type=OrderType.SELL,
             qty=qty,
+            price=price,
             provider=provider,
         )
     return None
@@ -187,7 +195,7 @@ def generate_buy_order(
     # raising a small gap to the minimum overbuys it; leave it for a later run
     if initial_buy_target < min_order_value:
         return None
-    _price = prices[key]
+    _price = prices.get(key)
     if not _price:
         return None
     price = Money(value=_price)
@@ -266,11 +274,15 @@ def generate_order_plan(
     buying = Decimal("0.0")
     target_value: Money = Money(value=target_size) if target_size else real.value
     output: dict[str, ComparisonResult] = {}
-    safe_purchase_power: Money = Money(value=purchase_power or target_value)
+    # None means no cap; zero means spend nothing
+    safe_purchase_power: Money = Money(value=purchase_power if purchase_power is not None else target_value)
     current_orders = existing_orders or []
     current_order_val_map: dict[str, Money] = defaultdict(lambda: Money(value=0))
     for current_order in current_orders:
-        current_order_val_map[current_order.ticker] += current_order.inferred_value
+        if current_order.order_type == OrderType.SELL:
+            current_order_val_map[current_order.ticker] -= current_order.inferred_value
+        else:
+            current_order_val_map[current_order.ticker] += current_order.inferred_value
     for value in ideal.holdings:
         if skip_tickers and value.ticker in skip_tickers:
             continue
@@ -309,8 +321,14 @@ def generate_order_plan(
     to_purchase: list[OrderElement] = []
     to_sell: list[OrderElement] = []
     price_missing: set[str] = set()
+    # quote only what could become an order: an index runs to thousands of
+    # tickers, most within a rounding error of their target
+    scale = scaling_factor.decimal if buy_order == PurchaseStrategy.PEANUT_BUTTER else Decimal(1)
+    quote_tickers = [
+        k for k, v in diff_output.items() if (v.diff > 0 and target_value * v.diff * scale >= min_order_value) or (include_sell_orders and v.diff < 0 and target_value * -v.diff >= min_order_value)
+    ]
     try:
-        prices = price_fetcher([*diff_output.keys()])
+        prices = price_fetcher(quote_tickers) if quote_tickers else {}
     except PriceFetchError as e:
         for x in e.tickers:
             price_missing.add(x)
@@ -329,18 +347,22 @@ def generate_order_plan(
             fractional_shares=fractional_shares,
             provider=provider,
             existing_orders=current_orders,
+            skip_invalid=skip_invalid,
+            include_sell_orders=include_sell_orders,
         )
 
-    for key, diffvalue in diff_output.items():
-        sell_order = generate_sell_order(
-            key=key,
-            prices=prices,
-            target_value=target_value,
-            diffvalue=diffvalue,
-            provider=provider,
-        )
-        if sell_order and include_sell_orders:
-            to_sell.append(sell_order)
+    if include_sell_orders:
+        for key, diffvalue in diff_output.items():
+            sell_order = generate_sell_order(
+                key=key,
+                prices=prices,
+                target_value=target_value,
+                diffvalue=diffvalue,
+                provider=provider,
+                min_order_value=min_order_value,
+            )
+            if sell_order:
+                to_sell.append(sell_order)
 
     for key, diffvalue in diff_output.items():
         order = generate_buy_order(
@@ -358,8 +380,8 @@ def generate_order_plan(
         if order:
             if order.value:
                 safe_purchase_power = safe_purchase_power - order.value
-            elif order.qty:
-                safe_purchase_power = safe_purchase_power - (prices[key] * order.qty)
+            elif order.qty and order.price:
+                safe_purchase_power = safe_purchase_power - (order.price * order.qty)
             Logger.debug(f"{safe_purchase_power} left - order is {order}")
             to_purchase.append(order)
         if safe_purchase_power < min_order_value:
@@ -402,7 +424,9 @@ def generate_composite_order_plan(
     for provider in providers:
         skip_tickers = skip_tickers.union(provider.get_unsettled_instruments())
 
-    purchase_order = sorted(providers, key=lambda x: (x.SUPPORTS_FRACTIONAL_SHARES, x.cash))
+    # whole-share providers go first and fractional ones fill in around them;
+    # sort on the snapshot's cash, since provider.cash goes back to the broker
+    purchase_order = sorted(providers, key=lambda x: (x.SUPPORTS_FRACTIONAL_SHARES, provider_to_portfolio_map[x].cash))
     orders: list[OrderElement] = []
     for provider in purchase_order:
         provider_purchase_power: Money = purchase_power_money.get(provider.PROVIDER) or Money(value=0)
@@ -412,12 +436,15 @@ def generate_composite_order_plan(
 
         # if we don't know how much cash we have, skip
         Logger.info(f"Doing provider {provider.PROVIDER} with {provider_purchase_power}")
-        if not port.cash or port.cash <= Money(value=0):
-            Logger.info("No cash left to purchase")
-            continue
-
-        local_max_spend = port.cash * safety_threshold
-        local_purchase_power = min(provider_purchase_power, local_max_spend)
+        if port.cash <= zero:
+            if not include_sell_orders:
+                Logger.info("No cash left to purchase")
+                continue
+            # selling needs no cash, so still plan this provider's sells
+            local_purchase_power = zero
+        else:
+            local_max_spend = port.cash * safety_threshold
+            local_purchase_power = min(provider_purchase_power, local_max_spend)
 
         purchase_plan: OrderPlan = generate_order_plan(
             ideal=ideal,
@@ -434,9 +461,27 @@ def generate_composite_order_plan(
             existing_orders=orders,
             include_sell_orders=include_sell_orders,
         )
+        purchase_plan.to_sell = cap_sells_to_holdings(purchase_plan.to_sell, port)
         orders += purchase_plan.all_orders
         output[provider.PROVIDER] += purchase_plan
     return output
+
+
+def cap_sells_to_holdings(sells: list[OrderElement], portfolio: PortfolioProtocol) -> list[OrderElement]:
+    """Sells are planned against the whole composite, but each provider can
+    only sell the shares it holds itself."""
+    capped: list[OrderElement] = []
+    for order in sells:
+        holding = portfolio.get_holding(order.ticker)
+        if not holding or not order.qty:
+            continue
+        qty = min(order.qty, floor(holding.units))
+        if qty <= 0:
+            continue
+        if qty != order.qty:
+            order = order.model_copy(update={"qty": qty, "value": order.price * qty if order.price else None})
+        capped.append(order)
+    return capped
 
 
 def purchase_composite_order_plan(

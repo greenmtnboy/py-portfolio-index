@@ -53,8 +53,9 @@ class BaseProvider:
         self._quote_provider = quote_provider
 
     def clear_cache(self, skip_clearing: list[str]):
-        for value in self.CACHE.values():
-            if value in skip_clearing:
+        # entries are keyed "{ObjectKey}" or "{ObjectKey}_{value}"; callers name either form
+        for key, value in self.CACHE.items():
+            if any(key == skip or key.endswith(f"_{skip}") for skip in skip_clearing):
                 continue
             value.value = None
         if self._quote_provider:
@@ -76,11 +77,16 @@ class BaseProvider:
         elif callable:
             cached = CachedValue(value=None, fetcher=callable)
             self.CACHE[skey] = cached
+        else:
+            raise ValueError(f"No cached value or fetcher for {skey}")
         if cached.value:
+            # total_seconds, not .seconds: the latter drops whole days, so a
+            # day-old value would read as fresh
             age = datetime.now(timezone.utc) - cached.set
-            if age.seconds < max_age_seconds:
+            if age.total_seconds() < max_age_seconds:
                 return cached.value
         cached.value = cached.fetcher()
+        cached.set = datetime.now(timezone.utc)
 
         return cached.value
 
@@ -192,21 +198,21 @@ class BaseProvider:
             if to_buy_units > Decimal(0):
                 Logger.info(f"going to buy {to_buy_units} of {key}")
                 try:
-                    if not plan_only:
-                        successfully_purchased = self.buy_instrument(key, to_buy_units)
+                    successfully_purchased = True if plan_only else self.buy_instrument(key, to_buy_units)
                     if successfully_purchased:
                         purchasing_power_resolved = purchasing_power_resolved - purchasing
                         purchased += purchasing
                         diff += abs(value - purchasing)
                         Logger.info(f"bought {to_buy_units} of {key}, {purchasing_power_resolved} left")
                 except Exception as e:
-                    print(e)
+                    Logger.error(f"Failed to purchase {key}: {e!s}")
                     if not skip_errored_stocks:
                         raise
             if break_flag:
                 Logger.info(f"No purchasing power left, purchased {print_money(purchased)} of {print_money(target_value)}.")
                 break
-        Logger.info(f"$ diff from ideal for purchased stocks was {print_money(diff)}. {print_per(diff / target_value)} of total purchase goal.")
+        if not target_value.is_zero:
+            Logger.info(f"$ diff from ideal for purchased stocks was {print_money(diff)}. {print_per(diff / target_value)} of total purchase goal.")
 
     def _calculate_buy_units(
         self,
@@ -237,7 +243,6 @@ class BaseProvider:
             value = Money(value=units * price.decimal)
 
         elif element.value:
-            raw_price = self.get_instrument_price(element.ticker)
             Logger.info(f"got price of {price} for {element.ticker}")
             # round down: rounding up overspends, by 2.5x on a $2 order for a $500 share
             units = round_down_to_place((element.value / price).decimal, self.MAX_ORDER_DECIMALS)
@@ -255,7 +260,7 @@ class BaseProvider:
                 raise OrderError("Invalid order type")
 
         else:
-            Logger.info(f"Would have bought {units} of {element.ticker}")
+            Logger.info(f"Would have {'bought' if element.order_type == OrderType.BUY else 'sold'} {units} of {element.ticker}")
 
     def _get_stock_info(self, ticker: str) -> dict:
         raise NotImplementedError
@@ -286,16 +291,18 @@ class BaseProvider:
             unsettled = self.get_unsettled_instruments()
         else:
             unsettled = set()
-        for item in plan.to_buy:
+        # sells go first so their proceeds are pending before the buys go in
+        items = (plan.to_sell if include_sell_orders else []) + plan.to_buy
+        for item in items:
+            if item.order_type == OrderType.SELL and not include_sell_orders:
+                continue
             if item.ticker in unsettled:
                 Logger.info(f"Skipping {item.ticker} with unsettled orders.")
                 continue
             try:
-                if item.order_type == OrderType.SELL and not include_sell_orders:
-                    continue
                 self.handle_order_element(item, dry_run=plan_only)
             except Exception as e:
-                Logger.error(f"Failed to purchase {item.ticker}:{e!s}.")
+                Logger.error(f"Failed to {item.order_type.value.lower()} {item.ticker}:{e!s}.")
                 if not skip_errored_stocks:
                     raise
 

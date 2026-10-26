@@ -35,11 +35,17 @@ class PriceCache:
             label = date.isoformat()
         return label
 
+    def _is_stale(self, ticker: str) -> bool:
+        refreshed = self.instant_refresh_times.get(ticker)
+        # total_seconds, not .seconds: the latter drops whole days, so a
+        # day-old quote would read as fresh
+        return refreshed is None or (datetime.now(timezone.utc) - refreshed).total_seconds() > self.default_timeout
+
     def get_price(self, ticker: str, date: datetype | None = None) -> Decimal | None:
         """If we have an optimized single stock lookup"""
         label = self.date_to_label(date)
         cached: dict[str, Decimal | None] = self.store[label]
-        if ticker in cached and label == "INSTANT" and (datetime.now(timezone.utc) - self.instant_refresh_times[ticker]).seconds > self.default_timeout:
+        if ticker in cached and label == "INSTANT" and self._is_stale(ticker):
             del cached[ticker]
         if ticker in cached:
             return cached[ticker]
@@ -50,7 +56,7 @@ class PriceCache:
                 self.instant_refresh_times[ticker] = datetime.now(timezone.utc)
             return price
         except NotImplementedError:
-            return self.get_prices([ticker], date)[ticker]
+            return self.get_prices([ticker], date).get(ticker)
         except Exception as e:
             raise PriceFetchError([ticker], e)
 
@@ -63,15 +69,12 @@ class PriceCache:
         # if no date is provided, assume they want the instantaneous price
         label = self.date_to_label(date)
         cached: dict[str, Decimal | None] = self.store[label]
-        found = {k: v for k, v in cached.items() if k in tickers}
-        if label == "INSTANT":
-            for k, v in self.instant_refresh_times.items():
-                if k in tickers and (datetime.now(timezone.utc) - v).seconds > self.default_timeout:
-                    found.pop(k, None)
+        found = {k: cached[k] for k in tickers if k in cached and not (label == "INSTANT" and self._is_stale(k))}
         missing = [x for x in tickers if x not in found]
         if missing:
+            prices: dict[str, Decimal | None] = {}
             try:
-                prices: dict[str, Decimal | None] = self.fetcher(missing, date, fail_on_missing=fail_on_missing)
+                prices = self.fetcher(missing, date, fail_on_missing=fail_on_missing)
             except PriceFetchError:
                 if fail_on_missing:
                     raise

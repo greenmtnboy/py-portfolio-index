@@ -154,3 +154,17 @@ def test_datastore_etrade(tmp_path):
         assert holding_rows(db)[0][1] == 6
     finally:
         db.close()
+
+
+def test_datastore_loads_every_known_symbol(tmp_path):
+    from py_portfolio_index.bin import STOCK_INFO
+    from py_portfolio_index.constants import UNKNOWN_TICKER
+
+    db = DuckDBDatastore(str(tmp_path / "symbols.db"))
+    try:
+        rows = db.executor.execute_raw_sql("SELECT count(*), count(DISTINCT id) FROM symbols;").fetchall()
+        # every known ticker plus the pooled unknown row, each with its own id
+        assert rows == [(len(STOCK_INFO) + 1, len(STOCK_INFO) + 1)]
+        assert db.executor.execute_raw_sql("SELECT id FROM symbols WHERE ticker = :ticker;", {"ticker": UNKNOWN_TICKER}).fetchall() == [(-1,)]
+    finally:
+        db.close()

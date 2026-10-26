@@ -14,7 +14,7 @@ with open("py_portfolio_index/__init__.py", "rb") as f:
 
 
 with open("requirements.txt", "r") as f:
-    install_requires = [line.strip().replace("==", ">=") for line in f.readlines()]
+    install_requires = [line.strip().replace("==", ">=") for line in f.readlines() if line.strip() and not line.strip().startswith("#")]
 
 setuptools.setup(
     name="py-portfolio-index",
@@ -44,6 +44,8 @@ setuptools.setup(
         "": ["*.jinja", "py.typed", "*.csv", "*.json", "*.preql"],
     },
     install_requires=install_requires,
+    # PEP 604 unions are evaluated at runtime by pydantic
+    python_requires=">=3.10",
     extras_require={
         "alpaca": ["alpaca-py>=0.44.0"],
         "robinhood": ["robin-stocks"],
@@ -61,8 +63,9 @@ setuptools.setup(
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
     ],
 )
