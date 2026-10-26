@@ -11,7 +11,7 @@ from py_portfolio_index.common import (
     get_basic_stock_info,
     print_money,
     print_per,
-    round_up_to_place,
+    round_down_to_place,
 )
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import ObjectKey, OrderType, ProviderType, RoundingStrategy
@@ -239,7 +239,8 @@ class BaseProvider:
         elif element.value:
             raw_price = self.get_instrument_price(element.ticker)
             Logger.info(f"got price of {price} for {element.ticker}")
-            units = round_up_to_place((element.value / price).decimal, self.MAX_ORDER_DECIMALS)
+            # round down: rounding up overspends, by 2.5x on a $2 order for a $500 share
+            units = round_down_to_place((element.value / price).decimal, self.MAX_ORDER_DECIMALS)
             value = element.value
         else:
             raise OrderError("Order element must have qty or value")

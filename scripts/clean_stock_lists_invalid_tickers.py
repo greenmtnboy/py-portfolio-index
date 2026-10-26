@@ -58,6 +58,9 @@ if __name__ == "__main__":
                 remove_ticker_from_index(key, member.ticker)
 
     for key in STOCK_LISTS.keys:
+        # funds are rebuilt from SEC data; most aren't stocks, so the check below would empty it
+        if key == "funds":
+            continue
         for item in STOCK_LISTS[key]:
             if not item.strip():
                 continue

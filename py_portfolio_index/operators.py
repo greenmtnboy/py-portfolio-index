@@ -180,19 +180,13 @@ def generate_buy_order(
     if round(diffvalue.diff, 4) == 0.0000 or not diffvalue.diff > 0:
         return None
     diff_text = "Underweight"
-    initial_buy_target: Money = Money(
-        value=min(
-            target_value * diffvalue.model - target_value * diffvalue.comparison,
-            purchase_power,
-        )
-    )
-    if buy_order == PurchaseStrategy.PEANUT_BUTTER and initial_buy_target > 0.0:
-        max_value: Decimal = max(
-            Decimal(float(initial_buy_target.value)) * scaling_factor.decimal,
-            Decimal("1.0"),
-        )
-        initial_buy_target = Money(value=max_value)
-    initial_buy_target = max(initial_buy_target, min_order_value)
+    gap: Money = target_value * diffvalue.model - target_value * diffvalue.comparison
+    if buy_order == PurchaseStrategy.PEANUT_BUTTER:
+        gap = gap * scaling_factor.decimal
+    initial_buy_target: Money = Money(value=min(gap, purchase_power))
+    # raising a small gap to the minimum overbuys it; leave it for a later run
+    if initial_buy_target < min_order_value:
+        return None
     _price = prices[key]
     if not _price:
         return None
@@ -224,7 +218,7 @@ def gen_diff_and_scaling(
     output: dict[str, ComparisonResult],
     purchase_power: Money,
     target_value: Money,
-    currently_held: Money,
+    min_order_value: Money = MIN_ORDER_MONEY,
 ) -> tuple[Money, dict[str, ComparisonResult]]:
     scaling_factor = Money(value=1.0)
 
@@ -233,10 +227,18 @@ def gen_diff_and_scaling(
     elif buy_order == PurchaseStrategy.CHEAPEST_FIRST:
         diff_output = {k: v for k, v in sorted(output.items(), key=lambda item: abs(item[1].diff))}
     elif buy_order == PurchaseStrategy.PEANUT_BUTTER:
-        # divide the difference between where we want to be
-        # and where we are
-        # across all stocks
-        scaling_factor = purchase_power / (target_value - currently_held)
+        # spread the purchase power across every underweight stock in proportion to its gap;
+        # gaps that would scale below the minimum order are skipped, so leave them out of
+        # the denominator or their share of the cash goes unspent
+        gaps = sorted((target_value * v.diff for v in output.values() if v.diff > 0), reverse=True)
+        while gaps:
+            total_gap = sum(gaps, Money(value=0))
+            if total_gap <= purchase_power:
+                break
+            scaling_factor = purchase_power / total_gap
+            if gaps[-1] * scaling_factor.decimal >= min_order_value:
+                break
+            gaps.pop()
 
         diff_output = {k: v for k, v in sorted(output.items(), key=lambda item: abs(item[1].diff))}
     else:
@@ -265,7 +267,6 @@ def generate_order_plan(
     target_value: Money = Money(value=target_size) if target_size else real.value
     output: dict[str, ComparisonResult] = {}
     safe_purchase_power: Money = Money(value=purchase_power or target_value)
-    currently_held = Money(value=0)
     current_orders = existing_orders or []
     current_order_val_map: dict[str, Money] = defaultdict(lambda: Money(value=0))
     for current_order in current_orders:
@@ -287,8 +288,6 @@ def generate_order_plan(
         else:
             percentage = Decimal((actual_value / target_value).value)
 
-        # track how much we currently have
-        currently_held += actual_value
         output[value.ticker] = ComparisonResult(
             ticker=value.ticker,
             model=value.weight,
@@ -306,7 +305,7 @@ def generate_order_plan(
 
     Logger.info(f"Total portfolio % delta {print_per(diff)}. Overweight {print_per(selling)}, underweight {print_per(buying)}, have {purchase_power}")
 
-    scaling_factor, diff_output = gen_diff_and_scaling(buy_order, output, safe_purchase_power, target_value, currently_held)
+    scaling_factor, diff_output = gen_diff_and_scaling(buy_order, output, safe_purchase_power, target_value, min_order_value)
     to_purchase: list[OrderElement] = []
     to_sell: list[OrderElement] = []
     price_missing: set[str] = set()
@@ -344,7 +343,7 @@ def generate_order_plan(
             to_sell.append(sell_order)
 
     for key, diffvalue in diff_output.items():
-        buy_order = generate_buy_order(
+        order = generate_buy_order(
             min_order_value=min_order_value,
             scaling_factor=scaling_factor,
             purchase_power=safe_purchase_power,
@@ -356,14 +355,14 @@ def generate_order_plan(
             provider=provider,
             fractional_shares=fractional_shares,
         )
-        if buy_order:
-            if buy_order.value:
-                safe_purchase_power = safe_purchase_power - buy_order.value
-            elif buy_order.qty:
-                safe_purchase_power = safe_purchase_power - (prices[key] * buy_order.qty)
-            Logger.debug(f"{safe_purchase_power} left - order is {buy_order}")
-            to_purchase.append(buy_order)
-        if safe_purchase_power <= 0:
+        if order:
+            if order.value:
+                safe_purchase_power = safe_purchase_power - order.value
+            elif order.qty:
+                safe_purchase_power = safe_purchase_power - (prices[key] * order.qty)
+            Logger.debug(f"{safe_purchase_power} left - order is {order}")
+            to_purchase.append(order)
+        if safe_purchase_power < min_order_value:
             break
 
     return OrderPlan(to_buy=to_purchase, to_sell=to_sell)

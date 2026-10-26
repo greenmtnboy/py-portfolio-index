@@ -494,6 +494,10 @@ class WebullProvider(BaseProvider):
         return [qty]
 
     def buy_instrument(self, ticker: str, qty: Decimal, value: Money | None = None) -> bool:
+        # orders go by quantity, so a value below the share increment buys nothing
+        if not qty:
+            Logger.info(f"Skipping {ticker}: {value} is less than the smallest share increment")
+            return False
         for leg in self._split_fractional(qty):
             self._place_order(ticker, leg, "BUY")
         return True

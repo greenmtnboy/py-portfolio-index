@@ -1,5 +1,5 @@
 from decimal import Decimal
-from math import ceil
+from math import ceil, floor
 from typing import Any
 
 from py_portfolio_index.models import Money, StockInfo
@@ -20,6 +20,11 @@ def print_money(input: Money | Decimal):
 def round_up_to_place(input: Decimal, places: int = 2) -> Decimal:
     factor = Decimal(10) ** places
     return ceil(input * factor) / factor
+
+
+def round_down_to_place(input: Decimal, places: int = 2) -> Decimal:
+    factor = Decimal(10) ** places
+    return floor(input * factor) / factor
 
 
 def divide_into_batches(lst: list, batch_size: int = 50) -> list[list[Any]]:

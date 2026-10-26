@@ -1,6 +1,5 @@
 import json
 from collections import defaultdict
-from datetime import date
 from pathlib import Path
 
 
@@ -26,7 +25,10 @@ def blend_us_eu():
 
     # Scale weights by their respective ratios
     us_scaled = scale_components(us_data["components"], us_ratio)
-    eu_scaled = scale_components(eu_data["components"], eu_ratio)
+    # the EU index keeps only US-listed names; give it the sleeve those names held
+    # in the full index, rather than concentrating 40% in the survivors
+    eu_share = float(eu_data.get("us_listed_share", 1))
+    eu_scaled = scale_components(eu_data["components"], eu_ratio * eu_share)
 
     # Combine the tickers and sum weights if duplicate
     combined_weights = defaultdict(float)
@@ -51,7 +53,8 @@ def blend_us_eu():
     # Prepare final JSON
     blended_index = {
         "name": "Blended US+EU Index",
-        "as_of": str(date.today()),
+        # reweight_to_present corrects for drift since as_of; most of the weight is US
+        "as_of": us_data["as_of"],
         "components": normalized_components,
     }
 
