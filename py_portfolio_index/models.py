@@ -171,6 +171,14 @@ class ProfitModel(BaseModel):
 class IdealPortfolioElement(BaseModel):
     ticker: str
     weight: Decimal
+    # other symbols for the same shares, such as the US ADR of a stock whose ticker is
+    # its home listing (AIR.PA and EADSY for Airbus); holdings in any of them count
+    # toward this element, and orders go to the first one a provider can quote
+    listings: list[str] = Field(default_factory=list)
+
+    @property
+    def symbols(self) -> list[str]:
+        return [self.ticker] + [x for x in self.listings if x != self.ticker]
 
 
 @dataclass
@@ -192,7 +200,7 @@ class IdealPortfolio(BaseModel):
 
     def add_stock(self, ticker: str, weight: Decimal, rebalance: bool = True):
         new = IdealPortfolioElement(ticker=ticker, weight=weight)
-        if any(item.ticker == ticker for item in self.holdings):
+        if self.contains(ticker):
             raise ValueError(f"Stock {ticker} already in portfolio")
         self.holdings.append(new)
         if rebalance:
@@ -200,7 +208,7 @@ class IdealPortfolio(BaseModel):
         return self
 
     def contains(self, ticker: str) -> bool:
-        return ticker in [item.ticker for item in self.holdings]
+        return any(ticker in item.symbols for item in self.holdings)
 
     def _reweight_portfolio(self) -> None:
         weights: Decimal = Decimal(sum([item.weight for item in self.holdings]))
@@ -215,13 +223,15 @@ class IdealPortfolio(BaseModel):
         excluded = Decimal("0.0")
         # lists like funds run to tens of thousands of tickers
         exclusion_set = set(exclusion_list)
-        for item in self.holdings:
-            if item.ticker in exclusion_set:
-                reweighted.append(item.ticker)
-                excluded += item.weight
-                item.weight = Decimal("0.0")
+        # lists name US tickers, so match a foreign stock by its ADR too (BTI for BATS.L)
+        excluded_items = [item for item in self.holdings if exclusion_set.intersection(item.symbols)]
+        for item in excluded_items:
+            reweighted.append(item.ticker)
+            excluded += item.weight
+            item.weight = Decimal("0.0")
 
-        self.holdings = [item for item in self.holdings if item.ticker not in exclusion_set]
+        excluded_ids = {id(item) for item in excluded_items}
+        self.holdings = [item for item in self.holdings if id(item) not in excluded_ids]
         self._reweight_portfolio()
         Logger.info(f"Set the following stocks to weight 0 {reweighted}. Total value excluded {excluded}.")
         return self
@@ -239,7 +249,7 @@ class IdealPortfolio(BaseModel):
         for ticker in ticker_list:
             found = False
             for item in self.holdings:
-                if item.ticker == ticker:
+                if ticker in item.symbols:
                     total_value += item.weight * cweight
                     item.weight = item.weight * cweight
                     reweighted.append(ticker)
@@ -260,21 +270,30 @@ class IdealPortfolio(BaseModel):
         output = {}
         imaginary_base = Decimal(1_000_000)
         values = {}
-        valid_assets = [item for item in self.holdings if item.ticker in provider.valid_assets]
+        valid = provider.valid_assets
+        # price each holding off the first of its listings the provider knows; the
+        # ratio between two prices of one listing carries over to the others
+        quote_symbols: dict[str, str] = {}
+        for item in self.holdings:
+            symbol = next((x for x in item.symbols if x in valid), None)
+            if symbol:
+                quote_symbols[item.ticker] = symbol
         if provider.SUPPORTS_BATCH_HISTORY:
-            tickers = [item.ticker for item in valid_assets]
-            historic_prices = provider.get_instrument_prices(tickers, self.source_date)
-            today_prices = provider.get_instrument_prices(tickers, None)
+            symbols = list(quote_symbols.values())
+            historic_by_symbol = provider.get_instrument_prices(symbols, self.source_date)
+            today_by_symbol = provider.get_instrument_prices(symbols, None)
+            historic_prices = {k: historic_by_symbol.get(v) for k, v in quote_symbols.items()}
+            today_prices = {k: today_by_symbol.get(v) for k, v in quote_symbols.items()}
         else:
             historic_prices = {}
             today_prices = {}
-            for item in valid_assets:
+            for ticker, symbol in quote_symbols.items():
                 try:
-                    historic_prices[item.ticker] = provider.get_instrument_price(item.ticker, self.source_date)
-                    today_prices[item.ticker] = provider.get_instrument_price(item.ticker)
+                    historic_prices[ticker] = provider.get_instrument_price(symbol, self.source_date)
+                    today_prices[ticker] = provider.get_instrument_price(symbol)
                 except PriceFetchError:
-                    historic_prices[item.ticker] = None
-                    today_prices[item.ticker] = None
+                    historic_prices[ticker] = None
+                    today_prices[ticker] = None
         for item in self.holdings:
             source_price = historic_prices.get(item.ticker, None)
             today_price = today_prices.get(item.ticker, None)

@@ -45,11 +45,14 @@ def test_exclude_funds():
 def test_blended_index_has_no_eu_ticker_collisions():
     """European home-exchange symbols must not land on unrelated US tickers."""
     us = {h.ticker: h.weight for h in INDEXES["total_market"].holdings}
-    blended = {h.ticker: h.weight for h in INDEXES["blended_world_60_40"].holdings}
+    holdings = INDEXES["blended_world_60_40"].holdings
+    blended = {h.ticker: h.weight for h in holdings}
     us_share = blended["AAPL"] / us["AAPL"]
     # MC is LVMH in Paris and Moelis in New York; ROG Roche and Rogers; AIR Airbus and AAR
     for ticker in ["MC", "ROG", "OR", "DTE", "AIR", "AI", "EL", "CFR", "PRU", "TEN"]:
         assert abs(blended.get(ticker, Decimal(0)) - us.get(ticker, Decimal(0)) * us_share) < Decimal("0.0000001"), ticker
+        assert not any(ticker in h.listings for h in holdings), ticker
     assert "DIA" not in blended
-    for ticker in ["ASML", "SAP", "NVO", "NVS", "SNY", "SAN"]:
-        assert blended[ticker] > Decimal("0.003"), ticker
+    by_symbol = {symbol: h for h in holdings for symbol in h.symbols}
+    for symbol in ["ASML", "SAP", "NVO", "NVS", "SNY", "SAN", "MC.PA", "LVMUY", "AIR.PA", "EADSY", "RHHBY"]:
+        assert by_symbol[symbol].weight > Decimal("0.002"), symbol

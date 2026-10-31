@@ -19,7 +19,7 @@ from py_portfolio_index.models import (
 )
 from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
 
-from .models import IdealPortfolio
+from .models import IdealPortfolio, IdealPortfolioElement
 
 MIN_ORDER_SIZE = 2
 MIN_ORDER_MONEY = Money(value=MIN_ORDER_SIZE)
@@ -37,6 +37,57 @@ class ComparisonResult:
         return self.model - Decimal(self.comparison)
 
 
+def holding_value(real: PortfolioProtocol, element: IdealPortfolioElement) -> Money:
+    """What the portfolio holds of an element, across all of its listings."""
+    total = Money(value=0)
+    for symbol in element.symbols:
+        holding = real.get_holding(symbol)
+        if holding:
+            total += holding.value
+    return total
+
+
+def quote_listings(
+    candidates: Mapping[str, list[str]],
+    price_fetcher: Callable,
+    skip_invalid: bool = True,
+) -> dict[str, tuple[str, Decimal]]:
+    """Price each element at the first of its candidate symbols that quotes.
+
+    Returns the symbol and price for each element that has one. A symbol fails
+    if the fetcher names it in a PriceFetchError or returns no price for it, and
+    the element moves on to its next symbol.
+    """
+    quoted: dict[str, tuple[str, Decimal]] = {}
+    pending = {k: list(v) for k, v in candidates.items() if v}
+    while pending:
+        current = {k: v[0] for k, v in pending.items()}
+        symbols = sorted(set(current.values()))
+        try:
+            prices = price_fetcher(symbols)
+        except PriceFetchError as e:
+            if not skip_invalid:
+                raise
+            # with no tickers named, nothing tells the bad ones apart; the rest
+            # of the round is fetched again on the next pass
+            failed = set(e.tickers).intersection(symbols) or set(symbols)
+            Logger.info(f"Was unable to fetch prices for {failed}, trying other listings.")
+            prices = {}
+        else:
+            failed = {x for x in symbols if not prices.get(x)}
+        for key, symbol in current.items():
+            if symbol in prices and symbol not in failed:
+                quoted[key] = (symbol, prices[symbol])
+                del pending[key]
+                continue
+            remaining = [x for x in pending[key] if x not in failed]
+            if remaining:
+                pending[key] = remaining
+            else:
+                del pending[key]
+    return quoted
+
+
 def compare_portfolios(
     real: PortfolioProtocol,
     ideal: IdealPortfolio,
@@ -49,13 +100,8 @@ def compare_portfolios(
     buying = Decimal("0.0")
     target_value: Money = Money(value=Decimal(target_size)) if target_size else real.value
     for value in ideal.holdings:
-        comparison = real.get_holding(value.ticker)
-        if not comparison:
-            percentage = Decimal("0.0")
-            actual_value = Money.parse("0.0")
-        else:
-            percentage = Decimal((comparison.value / target_value).value)
-            actual_value = comparison.value
+        actual_value = holding_value(real, value)
+        percentage = Decimal((actual_value / target_value).value)
         output[value.ticker] = ComparisonResult(
             ticker=value.ticker,
             model=value.weight,
@@ -128,11 +174,7 @@ def generate_auto_target_size(
         cash += max(input.cash, zero)
     in_portfolio_value = Money(value=0)
     for value in ideal.holdings:
-        comparison = real.get_holding(value.ticker)
-        if not comparison:
-            continue
-        else:
-            in_portfolio_value += comparison.value
+        in_portfolio_value += holding_value(real, value)
     return in_portfolio_value + cash
 
 
@@ -268,7 +310,15 @@ def generate_order_plan(
     existing_orders: list[OrderElement] | None = None,
     skip_invalid: bool = True,
     include_sell_orders: bool = False,
+    sell_from: PortfolioProtocol | None = None,
+    known_symbols: set[str] | None = None,
 ) -> OrderPlan:
+    """Plan orders that move real toward ideal.
+
+    Elements with several listings are bought in the first one price_fetcher can
+    quote, skipping any not in known_symbols when the provider lists what it
+    trades, and sold in the listing sell_from (default real) holds the most of.
+    """
     diff = Decimal("0.0")
     selling = Decimal("0.0")
     buying = Decimal("0.0")
@@ -277,20 +327,24 @@ def generate_order_plan(
     # None means no cap; zero means spend nothing
     safe_purchase_power: Money = Money(value=purchase_power if purchase_power is not None else target_value)
     current_orders = existing_orders or []
+    elements: dict[str, IdealPortfolioElement] = {}
+    element_of: dict[str, str] = {}
+    for value in ideal.holdings:
+        if skip_tickers and skip_tickers.intersection(value.symbols):
+            continue
+        elements[value.ticker] = value
+        for symbol in value.symbols:
+            element_of.setdefault(symbol, value.ticker)
+    # earlier orders may be in any listing of an element
     current_order_val_map: dict[str, Money] = defaultdict(lambda: Money(value=0))
     for current_order in current_orders:
+        key = element_of.get(current_order.ticker, current_order.ticker)
         if current_order.order_type == OrderType.SELL:
-            current_order_val_map[current_order.ticker] -= current_order.inferred_value
+            current_order_val_map[key] -= current_order.inferred_value
         else:
-            current_order_val_map[current_order.ticker] += current_order.inferred_value
-    for value in ideal.holdings:
-        if skip_tickers and value.ticker in skip_tickers:
-            continue
-        comparison = real.get_holding(value.ticker)
-        if not comparison:
-            actual_value = Money.parse("0.0")
-        else:
-            actual_value = comparison.value
+            current_order_val_map[key] += current_order.inferred_value
+    for value in elements.values():
+        actual_value = holding_value(real, value)
 
         if value.ticker in current_order_val_map:
             actual_value += current_order_val_map[value.ticker]
@@ -320,21 +374,35 @@ def generate_order_plan(
     scaling_factor, diff_output = gen_diff_and_scaling(buy_order, output, safe_purchase_power, target_value, min_order_value)
     to_purchase: list[OrderElement] = []
     to_sell: list[OrderElement] = []
-    price_missing: set[str] = set()
     # quote only what could become an order: an index runs to thousands of
     # tickers, most within a rounding error of their target
     scale = scaling_factor.decimal if buy_order == PurchaseStrategy.PEANUT_BUTTER else Decimal(1)
-    quote_tickers = [
-        k for k, v in diff_output.items() if (v.diff > 0 and target_value * v.diff * scale >= min_order_value) or (include_sell_orders and v.diff < 0 and target_value * -v.diff >= min_order_value)
-    ]
-    try:
-        prices = price_fetcher(quote_tickers) if quote_tickers else {}
-    except PriceFetchError as e:
-        for x in e.tickers:
-            price_missing.add(x)
+    single: dict[str, list[str]] = {}
+    multiple: dict[str, list[str]] = {}
+    seller = sell_from or real
+    for k, v in diff_output.items():
+        symbols = elements[k].symbols
+        if v.diff > 0 and target_value * v.diff * scale >= min_order_value:
+            candidates = symbols
+            if known_symbols and len(symbols) > 1:
+                candidates = [x for x in symbols if x in known_symbols]
+        elif include_sell_orders and v.diff < 0 and target_value * -v.diff >= min_order_value:
+            # sell the listing actually held, largest first
+            held = {x: holding.value.decimal for x in symbols if (holding := seller.get_holding(x)) and not holding.value.is_zero}
+            candidates = sorted(held, key=lambda x: -held[x])
+            if not candidates:
+                continue
+        else:
+            continue
+        (single if len(symbols) == 1 else multiple)[k] = candidates
+    # quote other listings apart from the rest, so a home-exchange symbol the
+    # provider rejects can't fail the batch holding the domestic tickers
+    quoted = quote_listings(single, price_fetcher, skip_invalid=skip_invalid)
+    quoted.update(quote_listings(multiple, price_fetcher))
+    price_missing = (single.keys() | multiple.keys()) - quoted.keys()
+    if price_missing:
         Logger.info(f"Was unable to fetch prices for {price_missing} tickers, adding to skipped.")
-        if not skip_invalid:
-            raise
+        # plan again without them, so PEANUT_BUTTER doesn't hold cash back for them
         return generate_order_plan(
             real=real,
             ideal=ideal,
@@ -343,18 +411,24 @@ def generate_order_plan(
             target_size=target_size,
             purchase_power=purchase_power,
             min_order_value=min_order_value,
-            skip_tickers=(skip_tickers.union(price_missing) if skip_tickers else price_missing),
+            skip_tickers=(skip_tickers.union(price_missing) if skip_tickers else set(price_missing)),
             fractional_shares=fractional_shares,
             provider=provider,
             existing_orders=current_orders,
             skip_invalid=skip_invalid,
             include_sell_orders=include_sell_orders,
+            sell_from=sell_from,
+            known_symbols=known_symbols,
         )
+    prices: dict[str, Decimal | None] = {symbol: price for symbol, price in quoted.values()}
+    order_symbol = {k: symbol for k, (symbol, _) in quoted.items()}
 
     if include_sell_orders:
         for key, diffvalue in diff_output.items():
+            if key not in order_symbol:
+                continue
             sell_order = generate_sell_order(
-                key=key,
+                key=order_symbol[key],
                 prices=prices,
                 target_value=target_value,
                 diffvalue=diffvalue,
@@ -365,12 +439,14 @@ def generate_order_plan(
                 to_sell.append(sell_order)
 
     for key, diffvalue in diff_output.items():
+        if key not in order_symbol:
+            continue
         order = generate_buy_order(
             min_order_value=min_order_value,
             scaling_factor=scaling_factor,
             purchase_power=safe_purchase_power,
             buy_order=buy_order,
-            key=key,
+            key=order_symbol[key],
             prices=prices,
             target_value=target_value,
             diffvalue=diffvalue,
@@ -428,6 +504,8 @@ def generate_composite_order_plan(
     # sort on the snapshot's cash, since provider.cash goes back to the broker
     purchase_order = sorted(providers, key=lambda x: (x.SUPPORTS_FRACTIONAL_SHARES, provider_to_portfolio_map[x].cash))
     orders: list[OrderElement] = []
+    # listing an asset universe can cost a request, so only ask when there's a choice
+    has_listings = any(x.listings for x in ideal.holdings)
     for provider in purchase_order:
         provider_purchase_power: Money = purchase_power_money.get(provider.PROVIDER) or Money(value=0)
         processed.add(provider.PROVIDER)
@@ -460,11 +538,23 @@ def generate_composite_order_plan(
             provider=provider.PROVIDER,
             existing_orders=orders,
             include_sell_orders=include_sell_orders,
+            sell_from=port,
+            known_symbols=known_symbols(provider) if has_listings else None,
         )
         purchase_plan.to_sell = cap_sells_to_holdings(purchase_plan.to_sell, port)
         orders += purchase_plan.all_orders
         output[provider.PROVIDER] += purchase_plan
     return output
+
+
+def known_symbols(provider: BaseProvider) -> set[str] | None:
+    """The symbols a provider lists as tradable, or None if it doesn't say."""
+    try:
+        return provider.valid_assets or None
+    # broker SDKs raise their own types; without the list, every listing is quoted
+    except Exception as e:  # noqa: BLE001
+        Logger.info(f"Could not list {provider.PROVIDER} assets, quoting every listing: {e}")
+        return None
 
 
 def cap_sells_to_holdings(sells: list[OrderElement], portfolio: PortfolioProtocol) -> list[OrderElement]:
