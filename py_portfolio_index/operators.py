@@ -551,7 +551,8 @@ def known_symbols(provider: BaseProvider) -> set[str] | None:
     """The symbols a provider lists as tradable, or None if it doesn't say."""
     try:
         return provider.valid_assets or None
-    except Exception as e:
+    # broker SDKs raise their own types; without the list, every listing is quoted
+    except Exception as e:  # noqa: BLE001
         Logger.info(f"Could not list {provider.PROVIDER} assets, quoting every listing: {e}")
         return None
 
