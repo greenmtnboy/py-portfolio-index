@@ -4,6 +4,7 @@ from py_portfolio_index import PaperAlpacaProvider
 from alpaca.common.exceptions import APIError
 import json
 from dotenv import load_dotenv
+from get_eu_index import HOME_SUFFIXES
 
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
@@ -41,6 +42,10 @@ if __name__ == "__main__":
     for key in INDEXES.keys:
         for member in INDEXES[key].holdings:
             if not member.ticker.strip():
+                continue
+            # a foreign stock's home listing never trades on Alpaca, and its US lines
+            # were checked when get_eu_index.py built it
+            if member.listings or member.ticker.endswith(HOME_SUFFIXES):
                 continue
             # if member.ticker not in VALID_STOCKS:
             # not all valid stocks are tradable

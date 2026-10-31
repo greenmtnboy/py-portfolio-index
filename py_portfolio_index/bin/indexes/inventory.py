@@ -71,7 +71,13 @@ class IndexInventory(BaseModel):
                 parsed = json.loads(f.read())
                 start_date = date.fromisoformat(parsed.get("as_of", datetime.now(timezone.utc).astimezone().date().isoformat()))
                 for row in parsed.get("components", []):
-                    out.append(IdealPortfolioElement(ticker=row["ticker"], weight=Decimal(row["weight"])))
+                    out.append(
+                        IdealPortfolioElement(
+                            ticker=row["ticker"],
+                            weight=Decimal(row["weight"]),
+                            listings=row.get("listings", []),
+                        )
+                    )
         elif item in self.csv_keys:
             with open(self.base / f"{item}.csv") as f:
                 contents = f.read()

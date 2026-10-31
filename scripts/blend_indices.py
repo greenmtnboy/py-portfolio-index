@@ -1,5 +1,4 @@
 import json
-from collections import defaultdict
 from pathlib import Path
 
 
@@ -19,33 +18,30 @@ def blend_us_eu():
     with open(eu_file, "r", encoding="utf-8") as f:
         eu_data = json.load(f)
 
-    # Helper to convert weights to float and apply ratio
-    def scale_components(components, ratio):
-        return {comp["ticker"]: float(comp["weight"]) * ratio for comp in components}
-
-    # Scale weights by their respective ratios
-    us_scaled = scale_components(us_data["components"], us_ratio)
-    # the EU index keeps only US-listed names; give it the sleeve those names held
-    # in the full index, rather than concentrating 40% in the survivors
-    eu_share = float(eu_data.get("us_listed_share", 1))
-    eu_scaled = scale_components(eu_data["components"], eu_ratio * eu_share)
-
-    # Combine the tickers and sum weights if duplicate
-    combined_weights = defaultdict(float)
-
-    for ticker, weight in us_scaled.items():
-        combined_weights[ticker] += weight
-
-    for ticker, weight in eu_scaled.items():
-        combined_weights[ticker] += weight
+    # every EU component carries its home listing, so the sleeve is the full 40%;
+    # a provider that can trade none of a company's listings leaves its share in cash
+    # rather than spreading it over the companies it can buy
+    combined: dict[str, dict] = {}
+    # any listing of a company finds it, so one also in the US index (CRH) is merged
+    owner: dict[str, str] = {}
+    for components, ratio in ((us_data["components"], us_ratio), (eu_data["components"], eu_ratio)):
+        for comp in components:
+            symbols = [comp["ticker"], *comp.get("listings", [])]
+            key = next((owner[x] for x in symbols if x in owner), comp["ticker"])
+            entry = combined.setdefault(key, {"weight": 0.0, "listings": []})
+            entry["weight"] += float(comp["weight"]) * ratio
+            for symbol in symbols:
+                if symbol != key and symbol not in entry["listings"]:
+                    entry["listings"].append(symbol)
+                owner.setdefault(symbol, key)
 
     # Normalize so total weight = 1.0
-    total_weight = sum(combined_weights.values())
+    total_weight = sum(x["weight"] for x in combined.values())
 
     normalized_components = sorted(
         [
-            {"ticker": ticker, "weight": f"{weight / total_weight:.12f}"}
-            for ticker, weight in combined_weights.items()
+            {"ticker": ticker, "weight": f"{entry['weight'] / total_weight:.12f}", **({"listings": entry["listings"]} if entry["listings"] else {})}
+            for ticker, entry in combined.items()
         ],
         key=lambda x: float(x["weight"]),
         reverse=True,
