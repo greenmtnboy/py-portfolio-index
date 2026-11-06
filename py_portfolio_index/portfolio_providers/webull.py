@@ -3,7 +3,7 @@ import re
 import uuid
 from collections import defaultdict
 from datetime import date, datetime, timezone
-from decimal import Decimal
+from decimal import ROUND_DOWN, ROUND_UP, Decimal
 from functools import partial
 from os import environ
 from typing import Any
@@ -79,6 +79,12 @@ def _parse_invalid_symbols(error: Exception) -> set[str]:
     if not match:
         return set()
     return {part.strip() for part in match.group(1).split(",") if part.strip()}
+
+
+# exchange codes for over-the-counter instruments, which take limit orders only
+OTC_EXCHANGES = ("OTC", "PINK", "GREY")
+# how far past the quote an OTC limit order may fill
+OTC_LIMIT_BUFFER = Decimal("0.01")
 
 
 class WebullProvider(BaseProvider):
@@ -460,8 +466,33 @@ class WebullProvider(BaseProvider):
 
     ## orders
 
+    def _is_otc(self, ticker: str) -> bool:
+        exchange = str(self._get_stock_info(ticker).get("exchange") or "").upper()
+        return any(code in exchange for code in OTC_EXCHANGES)
+
+    def _otc_limit_price(self, ticker: str, side: str) -> Decimal:
+        price = self._get_instrument_price(ticker)
+        if not price:
+            raise OrderError(f"Failed to {side.lower()} {ticker}: no quote to set a limit price from")
+        buying = side == "BUY"
+        limit = price * (1 + OTC_LIMIT_BUFFER if buying else 1 - OTC_LIMIT_BUFFER)
+        # round away from the quote so the buffer is never lost to rounding down
+        tick = Decimal("0.01") if price >= 1 else Decimal("0.0001")
+        return limit.quantize(tick, rounding=ROUND_UP if buying else ROUND_DOWN)
+
     def _place_order(self, ticker: str, qty: Decimal, side: str) -> None:
         instrument = self._get_instrument(ticker)
+        terms: dict[str, Any] = {"order_type": "MARKET"}
+        if self._is_otc(ticker):
+            # OTC orders are limit-only and in whole shares, so a fractional leg drops
+            qty = Decimal(int(qty))
+            if not qty:
+                Logger.info(f"Skipping fractional OTC {side.lower()} of {ticker}")
+                return
+            terms = {
+                "order_type": "LIMIT",
+                "limit_price": format(self._otc_limit_price(ticker, side), "f"),
+            }
         try:
             response = call_with_retries(
                 lambda: self._api.order.place_order(
@@ -470,10 +501,10 @@ class WebullProvider(BaseProvider):
                     client_order_id=uuid.uuid4().hex,
                     side=side,
                     qty=format(qty, "f"),
-                    order_type="MARKET",
                     tif="DAY",
                     # market orders cannot route to extended hours
                     extended_hours_trading=False,
+                    **terms,
                 )
             )
         except self._server_exception as e:

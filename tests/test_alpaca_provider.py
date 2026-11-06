@@ -1,8 +1,12 @@
 from decimal import Decimal
 
+import pytest
+
 from py_portfolio_index.portfolio_providers.alpaca_v2 import AlpacaProvider
 
 ASSET_ID = "b0b6dd9d-8b9b-48a9-ba46-b9d54906e415"
+# not a real venue, so alpaca-py will never add it to its enum
+UNKNOWN_EXCHANGE = "NOTAVENUE"
 
 
 def make_position(symbol: str, exchange: str) -> dict:
@@ -51,7 +55,7 @@ def make_provider(responses: dict) -> AlpacaProvider:
 
 
 def test_positions_tolerate_exchanges_alpaca_py_does_not_know():
-    provider = make_provider({"/positions": [make_position("AAPL", "NASDAQ"), make_position("NEWCO", "TXSE")]})
+    provider = make_provider({"/positions": [make_position("AAPL", "NASDAQ"), make_position("NEWCO", UNKNOWN_EXCHANGE)]})
 
     positions = provider.get_all_positions()
 
@@ -62,23 +66,23 @@ def test_positions_tolerate_exchanges_alpaca_py_does_not_know():
 
 
 def test_assets_tolerate_exchanges_alpaca_py_does_not_know():
-    provider = make_provider({"/assets": [make_asset("AAPL", "NASDAQ"), make_asset("NEWCO", "TXSE")]})
+    provider = make_provider({"/assets": [make_asset("AAPL", "NASDAQ"), make_asset("NEWCO", UNKNOWN_EXCHANGE)]})
 
     assert provider.valid_assets == {"AAPL", "NEWCO"}
 
 
 def test_stock_info_keeps_unknown_exchange():
-    provider = make_provider({"/assets/NEWCO": make_asset("NEWCO", "TXSE")})
+    provider = make_provider({"/assets/NEWCO": make_asset("NEWCO", UNKNOWN_EXCHANGE)})
 
     assert provider._get_stock_info("NEWCO") == {
         "name": "NEWCO Inc",
-        "exchange": "TXSE",
+        "exchange": UNKNOWN_EXCHANGE,
         "tradable": True,
     }
 
 
-def test_exchanges_alpaca_py_knows_pass_through():
-    # ASCX was added to alpaca-py's enum in 0.44; once TXSE lands it will flow through the same way
-    provider = make_provider({"/positions": [make_position("NEWCO", "ASCX")]})
+@pytest.mark.parametrize("exchange", ["ASCX", "TXSE"])
+def test_exchanges_alpaca_py_knows_pass_through(exchange):
+    provider = make_provider({"/positions": [make_position("NEWCO", exchange)]})
 
-    assert provider.get_all_positions()[0].exchange.value == "ASCX"
+    assert provider.get_all_positions()[0].exchange.value == exchange

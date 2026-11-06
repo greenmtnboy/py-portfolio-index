@@ -60,7 +60,8 @@ class DuckDBDatastore(BaseDatastore):
             row[2]
             for row in results
         ]
-        return set(tables) == set(self.EXPECTED_TABLES)
+        # callers may keep their own tables here, which aren't ours to reset
+        return set(self.EXPECTED_TABLES).issubset(tables)
 
     def drop(self):
         for x in self.EXPECTED_TABLES:

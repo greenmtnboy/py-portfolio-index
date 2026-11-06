@@ -2,6 +2,7 @@
 
 import random
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 
@@ -314,3 +315,53 @@ def test_robinhood_throttle_retry_keeps_value(monkeypatch, message):
     assert provider.buy_instrument("AAA", Decimal("0.01"), Money(value=2)) is True
     # the retry used to drop the value and buy the rounded-up quantity instead
     assert calls == [("AAA", 0.01, Money(value=2)), ("AAA", 0.01, Money(value=2))]
+
+
+def webull_ordering(exchange: str, price: Decimal | None = Decimal("10.01")) -> tuple[WebullProvider, list]:
+    provider = WebullProvider.__new__(WebullProvider)
+    orders: list = []
+
+    class Order:
+        def place_order(self, **kwargs):
+            orders.append(kwargs)
+            return SimpleNamespace(status_code=200)
+
+    provider._api = SimpleNamespace(order=Order())  # type: ignore[attr-defined]
+    provider._account_id = "account"  # type: ignore[attr-defined]
+    provider._server_exception = RuntimeError  # type: ignore[attr-defined]
+    provider._get_instrument = lambda ticker: {"instrument_id": "1", "category": "US_STOCK"}  # type: ignore[method-assign]
+    provider._get_stock_info = lambda ticker: {"exchange": exchange}  # type: ignore[method-assign]
+    provider._get_instrument_price = lambda ticker, *args, **kwargs: price  # type: ignore[method-assign]
+    return provider, orders
+
+
+def test_webull_listed_order_stays_market():
+    provider, orders = webull_ordering("NYSE")
+    provider.buy_instrument("AAA", Decimal("3.5"), Money(value=35))
+    assert [(x["order_type"], x["qty"]) for x in orders] == [("MARKET", "3"), ("MARKET", "0.5")]
+    assert all("limit_price" not in x for x in orders)
+
+
+def test_webull_otc_buy_is_whole_share_limit_above_quote():
+    provider, orders = webull_ordering("OTC Pink")
+    provider.buy_instrument("AAAAY", Decimal("3.5"), Money(value=35))
+    assert [(x["order_type"], x["qty"], x["limit_price"]) for x in orders] == [("LIMIT", "3", "10.12")]
+
+
+def test_webull_otc_sell_limits_below_quote():
+    provider, orders = webull_ordering("OTC")
+    provider.sell_instrument("AAAAY", Decimal(2))
+    assert orders[0]["limit_price"] == "9.90"
+
+
+def test_webull_otc_keeps_ticks_under_a_dollar():
+    provider, orders = webull_ordering("OTC", Decimal("0.5"))
+    provider.buy_instrument("AAAAY", Decimal(2), Money(value=1))
+    assert orders[0]["limit_price"] == "0.5050"
+
+
+def test_webull_otc_without_quote_fails_the_order():
+    provider, orders = webull_ordering("OTC", None)
+    with pytest.raises(OrderError):
+        provider.buy_instrument("AAAAY", Decimal(2), Money(value=20))
+    assert orders == []

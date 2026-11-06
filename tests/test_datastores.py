@@ -168,3 +168,21 @@ def test_datastore_loads_every_known_symbol(tmp_path):
         assert db.executor.execute_raw_sql("SELECT id FROM symbols WHERE ticker = :ticker;", {"ticker": UNKNOWN_TICKER}).fetchall() == [(-1,)]
     finally:
         db.close()
+
+
+def test_datastore_reopen_keeps_data_alongside_extra_tables(tmp_path):
+    path = str(tmp_path / "extra.db")
+    db = DuckDBDatastore(path)
+    db.reset()
+    holding = RealPortfolioElement(ticker="AAPL", units=1.0, value=Money(value=100))
+    db.persist_holding_data([holding], ProviderType.SCHWAB)
+    db.executor.execute_raw_sql("CREATE TABLE target_holdings (ticker VARCHAR);")
+    db.executor.connection.commit()
+    db.close()
+
+    reopened = DuckDBDatastore(path)
+    try:
+        assert reopened.check_initialized()
+        assert len(holding_rows(reopened)) == 1
+    finally:
+        reopened.close()
