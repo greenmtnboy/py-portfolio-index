@@ -175,7 +175,18 @@ class MooMooProvider(BaseProvider):
         qty: float | None,
         value: Money | None = None,
     ) -> bool:
-        from moomoo import RET_OK, OrderType, TrdSide
+        from moomoo import TrdSide
+
+        return self._place_order(symbol, qty, value, TrdSide.BUY)
+
+    def _place_order(
+        self,
+        symbol: str,
+        qty: float | Decimal | None,
+        value: Money | None,
+        side: Any,
+    ) -> bool:
+        from moomoo import RET_OK, OrderType
 
         # Check rate limit before attempting to place order
         self._check_order_rate_limit()
@@ -196,7 +207,7 @@ class MooMooProvider(BaseProvider):
             qty=qty,
             code="US." + symbol,
             order_type=OrderType.MARKET,
-            trd_side=TrdSide.BUY,
+            trd_side=side,
         )
         if ret == RET_OK:
             return True
@@ -221,6 +232,14 @@ class MooMooProvider(BaseProvider):
         for order_kwargs in orders_kwargs_list:
             return self._buy_instrument(ticker, **order_kwargs)  # type: ignore
         return True
+
+    def sell_instrument(self, ticker: str, qty: Decimal, value: Money | None = None) -> bool:
+        from moomoo import TrdSide
+
+        if not qty:
+            raise OrderError(f"Failed to sell {ticker}: no quantity given")
+        # a market order is sized in shares, so the value isn't used
+        return self._place_order(ticker, qty, None, TrdSide.SELL)
 
     def get_unsettled_instruments(self) -> set[str]:
         """We need to efficiently bypass

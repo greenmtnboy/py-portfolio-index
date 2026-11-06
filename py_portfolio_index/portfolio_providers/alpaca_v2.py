@@ -311,14 +311,12 @@ class AlpacaProvider(BaseProvider):
         from alpaca.trading.enums import OrderSide, TimeInForce
         from alpaca.trading.requests import MarketOrderRequest
 
-        if value:
-            order_qty = None
-        else:
-            order_qty = qty
+        # sell by shares when we have them: a notional from an estimated price can
+        # strand a fraction of the position or ask for more than is held
         market_order_data = MarketOrderRequest(
             symbol=ticker,
-            notional=round(float(value), 2) if value else None,
-            qty=order_qty if order_qty else None,
+            notional=None if qty else round(float(value), 2) if value else None,
+            qty=float(qty) if qty else None,
             side=OrderSide.SELL,
             time_in_force=TimeInForce.DAY,
         )

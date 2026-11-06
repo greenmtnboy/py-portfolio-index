@@ -1,5 +1,6 @@
 import re
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from os import environ, remove
@@ -237,12 +238,17 @@ class SchwabProvider(BaseProvider):
         value: Money | None = None,
         price: Decimal | None = None,
     ) -> None:
+        from schwab.orders.equities import equity_buy_market
+
+        return self._place_market_order(equity_buy_market, symbol, qty)
+
+    def _place_market_order(self, build_order: Callable, symbol: str, qty: int | Decimal) -> None:
         from httpx import Request
-        from schwab.orders.equities import Duration, Session, equity_buy_market
+        from schwab.orders.equities import Duration, Session
 
         order: Request = self._provider.place_order(
             self._account_hash,
-            order_spec=equity_buy_market(symbol, quantity=int(qty)).set_duration(Duration.DAY).set_session(Session.NORMAL).build(),
+            order_spec=build_order(symbol, quantity=int(qty)).set_duration(Duration.DAY).set_session(Session.NORMAL).build(),
         )
         try:
             _ = self._utils.extract_order_id(order)
@@ -250,7 +256,7 @@ class SchwabProvider(BaseProvider):
             if "order not successful: status 429" in str(e):
                 Logger.info(f"RH error: was throttled on fractional orders! Sleeping {FRACTIONAL_SLEEP}")
                 sleep(FRACTIONAL_SLEEP)
-                return self._buy_instrument(symbol=symbol, qty=qty, value=value, price=price)
+                return self._place_market_order(build_order, symbol, qty)
             raise
         return None
 
@@ -269,6 +275,20 @@ class SchwabProvider(BaseProvider):
             if is_auth_error(e):
                 raise ConfigurationError(f"Could not buy {ticker}: {e!s}; assuming session expired")
             raise OrderError(f"Could not buy {ticker}: {e!s}")
+        return True
+
+    def sell_instrument(self, ticker: str, qty: Decimal, value: Money | None = None):
+        from schwab.orders.equities import equity_sell_market
+
+        # Schwab's API trades whole shares only
+        if int(qty) < 1:
+            raise OrderError(f"Failed to sell {ticker}: Schwab only sells whole shares, got {qty}")
+        try:
+            self._place_market_order(equity_sell_market, ticker, qty)
+        except Exception as e:
+            if is_auth_error(e):
+                raise ConfigurationError(f"Could not sell {ticker}: {e!s}; assuming session expired")
+            raise OrderError(f"Could not sell {ticker}: {e!s}")
         return True
 
     def get_unsettled_instruments(self) -> set[str]:
