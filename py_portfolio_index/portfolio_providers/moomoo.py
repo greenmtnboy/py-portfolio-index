@@ -55,6 +55,7 @@ class MooMooProvider(BaseProvider):
     PROVIDER = ProviderType.MOOMOO
     SUPPORTS_BATCH_HISTORY = 0
     SUPPORTS_FRACTIONAL_SHARES = False
+    SUPPORTS_LIMIT_ORDERS = True
     PASSWORD_ENV = "MOOMOO_PASSWORD"
     ACCOUNT_ENV = "MOOMOO_ACCOUNT"
     TRADE_TOKEN_ENV = "MOOMOO_TRADE_TOKEN"
@@ -185,6 +186,7 @@ class MooMooProvider(BaseProvider):
         qty: float | Decimal | None,
         value: Money | None,
         side: Any,
+        limit_price: Decimal | None = None,
     ) -> bool:
         from moomoo import RET_OK, OrderType
 
@@ -203,10 +205,10 @@ class MooMooProvider(BaseProvider):
 
         ret, data = self._trade_provider.place_order(
             # price is arbitrary for makret
-            price=0.0 if not value else value.value,
+            price=float(limit_price) if limit_price else 0.0 if not value else value.value,
             qty=qty,
             code="US." + symbol,
-            order_type=OrderType.MARKET,
+            order_type=OrderType.NORMAL if limit_price else OrderType.MARKET,
             trd_side=side,
         )
         if ret == RET_OK:
@@ -214,7 +216,17 @@ class MooMooProvider(BaseProvider):
         else:
             raise OrderError(f"place_order error: {data} debug: {qty} {value}")
 
-    def buy_instrument(self, ticker: str, qty: Decimal, value: Money | None = None) -> bool:
+    def buy_instrument(
+        self,
+        ticker: str,
+        qty: Decimal,
+        value: Money | None = None,
+        limit_price: Decimal | None = None,
+    ) -> bool:
+        if limit_price:
+            from moomoo import TrdSide
+
+            return self._place_order(ticker, qty, None, TrdSide.BUY, limit_price)
         if qty:
             orders_kwargs_list: list[dict[str, Money | None | Decimal]] = [
                 {
@@ -233,13 +245,19 @@ class MooMooProvider(BaseProvider):
             return self._buy_instrument(ticker, **order_kwargs)  # type: ignore
         return True
 
-    def sell_instrument(self, ticker: str, qty: Decimal, value: Money | None = None) -> bool:
+    def sell_instrument(
+        self,
+        ticker: str,
+        qty: Decimal,
+        value: Money | None = None,
+        limit_price: Decimal | None = None,
+    ) -> bool:
         from moomoo import TrdSide
 
         if not qty:
             raise OrderError(f"Failed to sell {ticker}: no quantity given")
         # a market order is sized in shares, so the value isn't used
-        return self._place_order(ticker, qty, None, TrdSide.SELL)
+        return self._place_order(ticker, qty, None, TrdSide.SELL, limit_price)
 
     def get_unsettled_instruments(self) -> set[str]:
         """We need to efficiently bypass

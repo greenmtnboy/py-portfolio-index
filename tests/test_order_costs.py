@@ -227,7 +227,7 @@ def test_value_orders_round_units_down(price, value, units):
 def bare_webull() -> tuple[WebullProvider, list]:
     provider = WebullProvider.__new__(WebullProvider)
     placed: list = []
-    provider._place_order = lambda ticker, qty, side: placed.append((ticker, qty, side))  # type: ignore[method-assign]
+    provider._place_order = lambda ticker, qty, side, limit_price=None: placed.append((ticker, qty, side))  # type: ignore[method-assign]
     return provider, placed
 
 
@@ -397,3 +397,21 @@ def test_robinhood_sell_retries_when_throttled(monkeypatch):
 def test_robinhood_sell_needs_a_quantity():
     with pytest.raises(OrderError):
         bare_robinhood().sell_instrument("AAA", Decimal(0), Money(value=10))
+
+
+def test_webull_otc_limit_uses_the_given_price_without_a_quote():
+    provider, orders = webull_ordering("OTC", None)
+    order = OrderElement(ticker="AAAAY", order_type=OrderType.BUY, value=None, qty=3, limit_price=Money(value="54.64"))
+
+    provider.handle_order_element(order)
+
+    assert [(x["order_type"], x["qty"], x["limit_price"]) for x in orders] == [("LIMIT", "3", "54.64")]
+
+
+def test_webull_listed_order_can_take_a_limit_too():
+    provider, orders = webull_ordering("NYSE", None)
+    order = OrderElement(ticker="AAA", order_type=OrderType.SELL, value=None, qty=3, limit_price=Money(value=10))
+
+    provider.handle_order_element(order)
+
+    assert [(x["order_type"], x["limit_price"]) for x in orders] == [("LIMIT", "10")]

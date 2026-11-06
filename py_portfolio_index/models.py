@@ -477,6 +477,8 @@ class OrderElement(BaseModel):
     qty: float | int | None
     price: Money | None = None
     provider: ProviderType | None = None
+    # place at this price where the provider takes limit orders, with no quote needed
+    limit_price: Money | None = None
 
     @property
     def inferred_value(self) -> Money:
