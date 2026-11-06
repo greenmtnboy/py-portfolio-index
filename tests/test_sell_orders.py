@@ -1,3 +1,4 @@
+import sys
 from datetime import datetime, timezone
 from decimal import Decimal
 from types import SimpleNamespace
@@ -33,15 +34,25 @@ def test_alpaca_value_only_sell_is_notional(monkeypatch):
     assert submitted[0].notional == 50
 
 
-def moomoo() -> tuple[MooMooProvider, list]:
-    from moomoo import RET_OK
+@pytest.fixture
+def moomoo_sdk(monkeypatch) -> SimpleNamespace:
+    """The SDK is an optional extra, so CI doesn't have it."""
+    sdk = SimpleNamespace(
+        RET_OK=0,
+        OrderType=SimpleNamespace(MARKET="MARKET"),
+        TrdSide=SimpleNamespace(BUY="BUY", SELL="SELL"),
+    )
+    monkeypatch.setitem(sys.modules, "moomoo", sdk)
+    return sdk
 
+
+def moomoo(sdk: SimpleNamespace) -> tuple[MooMooProvider, list]:
     provider = MooMooProvider.__new__(MooMooProvider)
     placed: list = []
 
     def place_order(**kwargs):
         placed.append(kwargs)
-        return RET_OK, "ok"
+        return sdk.RET_OK, "ok"
 
     provider._trade_provider = SimpleNamespace(place_order=place_order)  # type: ignore[attr-defined]
     provider.last_unlocked = datetime.now(timezone.utc)  # type: ignore[attr-defined]
@@ -50,28 +61,24 @@ def moomoo() -> tuple[MooMooProvider, list]:
     return provider, placed
 
 
-def test_moomoo_sell_is_a_market_sell_of_the_shares():
-    from moomoo import OrderType, TrdSide
-
-    provider, placed = moomoo()
+def test_moomoo_sell_is_a_market_sell_of_the_shares(moomoo_sdk):
+    provider, placed = moomoo(moomoo_sdk)
     assert provider.sell_instrument("AAA", Decimal(766), Money(value=27000)) is True
-    assert placed[0]["trd_side"] == TrdSide.SELL
-    assert placed[0]["order_type"] == OrderType.MARKET
+    assert placed[0]["trd_side"] == moomoo_sdk.TrdSide.SELL
+    assert placed[0]["order_type"] == moomoo_sdk.OrderType.MARKET
     assert placed[0]["qty"] == 766
     assert placed[0]["code"] == "US.AAA"
     assert placed[0]["price"] == 0.0
 
 
-def test_moomoo_buy_still_buys():
-    from moomoo import TrdSide
-
-    provider, placed = moomoo()
+def test_moomoo_buy_still_buys(moomoo_sdk):
+    provider, placed = moomoo(moomoo_sdk)
     provider.buy_instrument("AAA", Decimal(2))
-    assert placed[0]["trd_side"] == TrdSide.BUY
+    assert placed[0]["trd_side"] == moomoo_sdk.TrdSide.BUY
 
 
-def test_moomoo_sell_needs_a_quantity():
-    provider, placed = moomoo()
+def test_moomoo_sell_needs_a_quantity(moomoo_sdk):
+    provider, placed = moomoo(moomoo_sdk)
     with pytest.raises(OrderError):
         provider.sell_instrument("AAA", Decimal(0), Money(value=10))
     assert placed == []
