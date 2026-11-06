@@ -6,7 +6,8 @@ from types import SimpleNamespace
 import pytest
 
 from py_portfolio_index.exceptions import ConfigurationError, OrderError
-from py_portfolio_index.models import Money
+from py_portfolio_index.enums import OrderType
+from py_portfolio_index.models import Money, OrderElement
 from py_portfolio_index.portfolio_providers.alpaca_v2 import AlpacaProvider
 from py_portfolio_index.portfolio_providers.moomoo import MooMooProvider
 from py_portfolio_index.portfolio_providers.schwab import SchwabProvider
@@ -39,7 +40,7 @@ def moomoo_sdk(monkeypatch) -> SimpleNamespace:
     """The SDK is an optional extra, so CI doesn't have it."""
     sdk = SimpleNamespace(
         RET_OK=0,
-        OrderType=SimpleNamespace(MARKET="MARKET"),
+        OrderType=SimpleNamespace(MARKET="MARKET", NORMAL="NORMAL"),
         TrdSide=SimpleNamespace(BUY="BUY", SELL="SELL"),
     )
     monkeypatch.setitem(sys.modules, "moomoo", sdk)
@@ -129,3 +130,25 @@ def test_schwab_sell_flags_an_expired_session(monkeypatch):
     provider, _ = schwab(RuntimeError("401"))
     with pytest.raises(ConfigurationError):
         provider.sell_instrument("AAA", Decimal(1))
+
+
+def test_limit_order_needs_no_quote_on_moomoo(moomoo_sdk):
+    provider, placed = moomoo(moomoo_sdk)
+    provider.get_instrument_price = lambda ticker: pytest.fail("quoted")  # type: ignore[method-assign]
+    order = OrderElement(ticker="AAAAY", order_type=OrderType.BUY, value=None, qty=2, limit_price=Money(value="59.71"))
+
+    provider.handle_order_element(order)
+
+    assert placed[0]["order_type"] == "NORMAL"
+    assert placed[0]["price"] == 59.71
+    assert placed[0]["qty"] == 2
+    assert placed[0]["trd_side"] == "BUY"
+
+
+def test_a_provider_without_limit_orders_refuses_rather_than_going_to_market(monkeypatch):
+    provider, submitted = alpaca(monkeypatch)
+    order = OrderElement(ticker="AAA", order_type=OrderType.BUY, value=None, qty=2, limit_price=Money(value=10))
+
+    with pytest.raises(OrderError):
+        provider.handle_order_element(order)
+    assert submitted == []

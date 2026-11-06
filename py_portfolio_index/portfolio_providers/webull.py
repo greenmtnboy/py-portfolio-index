@@ -97,6 +97,7 @@ class WebullProvider(BaseProvider):
 
     PROVIDER = ProviderType.WEBULL
     SUPPORTS_BATCH_HISTORY = 0
+    SUPPORTS_LIMIT_ORDERS = True
 
     API_KEY_ENV = "WEBULL_API_KEY"
     API_SECRET_ENV = "WEBULL_API_SECRET"
@@ -480,19 +481,22 @@ class WebullProvider(BaseProvider):
         tick = Decimal("0.01") if price >= 1 else Decimal("0.0001")
         return limit.quantize(tick, rounding=ROUND_UP if buying else ROUND_DOWN)
 
-    def _place_order(self, ticker: str, qty: Decimal, side: str) -> None:
+    def _place_order(self, ticker: str, qty: Decimal, side: str, limit_price: Decimal | None = None) -> None:
         instrument = self._get_instrument(ticker)
         terms: dict[str, Any] = {"order_type": "MARKET"}
+        if limit_price:
+            terms = {"order_type": "LIMIT", "limit_price": format(limit_price, "f")}
         if self._is_otc(ticker):
             # OTC orders are limit-only and in whole shares, so a fractional leg drops
             qty = Decimal(int(qty))
             if not qty:
                 Logger.info(f"Skipping fractional OTC {side.lower()} of {ticker}")
                 return
-            terms = {
-                "order_type": "LIMIT",
-                "limit_price": format(self._otc_limit_price(ticker, side), "f"),
-            }
+            if not limit_price:
+                terms = {
+                    "order_type": "LIMIT",
+                    "limit_price": format(self._otc_limit_price(ticker, side), "f"),
+                }
         try:
             response = call_with_retries(
                 lambda: self._api.order.place_order(
@@ -524,18 +528,30 @@ class WebullProvider(BaseProvider):
             return [Decimal(whole), qty - whole]
         return [qty]
 
-    def buy_instrument(self, ticker: str, qty: Decimal, value: Money | None = None) -> bool:
+    def buy_instrument(
+        self,
+        ticker: str,
+        qty: Decimal,
+        value: Money | None = None,
+        limit_price: Decimal | None = None,
+    ) -> bool:
         # orders go by quantity, so a value below the share increment buys nothing
         if not qty:
             Logger.info(f"Skipping {ticker}: {value} is less than the smallest share increment")
             return False
         for leg in self._split_fractional(qty):
-            self._place_order(ticker, leg, "BUY")
+            self._place_order(ticker, leg, "BUY", limit_price)
         return True
 
-    def sell_instrument(self, ticker: str, qty: Decimal, value: Money | None = None) -> bool:
+    def sell_instrument(
+        self,
+        ticker: str,
+        qty: Decimal,
+        value: Money | None = None,
+        limit_price: Decimal | None = None,
+    ) -> bool:
         for leg in self._split_fractional(qty):
-            self._place_order(ticker, leg, "SELL")
+            self._place_order(ticker, leg, "SELL", limit_price)
         return True
 
     ## unsupported by the official API

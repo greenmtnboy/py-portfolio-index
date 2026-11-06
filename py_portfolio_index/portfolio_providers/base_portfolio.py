@@ -42,6 +42,8 @@ class BaseProvider:
     MAX_ORDER_DECIMALS = 2
     SUPPORTS_BATCH_HISTORY = 0
     SUPPORTS_FRACTIONAL_SHARES = True
+    # buy_instrument and sell_instrument take a limit_price
+    SUPPORTS_LIMIT_ORDERS = False
 
     def __init__(self, quote_provider: BaseProvider | None = None) -> None:
         self.stock_info_cache: dict[str, StockInfo] = {}
@@ -233,7 +235,10 @@ class BaseProvider:
                 raise ValueError("Invalid rounding strategy provided with non-fractional shares.")
 
     def handle_order_element(self, element: OrderElement, dry_run: bool = False):
-        raw_price = self.get_instrument_price(element.ticker)
+        limit_price = element.limit_price.decimal if element.limit_price else None
+        if limit_price and not self.SUPPORTS_LIMIT_ORDERS:
+            raise OrderError(f"{self.PROVIDER} can't place limit orders for {element.ticker}")
+        raw_price = limit_price or self.get_instrument_price(element.ticker)
 
         if not raw_price:
             raise OrderError(f"No price found for this instrument: {element.ticker}")
@@ -250,11 +255,12 @@ class BaseProvider:
         else:
             raise OrderError("Order element must have qty or value")
         if not dry_run:
+            limit: dict[str, Decimal] = {"limit_price": limit_price} if limit_price else {}
             if element.order_type == OrderType.BUY:
-                self.buy_instrument(element.ticker, units, value)
+                self.buy_instrument(element.ticker, units, value, **limit)
                 Logger.info(f"Bought {units} of {element.ticker}")
             elif element.order_type == OrderType.SELL:
-                self.sell_instrument(element.ticker, units, value)
+                self.sell_instrument(element.ticker, units, value, **limit)
                 Logger.info(f"Sold {units} of {element.ticker}")
             else:
                 raise OrderError("Invalid order type")
