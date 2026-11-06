@@ -365,3 +365,35 @@ def test_webull_otc_without_quote_fails_the_order():
     with pytest.raises(OrderError):
         provider.buy_instrument("AAAAY", Decimal(2), Money(value=20))
     assert orders == []
+
+
+@pytest.mark.parametrize(
+    "qty, called",
+    [(Decimal(5), ("market", 5)), (Decimal("404.39"), ("fractional", 404.39))],
+)
+def test_robinhood_sell_routes_by_share_type(monkeypatch, qty, called):
+    import robin_stocks.robinhood.orders as orders
+
+    calls: list = []
+    monkeypatch.setattr(orders, "order_sell_market", lambda symbol, quantity, timeInForce: calls.append(("market", quantity)) or {"id": "1"})
+    monkeypatch.setattr(orders, "order_sell_fractional_by_quantity", lambda symbol, quantity: calls.append(("fractional", quantity)) or {"id": "1"})
+
+    assert bare_robinhood().sell_instrument("AAA", qty, Money(value=100)) is True
+    assert calls == [called]
+
+
+def test_robinhood_sell_retries_when_throttled(monkeypatch):
+    import py_portfolio_index.portfolio_providers.robinhood as module
+
+    monkeypatch.setattr(module, "sleep", lambda seconds: None)
+    provider = bare_robinhood()
+    replies = [{"detail": "Request was throttled. Expected available in 1 seconds."}, {"id": "1"}]
+    provider._sell_instrument = lambda symbol, qty: replies.pop(0)  # type: ignore[method-assign]
+
+    assert provider.sell_instrument("AAA", Decimal(2)) is True
+    assert replies == []
+
+
+def test_robinhood_sell_needs_a_quantity():
+    with pytest.raises(OrderError):
+        bare_robinhood().sell_instrument("AAA", Decimal(0), Money(value=10))

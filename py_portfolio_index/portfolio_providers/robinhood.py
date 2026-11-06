@@ -1,5 +1,6 @@
 import re
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from os import environ
@@ -262,9 +263,30 @@ class RobinhoodProvider(BaseProvider):
 
         return data or {}
 
+    def _sell_instrument(self, symbol: str, qty: float) -> dict:
+        from robin_stocks.robinhood.orders import (
+            order_sell_fractional_by_quantity,
+            order_sell_market,
+        )
+
+        if qty == int(qty):
+            data = order_sell_market(symbol, int(qty), timeInForce="gfd")
+        else:
+            data = order_sell_fractional_by_quantity(symbol, qty)
+        return data or {}
+
     def buy_instrument(self, ticker: str, qty: Decimal, value: Money | None = None):
         float_qty = float(qty)
-        output = self._buy_instrument(ticker, float_qty, value)
+        return self._submit_with_retries(lambda: self._buy_instrument(ticker, float_qty, value))
+
+    def sell_instrument(self, ticker: str, qty: Decimal, value: Money | None = None):
+        if not qty:
+            raise OrderError(f"Failed to sell {ticker}: no quantity given")
+        float_qty = float(qty)
+        return self._submit_with_retries(lambda: self._sell_instrument(ticker, float_qty))
+
+    def _submit_with_retries(self, place: Callable[[], dict]) -> bool:
+        output = place()
         msg = output.get("detail")
         if msg and "throttled" in msg:
             m = re.search("available in ([0-9]+) seconds", msg)
@@ -275,11 +297,11 @@ class RobinhoodProvider(BaseProvider):
                 t = 30
             Logger.info(f"RH error: was throttled! Sleeping {t}")
             sleep(t)
-            return self.buy_instrument(ticker=ticker, qty=qty, value=value)
+            return self._submit_with_retries(place)
         elif msg and "Too many requests for fractional orders" in msg:
             Logger.info(f"RH error: was throttled on fractional orders! Sleeping {FRACTIONAL_SLEEP}")
             sleep(FRACTIONAL_SLEEP)
-            return self.buy_instrument(ticker=ticker, qty=qty, value=value)
+            return self._submit_with_retries(place)
         if not output.get("id"):
             if msg:
                 Logger.error(msg)
