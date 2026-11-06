@@ -1,7 +1,7 @@
 import time
 from collections import defaultdict, deque
 from datetime import date, datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from os import environ
 from typing import Any
 
@@ -32,6 +32,19 @@ FRACTIONAL_SLEEP = 60
 BATCH_SIZE = 50
 
 CACHE_PATH = "moo_moo_tickers.json"
+
+
+def _position_gain(row: Any) -> Decimal:
+    """Unrealized gain on a position; moomoo marks a missing field with "N/A"."""
+    # pl_val also counts realized gains from any earlier sales of the position
+    for field in ("unrealized_pl", "pl_val"):
+        try:
+            gain = Decimal(str(getattr(row, field, None)))
+        except InvalidOperation:
+            continue
+        if gain.is_finite():
+            return gain
+    return Decimal(0)
 
 
 class MooMooProvider(BaseProvider):
@@ -279,6 +292,7 @@ class MooMooProvider(BaseProvider):
             local["ticker"] = ticker
             symbols.append(ticker)
             local["value"] = Decimal(row.market_val)
+            local["appreciation"] = Money(value=_position_gain(row))
             local["weight"] = 0
             pre[ticker] = local
             total_value += local["value"]
@@ -322,7 +336,7 @@ class MooMooProvider(BaseProvider):
         output = {}
         for x in my_stocks:
             ticker = x.code.split(".")[-1]
-            output[ticker] = ProfitModel(appreciation=Money(value=Decimal(x.pl_val)), dividends=dividends[ticker])
+            output[ticker] = ProfitModel(appreciation=Money(value=_position_gain(x)), dividends=dividends[ticker])
         return output
 
     def _get_dividends(self) -> defaultdict[str, Money]:
