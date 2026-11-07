@@ -87,8 +87,8 @@ def get_api(
 def webull_sdk_available() -> bool:
     """Whether the official SDK is installed and importable."""
     try:
-        import webull.data.data_client  # noqa: F401
-        import webull.trade.trade_client  # noqa: F401
+        from webull.data.data_client import DataClient  # noqa: F401
+        from webull.trade.trade_client import TradeClient  # noqa: F401
     except ImportError:
         return False
     return True
