@@ -49,13 +49,7 @@ setuptools.setup(
     extras_require={
         "alpaca": ["alpaca-py>=0.44.0"],
         "robinhood": ["robin-stocks"],
-        "webull": [
-            "webull-python-sdk-core",
-            "webull-python-sdk-trade",
-            "webull-python-sdk-mdata",
-            # the SDK vendors an unusable requests/six; we swap in the real ones
-            "requests",
-        ],
+        "webull": ["webull-openapi-python-sdk"],
         "schwab": ["schwab-py"],
         "etrade": ["requests-oauthlib"],
         "moomoo": ["moomoo-api"],

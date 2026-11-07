@@ -8,7 +8,7 @@ import pytest
 
 from py_portfolio_index.common import round_down_to_place
 from py_portfolio_index.enums import OrderType, PurchaseStrategy
-from py_portfolio_index.exceptions import OrderError
+from py_portfolio_index.exceptions import OrderError, PriceFetchError
 from py_portfolio_index.models import (
     IdealPortfolio,
     IdealPortfolioElement,
@@ -322,15 +322,14 @@ def webull_ordering(exchange: str, price: Decimal | None = Decimal("10.01")) -> 
     orders: list = []
 
     class Order:
-        def place_order(self, **kwargs):
-            orders.append(kwargs)
+        def place_order(self, account_id, new_orders):
+            orders.extend(new_orders)
             return SimpleNamespace(status_code=200)
 
-    provider._api = SimpleNamespace(order=Order())  # type: ignore[attr-defined]
+    provider._api = SimpleNamespace(order_v3=Order())  # type: ignore[attr-defined]
     provider._account_id = "account"  # type: ignore[attr-defined]
     provider._server_exception = RuntimeError  # type: ignore[attr-defined]
-    provider._get_instrument = lambda ticker: {"instrument_id": "1", "category": "US_STOCK"}  # type: ignore[method-assign]
-    provider._get_stock_info = lambda ticker: {"exchange": exchange}  # type: ignore[method-assign]
+    provider._get_instrument = lambda ticker: {"instrument_id": "1", "category": "US_STOCK", "exchange": exchange}  # type: ignore[method-assign]
     provider._get_instrument_price = lambda ticker, *args, **kwargs: price  # type: ignore[method-assign]
     return provider, orders
 
@@ -338,14 +337,14 @@ def webull_ordering(exchange: str, price: Decimal | None = Decimal("10.01")) -> 
 def test_webull_listed_order_stays_market():
     provider, orders = webull_ordering("NYSE")
     provider.buy_instrument("AAA", Decimal("3.5"), Money(value=35))
-    assert [(x["order_type"], x["qty"]) for x in orders] == [("MARKET", "3"), ("MARKET", "0.5")]
+    assert [(x["order_type"], x["quantity"]) for x in orders] == [("MARKET", "3"), ("MARKET", "0.5")]
     assert all("limit_price" not in x for x in orders)
 
 
 def test_webull_otc_buy_is_whole_share_limit_above_quote():
     provider, orders = webull_ordering("OTC Pink")
     provider.buy_instrument("AAAAY", Decimal("3.5"), Money(value=35))
-    assert [(x["order_type"], x["qty"], x["limit_price"]) for x in orders] == [("LIMIT", "3", "10.12")]
+    assert [(x["order_type"], x["quantity"], x["limit_price"]) for x in orders] == [("LIMIT", "3", "10.12")]
 
 
 def test_webull_otc_sell_limits_below_quote():
@@ -405,7 +404,7 @@ def test_webull_otc_limit_uses_the_given_price_without_a_quote():
 
     provider.handle_order_element(order)
 
-    assert [(x["order_type"], x["qty"], x["limit_price"]) for x in orders] == [("LIMIT", "3", "54.64")]
+    assert [(x["order_type"], x["quantity"], x["limit_price"]) for x in orders] == [("LIMIT", "3", "54.64")]
 
 
 def test_webull_listed_order_can_take_a_limit_too():
@@ -415,3 +414,77 @@ def test_webull_listed_order_can_take_a_limit_too():
     provider.handle_order_element(order)
 
     assert [(x["order_type"], x["limit_price"]) for x in orders] == [("LIMIT", "10")]
+
+
+def test_webull_orders_go_by_symbol_with_class_shares_spaced():
+    provider, orders = webull_ordering("NYSE")
+    provider.sell_instrument("BRK.B", Decimal(2))
+    assert orders[0]["symbol"] == "BRK B"
+    assert orders[0]["side"] == "SELL"
+    assert orders[0]["support_trading_session"] == "CORE"
+    assert "instrument_id" not in orders[0]
+
+
+def test_webull_pink_sheet_listing_counts_as_otc():
+    provider, orders = webull_ordering("PINL")
+    provider.buy_instrument("SIEGY", Decimal("2.5"), Money(value=25))
+    assert [(x["order_type"], x["quantity"]) for x in orders] == [("LIMIT", "2")]
+
+
+def webull_quoting(handler) -> WebullProvider:
+    provider = WebullProvider.__new__(WebullProvider)
+    provider._api = SimpleNamespace(order_v3=SimpleNamespace(preview_order=handler))  # type: ignore[attr-defined]
+    provider._account_id = "account"  # type: ignore[attr-defined]
+    provider._server_exception = RuntimeError  # type: ignore[attr-defined]
+    return provider
+
+
+def test_webull_price_comes_from_a_one_share_market_preview():
+    previewed = []
+
+    def preview(account_id, orders):
+        previewed.extend(orders)
+        return SimpleNamespace(json=lambda: {"estimated_cost": "145.94", "estimated_transaction_fee": "0"})
+
+    prices = webull_quoting(preview)._get_instrument_prices(["SIEGY"])
+
+    assert prices == {"SIEGY": Decimal("145.94")}
+    assert (previewed[0]["order_type"], previewed[0]["quantity"]) == ("MARKET", "1")
+
+
+def test_webull_symbol_it_rejects_has_no_price():
+    def preview(account_id, orders):
+        raise RuntimeError("invalid market,symbol")
+
+    provider = webull_quoting(preview)
+
+    assert provider._get_instrument_prices(["ZZZZY"], fail_on_missing=False) == {"ZZZZY": None}
+    with pytest.raises(PriceFetchError):
+        provider._get_instrument_prices(["ZZZZY"])
+
+
+class WebullRejection(Exception):
+    def get_error_code(self):
+        return "INVALID_SYMBOL"
+
+
+def test_webull_instrument_is_found_under_its_category_and_cached():
+    provider = WebullProvider.__new__(WebullProvider)
+    asked = []
+
+    def get_instrument(symbol, category):
+        asked.append(category)
+        if category == "US_STOCK":
+            raise WebullRejection()
+        return SimpleNamespace(json=lambda: [{"symbol": symbol, "instrument_id": 7, "exchange_code": "ARCA"}])
+
+    provider._api = SimpleNamespace(instrument=SimpleNamespace(get_instrument=get_instrument))  # type: ignore[attr-defined]
+    provider._server_exception = WebullRejection  # type: ignore[attr-defined]
+    provider._local_instrument_cache = {}  # type: ignore[attr-defined]
+    provider._save_local_instrument_cache = lambda: None  # type: ignore[method-assign]
+
+    first = provider._get_instrument("SPY")
+    second = provider._get_instrument("SPY")
+
+    assert first == second == {"instrument_id": "7", "category": "US_ETF", "exchange": "ARCA"}
+    assert asked == ["US_STOCK", "US_ETF"]

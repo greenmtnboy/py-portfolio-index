@@ -31,7 +31,7 @@ Note that provider dependencies must be installed independently for each provide
 
 - alpaca - `pip install alpaca-trade-api` or `pip install py-portfolio-index[alpaca]`
 - robinhood - `pip install robin_stocks` or `pip install py-portfolio-index[robinhood]`
-- webull - `pip install py-portfolio-index[webull]` (see the [Webull](#webull) section for a Python 3.12+ caveat)
+- webull - `pip install py-portfolio-index[webull]` (see the [Webull](#webull) section if you also use moomoo)
 - scwhab - `pip install schwab-py` or `pip install py-portfolio-index[schwab]`
 - etrade - `pip install requests-oauthlib` or `pip install py-portfolio-index[etrade]`
 
@@ -167,22 +167,28 @@ provider = WebullProvider(app_key="...", app_secret="...", region_id="us")
 If your credentials cover more than one Webull account, pass `account_id=` or set `WEBULL_ACCOUNT_ID`;
 otherwise the first account is used and a warning is logged naming it.
 
-#### Installation on Python 3.12+
+#### Signing in
 
-`webull-python-sdk-mdata` and `webull-python-sdk-trade` pull in `grpcio==1.51.1` (via
-`webull-python-sdk-quotes-core` and `webull-python-sdk-trade-events-core`). That version has no wheel for
-recent Pythons and fails to build from source. Only the gRPC and MQTT streaming modules need it, and this
-library uses neither, so install those two packages without their dependencies:
+Webull requires 2FA for its API. The first sign-in, and the first after a token expires (about 15 days),
+blocks while Webull sends an approval to its app, for up to 5 minutes. The token is saved in the user cache
+directory and reused until then.
+
+#### Prices and OTC
+
+Prices come from a previewed one share market order, because Webull's market data needs a paid subscription
+and doesn't cover OTC names. Each price is one API call. Historical prices do need that subscription.
+
+OTC orders go in whole shares at a limit price, 1% past the previewed price unless you give one.
+
+#### Installing alongside moomoo
+
+The SDK requires protobuf 4.25 or later, and `moomoo-api` needs protobuf 3. Only Webull's streaming modules
+use protobuf, and this library doesn't use them, so skip the SDK's dependencies and add the ones it needs:
 
 ```bash
-pip install webull-python-sdk-core requests
-pip install --no-deps webull-python-sdk-mdata webull-python-sdk-trade
+pip install --no-deps webull-openapi-python-sdk
+pip install cachetools jmespath requests six
 ```
-
-The SDK also vendors a copy of `requests` and `six` that cannot be imported on Python 3.12+ (the vendored
-`requests` imports the removed `cgi` module, and the vendored `six` registers an import hook that no longer
-exists). `py_portfolio_index.portfolio_providers.helpers.webull` transparently redirects those vendored
-module names at the real libraries, so no action is needed beyond having `requests` installed.
 
 #### Unsupported operations
 
