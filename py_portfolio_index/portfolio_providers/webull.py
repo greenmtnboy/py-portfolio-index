@@ -1,14 +1,11 @@
 import json
-import re
 import uuid
-from collections import defaultdict
 from datetime import date, datetime, timezone
 from decimal import ROUND_DOWN, ROUND_UP, Decimal
 from functools import partial
 from os import environ
 from typing import Any
 
-from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.constants import CACHE_DIR, Logger
 from py_portfolio_index.enums import ProviderType
 from py_portfolio_index.exceptions import (
@@ -40,8 +37,6 @@ DEFAULT_REGION_ID = "us"
 DEFAULT_WEBULL_TIMEOUT = 60
 DEFAULT_CURRENCY = "USD"
 
-# /market-data/snapshot accepts at most 100 symbols per call
-SNAPSHOT_BATCH_SIZE = 100
 # /account/positions and the order listings require page_size in [10, 100]
 MAX_PAGE_SIZE = 100
 # guard against paginating forever if the API keeps reporting another page
@@ -50,13 +45,12 @@ MAX_PAGES = 100
 MAX_HISTORY_BARS = 1200
 
 # Webull files instruments under a category, and rejects a symbol looked up
-# under the wrong one. US equities land in exactly one of these two.
+# under the wrong one. US equities land in one of these two, OTC names included.
 US_EQUITY_CATEGORIES = ("US_STOCK", "US_ETF")
 
 # Webull spells class shares with a space where this library uses a dot,
 # e.g. BRK.B is "BRK B".
 _SYMBOL_SEPARATOR = " "
-_INVALID_SYMBOL_LIST = re.compile(r"\[(.*?)\]")
 
 
 def _to_webull_symbol(ticker: str) -> str:
@@ -67,22 +61,8 @@ def _from_webull_symbol(symbol: str) -> str:
     return symbol.replace(_SYMBOL_SEPARATOR, ".")
 
 
-def _parse_invalid_symbols(error: Exception) -> set[str]:
-    """Pull the rejected symbols out of an INVALID_SYMBOL error message.
-
-    Webull answers a batch containing any unknown symbol with a 417 naming all
-    of the offenders, e.g. ``The symbols does not exist in the category.
-    [ZZZZ, DIA].`` - so one bad symbol fails the whole batch, and the message
-    is the only way to learn which ones to drop or retry elsewhere.
-    """
-    match = _INVALID_SYMBOL_LIST.search(str(error))
-    if not match:
-        return set()
-    return {part.strip() for part in match.group(1).split(",") if part.strip()}
-
-
 # exchange codes for over-the-counter instruments, which take limit orders only
-OTC_EXCHANGES = ("OTC", "PINK", "GREY")
+OTC_EXCHANGES = ("OTC", "PIN", "GREY")
 # how far past the quote an OTC limit order may fill
 OTC_LIMIT_BUFFER = Decimal("0.01")
 
@@ -93,6 +73,9 @@ class WebullProvider(BaseProvider):
     Uses the official Webull OpenAPI SDK. Generate an app key and secret from
     the Webull developer portal for your region and either pass them in or set
     WEBULL_API_KEY and WEBULL_API_SECRET.
+
+    Creating a provider signs in, which blocks until the sign-in is approved in
+    the Webull app if no valid token is saved.
     """
 
     PROVIDER = ProviderType.WEBULL
@@ -128,7 +111,7 @@ class WebullProvider(BaseProvider):
         self._server_exception = get_server_exception()
         self._account_id = self._resolve_account_id(account_id)
 
-        # symbol -> {"instrument_id": str, "category": str}
+        # symbol -> {"instrument_id": str, "category": str, "exchange": str}
         self._local_instrument_cache: dict[str, dict[str, str]] = {}
         if not skip_cache:
             self._load_local_instrument_cache()
@@ -171,9 +154,9 @@ class WebullProvider(BaseProvider):
                 cached = json.load(f)
         except (json.JSONDecodeError, OSError):
             cached = None
-        # corruption guard, and a guard against the pre-SDK cache format which
-        # stored a bare instrument id per symbol
-        if not isinstance(cached, dict) or not all(isinstance(v, dict) for v in cached.values()):
+        # corruption guard, and a guard against older cache formats, which held
+        # a bare instrument id per symbol, then no exchange
+        if not isinstance(cached, dict) or not all(isinstance(v, dict) and "exchange" in v for v in cached.values()):
             cached = {}
         self._local_instrument_cache = cached
 
@@ -183,99 +166,53 @@ class WebullProvider(BaseProvider):
 
     ## instrument resolution
 
-    def _snapshot_batch(self, symbols: list[str], category: str) -> tuple[dict[str, dict], list[str]]:
-        """Snapshot one batch, returning rows keyed by symbol plus any rejects.
-
-        A single unrecognized symbol fails the entire request, so we peel the
-        rejected symbols off the error and retry with the remainder.
-        """
-        remaining = list(symbols)
-        rejected: list[str] = []
-        while remaining:
+    def _lookup_instrument(self, ticker: str) -> dict | None:
+        symbol = _to_webull_symbol(ticker)
+        for category in US_EQUITY_CATEGORIES:
             try:
-                response = call_with_retries(partial(self._api.market_data.get_snapshot, remaining, category))
+                response = call_with_retries(partial(self._api.instrument.get_instrument, symbol, category))
             except self._server_exception as e:
                 if getattr(e, "get_error_code", lambda: None)() != "INVALID_SYMBOL":
                     raise
-                bad = _parse_invalid_symbols(e) & set(remaining)
-                if not bad:
-                    # can't tell which symbol webull disliked; treat all as bad
-                    return {}, remaining
-                rejected.extend(bad)
-                remaining = [s for s in remaining if s not in bad]
                 continue
-            rows = {}
             for row in response.json() or []:
-                # halted or delisted instruments come back as a bare id
-                if "symbol" not in row:
-                    continue
-                rows[row["symbol"]] = row
-            return rows, rejected
-        return {}, rejected
-
-    def _fetch_snapshots(self, symbols: list[str]) -> dict[str, dict]:
-        """Snapshot symbols, discovering and caching each one's category.
-
-        Symbols with a known category are grouped so they cost one request per
-        category; unknown ones are probed against each category in turn.
-        """
-        by_category: defaultdict[str, list[str]] = defaultdict(list)
-        unknown: list[str] = []
-        for ticker in symbols:
-            symbol = _to_webull_symbol(ticker)
-            cached = self._local_instrument_cache.get(ticker)
-            if cached:
-                by_category[cached["category"]].append(symbol)
-            else:
-                unknown.append(symbol)
-
-        rows: dict[str, dict] = {}
-        found_categories: dict[str, str] = {}
-
-        for category, group in by_category.items():
-            for batch in divide_into_batches(group, SNAPSHOT_BATCH_SIZE):
-                found, rejected = self._snapshot_batch(batch, category)
-                rows.update(found)
-                # a symbol can be recategorized (e.g. a fund converting); retry it
-                unknown.extend(rejected)
-
-        for category in US_EQUITY_CATEGORIES:
-            if not unknown:
-                break
-            still_unknown: list[str] = []
-            for batch in divide_into_batches(unknown, SNAPSHOT_BATCH_SIZE):
-                found, rejected = self._snapshot_batch(batch, category)
-                rows.update(found)
-                found_categories.update({symbol: category for symbol in found})
-                still_unknown.extend(rejected)
-            unknown = still_unknown
-
-        for symbol in unknown:
-            Logger.error(f"Could not find a Webull instrument for {symbol}")
-
-        if found_categories:
-            for symbol, category in found_categories.items():
-                row = rows[symbol]
-                self._local_instrument_cache[_from_webull_symbol(symbol)] = {
-                    "instrument_id": str(row["instrumentId"]),
-                    "category": category,
-                }
-            self._save_local_instrument_cache()
-
-        return {_from_webull_symbol(symbol): row for symbol, row in rows.items()}
+                if row.get("symbol") == symbol:
+                    return {**row, "category": row.get("category") or category}
+        return None
 
     def _get_instrument(self, ticker: str) -> dict[str, str]:
-        """Resolve a ticker to its Webull instrument id and category."""
+        """Resolve a ticker to its Webull instrument id, category and exchange."""
         cached = self._local_instrument_cache.get(ticker)
         if cached:
             return cached
-        self._fetch_snapshots([ticker])
-        cached = self._local_instrument_cache.get(ticker)
-        if not cached:
+        row = self._lookup_instrument(ticker)
+        if not row:
             raise OrderError(f"Could not find a Webull instrument for {ticker}")
-        return cached
+        instrument = {
+            "instrument_id": str(row["instrument_id"]),
+            "category": row["category"],
+            "exchange": row.get("exchange_code") or "",
+        }
+        self._local_instrument_cache[ticker] = instrument
+        self._save_local_instrument_cache()
+        return instrument
 
     ## pricing
+
+    def _preview_price(self, ticker: str) -> Decimal | None:
+        """The share price Webull would charge, from a preview of a one share buy.
+
+        Market data needs a paid subscription and doesn't cover OTC names, while
+        a preview needs neither and places nothing.
+        """
+        order = self._order(ticker, Decimal(1), "BUY", {"order_type": "MARKET"})
+        try:
+            response = call_with_retries(partial(self._api.order_v3.preview_order, self._account_id, [order]))
+        except self._server_exception as e:
+            Logger.error(f"Could not get a Webull price for {ticker}: {e}")
+            return None
+        cost = (response.json() or {}).get("estimated_cost")
+        return Decimal(cost) if cost else None
 
     def _get_instrument_prices(
         self,
@@ -289,11 +226,11 @@ class WebullProvider(BaseProvider):
                 prices[ticker] = self._get_historical_price(ticker, at_day, fail_on_missing=fail_on_missing)
             return prices
 
-        rows = self._fetch_snapshots(tickers)
-        missing = [ticker for ticker in tickers if ticker not in rows]
+        prices = {ticker: self._preview_price(ticker) for ticker in tickers}
+        missing = [ticker for ticker, price in prices.items() if price is None]
         if missing and fail_on_missing:
             raise PriceFetchError(missing, f"No Webull price found for {missing}")
-        return {ticker: (Decimal(rows[ticker]["price"]) if rows.get(ticker, {}).get("price") is not None else None) for ticker in tickers}
+        return prices
 
     def _get_instrument_price(self, ticker: str, at_day: date | None = None, fail_on_missing: bool = True) -> Decimal | None:
         return self._get_instrument_prices([ticker], at_day=at_day, fail_on_missing=fail_on_missing)[ticker]
@@ -468,7 +405,7 @@ class WebullProvider(BaseProvider):
     ## orders
 
     def _is_otc(self, ticker: str) -> bool:
-        exchange = str(self._get_stock_info(ticker).get("exchange") or "").upper()
+        exchange = self._get_instrument(ticker)["exchange"].upper()
         return any(code in exchange for code in OTC_EXCHANGES)
 
     def _otc_limit_price(self, ticker: str, side: str) -> Decimal:
@@ -481,8 +418,25 @@ class WebullProvider(BaseProvider):
         tick = Decimal("0.01") if price >= 1 else Decimal("0.0001")
         return limit.quantize(tick, rounding=ROUND_UP if buying else ROUND_DOWN)
 
+    @staticmethod
+    def _order(ticker: str, qty: Decimal, side: str, terms: dict[str, Any]) -> dict[str, Any]:
+        # orders go by symbol, which unlike the instrument id route also reaches OTC
+        return {
+            "combo_type": "NORMAL",
+            "client_order_id": uuid.uuid4().hex,
+            "symbol": _to_webull_symbol(ticker),
+            "instrument_type": "EQUITY",
+            "market": "US",
+            "quantity": format(qty, "f"),
+            "side": side,
+            "time_in_force": "DAY",
+            "entrust_type": "QTY",
+            # market orders cannot route to extended hours
+            "support_trading_session": "CORE",
+            **terms,
+        }
+
     def _place_order(self, ticker: str, qty: Decimal, side: str, limit_price: Decimal | None = None) -> None:
-        instrument = self._get_instrument(ticker)
         terms: dict[str, Any] = {"order_type": "MARKET"}
         if limit_price:
             terms = {"order_type": "LIMIT", "limit_price": format(limit_price, "f")}
@@ -497,20 +451,9 @@ class WebullProvider(BaseProvider):
                     "order_type": "LIMIT",
                     "limit_price": format(self._otc_limit_price(ticker, side), "f"),
                 }
+        order = self._order(ticker, qty, side, terms)
         try:
-            response = call_with_retries(
-                lambda: self._api.order.place_order(
-                    account_id=self._account_id,
-                    instrument_id=instrument["instrument_id"],
-                    client_order_id=uuid.uuid4().hex,
-                    side=side,
-                    qty=format(qty, "f"),
-                    tif="DAY",
-                    # market orders cannot route to extended hours
-                    extended_hours_trading=False,
-                    **terms,
-                )
-            )
+            response = call_with_retries(partial(self._api.order_v3.place_order, self._account_id, [order]))
         except self._server_exception as e:
             raise OrderError(f"Failed to {side.lower()} {qty} of {ticker}: {e}")
         if response.status_code != 200:
