@@ -1,7 +1,8 @@
-"""Build eu_index.json, giving each company its home listing and its US listings.
+"""Build the international indexes, giving each company its home listing and its US listings.
 
-Components come from the holdings of an iShares Europe ETF, which name each stock's
-home exchange. Its symbols are bare (MC, ROP), and most of them are also US tickers
+eu_index.json comes from an iShares Europe ETF, and world_ex_us.json from the
+non-US holdings of iShares MSCI ACWI; both name each stock's home exchange.
+Their symbols are bare (MC, ROP), and most of them are also US tickers
 for unrelated companies: MC is LVMH in Paris but Moelis & Co in New York. So each
 component's ticker is its exchange-qualified home listing in Yahoo form (MC.PA),
 and its listings are the same company's US lines: NYSE/Nasdaq shares or ADRs first,
@@ -13,11 +14,12 @@ depositary receipt) and from KNOWN_US_LISTINGS. A candidate is kept only if Yaho
 gives it the home listing's issuer name and it traded in the last week, which is
 what stops a lookalike ticker getting in.
 
-    python scripts/get_eu_index.py [--fund IEUR] [--source FILE] [--cache FILE]
+    python scripts/get_eu_index.py [--index eu|world_ex_us] [--fund IEUR] [--source FILE] [--cache FILE]
 
-Each fetch of the holdings is saved to scripts/data/eu_index_source.json, which
---source reads back instead. --cache keeps Yahoo quotes between runs, as a full
-build makes a few thousand requests.
+Each fetch of the holdings is saved to scripts/data/<index>_source.json, which
+--source reads back instead. --cache keeps Yahoo quotes and OpenFIGI answers between runs, saved as it
+goes, as a full build makes a few thousand requests; a stopped build rerun
+with the same --cache resumes.
 """
 
 import argparse
@@ -27,15 +29,15 @@ import json
 import re
 import time
 import unicodedata
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
 
-EU_INDEX = Path(__file__).parent.parent / "py_portfolio_index" / "bin" / "indexes" / "eu_index.json"
-SOURCE = Path(__file__).parent / "data" / "eu_index_source.json"
+INDEX_DIR = Path(__file__).parent.parent / "py_portfolio_index" / "bin" / "indexes"
+DATA = Path(__file__).parent / "data"
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
 
@@ -43,52 +45,67 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 FUNDS = {
     "IEV": "https://www.ishares.com/us/products/239736/ishares-europe-etf/latest-holdings.csv",
     "IEUR": "https://www.ishares.com/us/products/264617/ishares-core-msci-europe-etf/latest-holdings.csv",
+    # MSCI ACWI, about 2,500 large and mid caps, 1,700 of them outside the US
+    "ACWI": "https://www.ishares.com/us/products/239600/ishares-msci-acwi-etf/latest-holdings.csv",
 }
 
-# OpenFIGI exchange code -> Yahoo suffix
-EXCHANGES = {
-    "LN": ".L",
-    "FP": ".PA",
-    "NA": ".AS",
-    "GY": ".DE",
-    "IM": ".MI",
-    "SM": ".MC",
-    "BB": ".BR",
-    "SS": ".ST",
-    "DC": ".CO",
-    "FH": ".HE",
-    "NO": ".OL",
-    "ID": ".IR",
-    "PL": ".LS",
-    "SW": ".SW",
-    "AV": ".VI",
-    "GA": ".AT",
-}
-
-HOME_SUFFIXES = tuple(EXCHANGES.values())
-
-# iShares exchange names -> OpenFIGI code; "US" for the few whose home is in New York
+# iShares exchange names -> (OpenFIGI code, Yahoo suffix); "US" for the few whose
+# home is in New York. Exchanges left out (the Gulf, Moscow, Cairo) have no US
+# lines worth buying, so their stocks are dropped.
 ISHARES_EXCHANGES = {
-    "London Stock Exchange": "LN",
-    "Nyse Euronext - Euronext Paris": "FP",
-    "Euronext Amsterdam": "NA",
-    "Xetra": "GY",
-    "Deutsche Boerse Xetra": "GY",
-    "Borsa Italiana": "IM",
-    "Bolsa De Madrid": "SM",
-    "Nyse Euronext - Euronext Brussels": "BB",
-    "Nasdaq Omx Nordic": "SS",
-    "Omx Nordic Exchange Copenhagen A/S": "DC",
-    "Nasdaq Omx Helsinki Ltd.": "FH",
-    "Oslo Bors Asa": "NO",
-    "Irish Stock Exchange - All Market": "ID",
-    "Nyse Euronext - Euronext Lisbon": "PL",
-    "SIX Swiss Exchange": "SW",
-    "Wiener Boerse Ag": "AV",
-    "Athens Exchange S.A. Cash Market": "GA",
-    "NYSE": "US",
-    "NASDAQ": "US",
+    "London Stock Exchange": ("LN", ".L"),
+    "Nyse Euronext - Euronext Paris": ("FP", ".PA"),
+    "Euronext Amsterdam": ("NA", ".AS"),
+    "Xetra": ("GY", ".DE"),
+    "Deutsche Boerse Xetra": ("GY", ".DE"),
+    "Borsa Italiana": ("IM", ".MI"),
+    "Bolsa De Madrid": ("SM", ".MC"),
+    "Nyse Euronext - Euronext Brussels": ("BB", ".BR"),
+    "Nasdaq Omx Nordic": ("SS", ".ST"),
+    "Omx Nordic Exchange Copenhagen A/S": ("DC", ".CO"),
+    "Nasdaq Omx Helsinki Ltd.": ("FH", ".HE"),
+    "Oslo Bors Asa": ("NO", ".OL"),
+    "Irish Stock Exchange - All Market": ("ID", ".IR"),
+    "Nyse Euronext - Euronext Lisbon": ("PL", ".LS"),
+    "SIX Swiss Exchange": ("SW", ".SW"),
+    "Wiener Boerse Ag": ("AV", ".VI"),
+    "Athens Exchange S.A. Cash Market": ("GA", ".AT"),
+    "Warsaw Stock Exchange/Equities/Main Market": ("PW", ".WA"),
+    "Budapest Stock Exchange": ("HB", ".BD"),
+    "Prague Stock Exchange": ("CK", ".PR"),
+    "Istanbul Stock Exchange": ("TI", ".IS"),
+    "Tel Aviv Stock Exchange": ("IT", ".TA"),
+    "Johannesburg Stock Exchange": ("SJ", ".JO"),
+    "Toronto Stock Exchange": ("CT", ".TO"),
+    "Bolsa Mexicana De Valores": ("MM", ".MX"),
+    "XBSP": ("BS", ".SA"),
+    "Santiago Stock Exchange": ("CC", ".SN"),
+    "Bolsa De Valores De Colombia": ("CB", ".CL"),
+    "Tokyo Stock Exchange": ("JT", ".T"),
+    "Hong Kong Exchanges And Clearing Ltd": ("HK", ".HK"),
+    "Shanghai Stock Exchange": ("CG", ".SS"),
+    "Shenzhen Stock Exchange": ("CS", ".SZ"),
+    "Taiwan Stock Exchange": ("TT", ".TW"),
+    "Gretai Securities Market": ("TT", ".TWO"),
+    "Korea Exchange (Stock Market)": ("KS", ".KS"),
+    "Korea Exchange (Kosdaq)": ("KQ", ".KQ"),
+    "National Stock Exchange Of India": ("IS", ".NS"),
+    "Bse Ltd": ("IB", ".BO"),
+    "Asx - All Markets": ("AT", ".AX"),
+    "New Zealand Exchange Ltd": ("NZ", ".NZ"),
+    "Singapore Exchange": ("SP", ".SI"),
+    "Indonesia Stock Exchange": ("IJ", ".JK"),
+    "Philippine Stock Exchange Inc.": ("PM", ".PS"),
+    "Stock Exchange Of Thailand": ("TB", ".BK"),
+    "Bursa Malaysia": ("MK", ".KL"),
+    "NYSE": ("US", ""),
+    "NASDAQ": ("US", ""),
 }
+
+# sanctioned, and its stocks untradable since 2022 though index funds still carry them
+EXCLUDED_COUNTRIES = {"Russia", "Russian Federation"}
+
+HOME_SUFFIXES = tuple(sorted({suffix for _, suffix in ISHARES_EXCHANGES.values() if suffix}))
 
 # Where OpenFIGI's symbol differs from the exchange's
 OPENFIGI_SYMBOL = {
@@ -186,6 +203,17 @@ LEGAL_FORMS = {
     "se",
     "spa",
     "the",
+    # outside Europe
+    "bhd",
+    "berhad",
+    "company",
+    "cv",
+    "incorporated",
+    "kk",
+    "pcl",
+    "pt",
+    "sab",
+    "tbk",
 }
 
 
@@ -198,9 +226,17 @@ def normalize_name(name: str) -> str:
     return " ".join(w for w in words if w not in LEGAL_FORMS and w != "&")
 
 
-def yahoo_symbol(local: str, exchange: str) -> str:
+def yahoo_symbol(local: str, suffix: str) -> str:
+    if suffix == ".HK":
+        # 700 is 0700.HK
+        return local.zfill(4) + suffix
+    if suffix in (".BK", ".IS"):
+        # iShares marks Thai NVDRs (PTT.R) and Turkish lines (AKBNK.E); Yahoo doesn't
+        local = re.sub(r"\.[A-Z]$", "", local)
+    # Mexican series marks: WALMEX* is WALMEX.MX
+    local = local.rstrip("*")
     # BP. is BP.L and NOVO B is NOVO-B.CO
-    return local.rstrip(".").replace(" ", "-").replace(".", "-") + EXCHANGES[exchange]
+    return local.rstrip(".").replace(" ", "-").replace(".", "-") + suffix
 
 
 def openfigi_symbol(local: str) -> str:
@@ -212,21 +248,27 @@ def openfigi_symbol(local: str) -> str:
 
 def openfigi(path: str, jobs: list, per_minute: int) -> list:
     """Post jobs in batches of 10, waiting out the anonymous rate limit."""
-    results: list = []
-    for i in range(0, len(jobs), 10):
+    keys = [f"{path} {json.dumps(job, sort_keys=True)}" for job in jobs]
+    todo = [(k, job) for k, job in zip(keys, jobs) if k not in FIGI]
+    for i in range(0, len(todo), 10):
+        batch = todo[i : i + 10]
         while True:
-            response = requests.post(f"https://api.openfigi.com/v3/{path}", json=jobs[i : i + 10], timeout=60)
+            response = requests.post(f"https://api.openfigi.com/v3/{path}", json=[job for _, job in batch], timeout=60)
             if response.status_code != 429:
                 break
             time.sleep(10)
         response.raise_for_status()
-        results += response.json()
+        for (key, _), result in zip(batch, response.json()):
+            FIGI[key] = result
+        save_cache()
         time.sleep(60 / per_minute)
-    return results
+    return [FIGI[k] for k in keys]
 
 
 def openfigi_depositary_receipts() -> list[dict]:
     """Every US depositary receipt OpenFIGI knows, a few thousand."""
+    if "depositary receipts" in FIGI:
+        return FIGI["depositary receipts"]
     out: list[dict] = []
     start = None
     while True:
@@ -242,6 +284,8 @@ def openfigi_depositary_receipts() -> list[dict]:
         out += page["data"]
         start = page.get("next")
         if not start:
+            FIGI["depositary receipts"] = out
+            save_cache()
             return out
         time.sleep(13)
 
@@ -256,7 +300,25 @@ class Quote:
 
 
 QUOTES: dict[str, dict | None] = {}
+# OpenFIGI answers, so a build that is stopped picks up where it left off
+FIGI: dict = {}
 CACHE: Path | None = None
+
+
+def load_cache() -> None:
+    if CACHE and CACHE.exists():
+        saved = json.loads(CACHE.read_text(encoding="utf-8"))
+        # older caches held only quotes
+        QUOTES.update(saved.get("quotes", saved) if "figi" in saved else saved)
+        FIGI.update(saved.get("figi", {}))
+
+
+def save_cache() -> None:
+    if CACHE:
+        # write then rename, so a kill mid-write can't corrupt the cache
+        tmp = CACHE.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"quotes": QUOTES, "figi": FIGI}), encoding="utf-8")
+        tmp.replace(CACHE)
 
 
 def yahoo_quote(symbol: str) -> Quote | None:
@@ -265,8 +327,8 @@ def yahoo_quote(symbol: str) -> Quote | None:
         quote = fetch_yahoo_quote(symbol)
         QUOTES[symbol] = asdict(quote) if quote else None
         # save as we go, so an interrupted build picks up where it stopped
-        if CACHE and len(QUOTES) % 100 == 0:
-            CACHE.write_text(json.dumps(QUOTES), encoding="utf-8")
+        if len(QUOTES) % 100 == 0:
+            save_cache()
     found = QUOTES[symbol]
     return Quote(**found) if found else None
 
@@ -301,6 +363,8 @@ class Line:
     local: str
     exchange: str
     weight: float
+    suffix: str = ""
+    country: str = ""
     home: str = ""
     share_class: str | None = None
     name: str = ""
@@ -320,11 +384,11 @@ def resolve_home(components: list[dict]) -> list[Line]:
     """Each component's home listing, dropping the ones Yahoo hasn't seen trade."""
     lines = []
     for c in components:
-        exchange = ISHARES_EXCHANGES.get(c["exchange"])
-        if not exchange:
+        if c["exchange"] not in ISHARES_EXCHANGES:
             print(f"Dropping {c['ticker']}: no known exchange ({c['exchange']})")
             continue
-        lines.append(Line(local=c["ticker"], exchange=exchange, weight=float(c["weight"])))
+        exchange, suffix = ISHARES_EXCHANGES[c["exchange"]]
+        lines.append(Line(local=c["ticker"], exchange=exchange, suffix=suffix, country=c.get("country", ""), weight=float(c["weight"])))
 
     foreign = [x for x in lines if x.exchange != "US"]
     mapped = openfigi("mapping", [{"idType": "TICKER", "idValue": openfigi_symbol(x.local), "exchCode": x.exchange} for x in foreign], per_minute=25)
@@ -333,7 +397,7 @@ def resolve_home(components: list[dict]) -> list[Line]:
 
     resolved = []
     for line in lines:
-        symbol = line.local if line.exchange == "US" else yahoo_symbol(line.local, line.exchange)
+        symbol = line.local if line.exchange == "US" else yahoo_symbol(line.local, line.suffix)
         quote = yahoo_quote(symbol)
         if not quote:
             print(f"Dropping {line.local}: {symbol} has not traded this week")
@@ -344,10 +408,19 @@ def resolve_home(components: list[dict]) -> list[Line]:
 
 
 def group_companies(lines: list[Line]) -> list[Company]:
-    """Merge share classes of one company, such as ATCO A and ATCO B."""
-    companies: dict[str, Company] = {}
+    """Merge share classes of one company, such as ATCO A and ATCO B.
+
+    Lines in different countries merge only under the same full name, as A and H
+    shares (601398.SS, 1398.HK) do: Siemens Limited in Mumbai is a subsidiary of
+    Siemens AG, not another line of it.
+    """
+    companies: dict[tuple[str, str], Company] = {}
     for line in lines:
-        companies.setdefault(normalize_name(line.name), Company(name=line.name)).lines.append(line)
+        key = (normalize_name(line.name), "")
+        found = companies.get(key)
+        if found and found.name != line.name and all(x.country != line.country for x in found.lines):
+            key = (key[0], line.country)
+        companies.setdefault(key, Company(name=line.name)).lines.append(line)
     for company in companies.values():
         company.lines.sort(key=lambda x: -x.weight)
     return sorted(companies.values(), key=lambda x: -x.weight)
@@ -369,6 +442,7 @@ def us_listings(companies: list[Company]) -> dict[str, list[str]]:
     same_class = openfigi("mapping", [{"idType": "ID_BB_GLOBAL_SHARE_CLASS_LEVEL", "idValue": x, "exchCode": "US"} for x in classes], per_minute=25)
     us_lines = {k: {row["ticker"] for row in v.get("data", [])} for k, v in zip(classes, same_class)}
 
+    shared_names = Counter(normalize_name(c.name) for c in companies)
     out: dict[str, list[str]] = {}
     for company in companies:
         home = company.lines[0].home
@@ -379,6 +453,10 @@ def us_listings(companies: list[Company]) -> dict[str, list[str]]:
         target = normalize_name(company.name)
         candidates |= receipts_by_name.get(target, set())
         matched = [q for q in map(yahoo_quote, sorted(candidates - {home})) if q and normalize_name(q.name) == target]
+        if shared_names[target] > 1:
+            # Siemens AG and Siemens Limited: when two companies share a short name,
+            # a US line has to carry the full one
+            matched = [q for q in matched if q.name == company.name]
         listed = [x for x in matched if x.exchange in US_LISTED]
         receipts_otc = [x for x in matched if x.exchange not in US_LISTED and x.symbol in receipt_set]
         ordinary_otc = [x for x in matched if x.exchange not in US_LISTED and x.symbol not in receipt_set]
@@ -390,7 +468,7 @@ def us_listings(companies: list[Company]) -> dict[str, list[str]]:
     return out
 
 
-def fetch_components(fund: str) -> tuple[list[dict], str]:
+def fetch_components(fund: str, ex_us: bool = False) -> tuple[list[dict], str]:
     response = requests.get(FUNDS[fund], headers={"User-Agent": USER_AGENT}, timeout=60)
     response.raise_for_status()
     text = response.content.decode("utf-8-sig")
@@ -399,28 +477,69 @@ def fetch_components(fund: str) -> tuple[list[dict], str]:
         raise ValueError(f"No holdings date in the {fund} file; iShares may have changed its format")
     table = text[text.index("Ticker,") :]
     rows = [r for r in csv.DictReader(io.StringIO(table)) if r.get("Asset Class") == "Equity"]
+    if ex_us:
+        rows = [r for r in rows if r.get("Location") != "United States"]
     # market value rather than the weight column, which is rounded to 0.01%
     values = [float(r["Market Value"].replace(",", "")) for r in rows]
     total = sum(values)
-    components = [{"ticker": r["Ticker"], "exchange": r["Exchange"], "weight": f"{v / total:.12f}"} for r, v in zip(rows, values)]
+    components = [{"ticker": r["Ticker"], "exchange": r["Exchange"], "country": r.get("Location", ""), "weight": f"{v / total:.12f}"} for r, v in zip(rows, values)]
     return components, datetime.strptime(as_of.group(1), "%b %d, %Y").date().isoformat()
 
 
-def get_eu_index(fund: str, source: Path | None = None):
+@dataclass
+class IndexSpec:
+    name: str
+    fund: str
+    output: str
+    # world funds hold the US too; the index is the rest
+    ex_us: bool = False
+    # keep companies with no US line, or drop them and spread their weight over the rest
+    require_us_listing: bool = False
+
+    @property
+    def source(self) -> Path:
+        return DATA / f"{Path(self.output).stem}_source.json"
+
+
+INDEX_SPECS = {
+    # Europe alone; the blends use world_ex_us
+    "eu": IndexSpec(name="EU Index", fund="IEV", output="eu_index.json"),
+    # the international sleeve of the blends: MSCI ACWI ex-US, large and mid caps
+    # in 45 markets. A provider can only reach a stock through a US line, so companies
+    # with none (most of mainland China, India, the Gulf) are dropped
+    "world_ex_us": IndexSpec(name="World ex-US Index", fund="ACWI", output="world_ex_us.json", ex_us=True, require_us_listing=True),
+}
+
+
+def build_index(spec: IndexSpec, fund: str | None = None, source: Path | None = None):
     if source:
         saved = json.loads(source.read_text(encoding="utf-8"))
         components, as_of, fund = saved["components"], saved["as_of"], saved["fund"]
     else:
-        components, as_of = fetch_components(fund)
-        SOURCE.write_text(json.dumps({"fund": fund, "as_of": as_of, "components": components}, indent=2) + "\n", encoding="utf-8")
+        fund = fund or spec.fund
+        components, as_of = fetch_components(fund, spec.ex_us)
+        spec.source.write_text(json.dumps({"fund": fund, "as_of": as_of, "components": components}, indent=2) + "\n", encoding="utf-8")
 
+    excluded = [c for c in components if c.get("country") in EXCLUDED_COUNTRIES]
+    if excluded:
+        print(f"Excluding {len(excluded)} stocks from {', '.join(sorted(EXCLUDED_COUNTRIES))}")
+    components = [c for c in components if c.get("country") not in EXCLUDED_COUNTRIES]
     companies = group_companies(resolve_home(components))
     listings = us_listings(companies)
+    fund_total = sum(c.weight for c in companies)
+
+    def reachable(company: Company) -> bool:
+        home = company.lines[0].home
+        return bool(listings[home]) or not home.endswith(HOME_SUFFIXES)
+
+    if spec.require_us_listing:
+        report_dropped(companies, reachable)
+        companies = [c for c in companies if reachable(c)]
     total = sum(c.weight for c in companies)
 
     output = {
-        "name": "EU Index",
-        "source": f"iShares {fund} holdings",
+        "name": spec.name,
+        "source": f"iShares {fund} holdings" + (", outside the US" if spec.ex_us else ""),
         "as_of": as_of,
         "components": [
             {
@@ -433,25 +552,38 @@ def get_eu_index(fund: str, source: Path | None = None):
             for company in companies
         ],
     }
-    with open(EU_INDEX, "w", encoding="utf-8") as f:
+    with open(INDEX_DIR / spec.output, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
-    covered = sum(c.weight for c in companies if listings[c.lines[0].home] or not c.lines[0].home.endswith(HOME_SUFFIXES)) / total
-    print(f"Saved eu_index.json: {len(companies)} companies, {covered:.1%} of weight with a US listing")
+    covered = sum(c.weight for c in companies if reachable(c)) / fund_total
+    print(f"Saved {spec.output}: {len(companies)} companies, {covered:.1%} of the fund's weight with a US listing")
+
+
+def report_dropped(companies: list[Company], reachable) -> None:
+    """Print how much of each country's weight is lost for want of a US line."""
+    kept: dict[str, float] = defaultdict(float)
+    lost: dict[str, float] = defaultdict(float)
+    for company in companies:
+        for line in company.lines:
+            name = line.country or "?"
+            (kept if reachable(company) else lost)[name] += line.weight
+    total = sum(kept.values()) + sum(lost.values())
+    for name in sorted(set(kept) | set(lost), key=lambda x: -(kept[x] + lost[x])):
+        share = kept[name] + lost[name]
+        print(f"  {name}: {share / total:.1%} of the fund, {kept[name] / share:.0%} reachable")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--fund", choices=sorted(FUNDS), default="IEV")
+    parser.add_argument("--index", choices=sorted(INDEX_SPECS), default="eu")
+    parser.add_argument("--fund", choices=sorted(FUNDS), help="override the index's fund")
     parser.add_argument("--source", type=Path, help="saved holdings to read instead of fetching")
-    parser.add_argument("--cache", type=Path, help="file to keep Yahoo quotes in between runs")
+    parser.add_argument("--cache", type=Path, help="file to keep Yahoo quotes and OpenFIGI answers in between runs; rerun with it to resume")
     args = parser.parse_args()
     CACHE = args.cache
-    if CACHE and CACHE.exists():
-        QUOTES.update(json.loads(CACHE.read_text(encoding="utf-8")))
+    load_cache()
     try:
-        get_eu_index(args.fund, args.source)
+        build_index(INDEX_SPECS[args.index], args.fund, args.source)
     finally:
-        if CACHE:
-            CACHE.write_text(json.dumps(QUOTES), encoding="utf-8")
+        save_cache()
