@@ -55,4 +55,5 @@ def test_blended_index_has_no_eu_ticker_collisions():
     assert "DIA" not in blended
     by_symbol = {symbol: h for h in holdings for symbol in h.symbols}
     for symbol in ["ASML", "SAP", "NVO", "NVS", "SNY", "SAN", "MC.PA", "LVMUY", "AIR.PA", "EADSY", "RHHBY"]:
-        assert by_symbol[symbol].weight > Decimal("0.002"), symbol
+        # the international sleeve now spans the world, so a European name holds less
+        assert by_symbol[symbol].weight > Decimal("0.001"), symbol
