@@ -136,6 +136,7 @@ class SchwabProvider(BaseProvider):
     SUPPORTS_FRACTIONAL_SHARES = False
     # OTC orders cost $6.95 each
     SUPPORTS_OTC = False
+    OTC_ORDER_FEE = Decimal("6.95")
     # TRADE_TOKEN_ENV = "SCHWAB_TRADE_TOKEN"
     # DEVICE_ID_ENV = "SCHWAB_DEVICE_ID"
 
