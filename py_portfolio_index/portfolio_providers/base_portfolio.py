@@ -47,6 +47,18 @@ class BaseProvider:
     # takes orders for over-the-counter listings; planning buys an element's
     # OTC-only names elsewhere when this is off
     SUPPORTS_OTC = True
+    # commission on each OTC order, where the broker charges one
+    OTC_ORDER_FEE = Decimal(0)
+
+    def estimated_order_fee(self, ticker: str) -> Money:
+        """The commission an order for ticker is expected to cost here.
+
+        Only per-order OTC commissions are known; regulatory fees on sells and
+        ADR custody fees are small and charged later, so they aren't counted.
+        """
+        from py_portfolio_index.bin import otc_symbols
+
+        return Money(value=self.OTC_ORDER_FEE if ticker in otc_symbols() else 0)
 
     def __init__(self, quote_provider: BaseProvider | None = None) -> None:
         self.stock_info_cache: dict[str, StockInfo] = {}

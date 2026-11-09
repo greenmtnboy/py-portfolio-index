@@ -258,3 +258,20 @@ def test_world_index_marks_otc_listings():
     by_ticker = {x.ticker: x for x in INDEXES["blended_world_70_30"].holdings}
     assert by_ticker["0700.HK"].otc == ["TCEHY"]
     assert by_ticker["2330.TW"].otc == []
+
+
+def test_otc_orders_carry_the_provider_fee():
+    from py_portfolio_index.bin import otc_symbols
+    from py_portfolio_index.portfolio_providers.etrade import ETradeProvider
+    from py_portfolio_index.portfolio_providers.schwab import SchwabProvider
+
+    class Charging(LocalDictProvider):
+        OTC_ORDER_FEE = Decimal("6.95")
+
+    provider = Charging(holdings=[], price_dict={})
+    assert "TCEHY" in otc_symbols() and "TSM" not in otc_symbols()
+    assert provider.estimated_order_fee("TCEHY") == Money(value=Decimal("6.95"))
+    assert provider.estimated_order_fee("TSM") == Money(value=0)
+    assert LocalDictProvider(holdings=[], price_dict={}).estimated_order_fee("TCEHY") == Money(value=0)
+    for charged in (ETradeProvider, SchwabProvider):
+        assert not charged.SUPPORTS_OTC and charged.OTC_ORDER_FEE == Decimal("6.95")

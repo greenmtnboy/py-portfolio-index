@@ -52,7 +52,7 @@ def filter_prices_response(ticker: str, response, earliest: bool = True) -> Deci
 
 class AlpacaProvider(BaseProvider):
     SUPPORTS_BATCH_HISTORY = 50
-    # OTC orders cost a per-order fee
+    # OTC orders cost a per-order fee, which Alpaca doesn't publish, so none is estimated
     SUPPORTS_OTC = False
     PROVIDER = ProviderType.ALPACA
 

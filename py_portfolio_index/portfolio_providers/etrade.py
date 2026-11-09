@@ -131,6 +131,9 @@ class ETradeProvider(BaseProvider):
     # E*TRADE's API only accepts whole-share equity orders
     SUPPORTS_FRACTIONAL_SHARES = False
     MAX_ORDER_DECIMALS = 0
+    # OTC orders cost $6.95 each ($4.95 at 30+ trades a quarter)
+    SUPPORTS_OTC = False
+    OTC_ORDER_FEE = Decimal("6.95")
 
     API_KEY_ENV = "ETRADE_API_KEY"
     API_SECRET_ENV = "ETRADE_API_SECRET"

@@ -1,3 +1,4 @@
+from functools import cache
 from json import loads
 from pathlib import Path
 
@@ -25,4 +26,12 @@ with open(Path(__file__).parent / "stock_info.json", "r", encoding="utf-8") as f
 with open(Path(__file__).parent / "cached_ticker_list.csv", "r") as f:
     VALID_STOCKS = {v for v in f.read().split("\n") if v}
 
-__all__ = ["INDEXES", "STOCK_INFO", "STOCK_LISTS", "VALID_STOCKS"]
+
+@cache
+def otc_symbols() -> frozenset[str]:
+    """US symbols known to trade over the counter, from the world index build."""
+    with open(Path(__file__).parent / "indexes" / "world_ex_us.json", "r", encoding="utf-8") as f:
+        return frozenset(symbol for row in loads(f.read())["components"] for symbol in row.get("otc", []))
+
+
+__all__ = ["INDEXES", "STOCK_INFO", "STOCK_LISTS", "VALID_STOCKS", "otc_symbols"]
