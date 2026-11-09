@@ -34,18 +34,22 @@ def blend(output: str, name: str, us_ratio: float, intl_index: str, us_index: st
         for comp in components:
             symbols = [comp["ticker"], *comp.get("listings", [])]
             key = next((owner[x] for x in symbols if x in owner), comp["ticker"])
-            entry = combined.setdefault(key, {"weight": 0.0, "listings": []})
+            entry = combined.setdefault(key, {"weight": 0.0, "listings": [], "otc": []})
             entry["weight"] += float(comp["weight"]) / side_total * ratio
             for symbol in symbols:
                 if symbol != key and symbol not in entry["listings"]:
                     entry["listings"].append(symbol)
                 owner.setdefault(symbol, key)
+            entry["otc"] += [x for x in comp.get("otc", []) if x not in entry["otc"]]
 
     # Normalize so total weight = 1.0
     total_weight = sum(x["weight"] for x in combined.values())
 
     normalized_components = sorted(
-        [{"ticker": ticker, "weight": f"{entry['weight'] / total_weight:.12f}", **({"listings": entry["listings"]} if entry["listings"] else {})} for ticker, entry in combined.items()],
+        [
+            {"ticker": ticker, "weight": f"{entry['weight'] / total_weight:.12f}", **({"listings": entry["listings"]} if entry["listings"] else {}), **({"otc": entry["otc"]} if entry["otc"] else {})}
+            for ticker, entry in combined.items()
+        ],
         key=lambda x: float(x["weight"]),
         reverse=True,
     )

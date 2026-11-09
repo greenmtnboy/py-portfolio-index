@@ -44,6 +44,9 @@ class BaseProvider:
     SUPPORTS_FRACTIONAL_SHARES = True
     # buy_instrument and sell_instrument take a limit_price
     SUPPORTS_LIMIT_ORDERS = False
+    # takes orders for over-the-counter listings; planning buys an element's
+    # OTC-only names elsewhere when this is off
+    SUPPORTS_OTC = True
 
     def __init__(self, quote_provider: BaseProvider | None = None) -> None:
         self.stock_info_cache: dict[str, StockInfo] = {}

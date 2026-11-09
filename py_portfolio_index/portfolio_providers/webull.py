@@ -81,6 +81,10 @@ class WebullProvider(BaseProvider):
     PROVIDER = ProviderType.WEBULL
     SUPPORTS_BATCH_HISTORY = 0
     SUPPORTS_LIMIT_ORDERS = True
+    # the order path handles OTC (whole-share limit orders), but Webull rejects
+    # OpenAPI OTC orders with OPENAPI_OTC_ACCOUNT_NOT_TRADE even once its
+    # third-party OTC agreement is signed; turn this on once that clears
+    SUPPORTS_OTC = False
 
     API_KEY_ENV = "WEBULL_API_KEY"
     API_SECRET_ENV = "WEBULL_API_SECRET"

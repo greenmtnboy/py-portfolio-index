@@ -76,6 +76,7 @@ class IndexInventory(BaseModel):
                             ticker=row["ticker"],
                             weight=Decimal(row["weight"]),
                             listings=row.get("listings", []),
+                            otc=row.get("otc", []),
                         )
                     )
         elif item in self.csv_keys:

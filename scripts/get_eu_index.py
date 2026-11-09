@@ -300,6 +300,8 @@ class Quote:
 
 
 QUOTES: dict[str, dict | None] = {}
+# US listings that trade over the counter, which some brokers don't take or charge extra for
+OTC: set[str] = set()
 # OpenFIGI answers, so a build that is stopped picks up where it left off
 FIGI: dict = {}
 CACHE: Path | None = None
@@ -463,6 +465,7 @@ def us_listings(companies: list[Company]) -> dict[str, list[str]]:
         # OTC ordinary lines barely trade, so only fall back to them
         chosen = listed + receipts_otc if listed or receipts_otc else ordinary_otc
         out[home] = [x.symbol for x in sorted(chosen, key=lambda x: (x.exchange not in US_LISTED, -x.dollar_volume))]
+        OTC.update(x.symbol for x in chosen if x.exchange not in US_LISTED)
         if not chosen and home.endswith(HOME_SUFFIXES):
             print(f"No US listing for {company.name} ({home})")
     return out
@@ -548,6 +551,7 @@ def build_index(spec: IndexSpec, fund: str | None = None, source: Path | None = 
                 "weight": f"{company.weight / total:.12f}",
                 # other share classes, then the US lines
                 "listings": [x.home for x in company.lines[1:]] + listings[company.lines[0].home],
+                **({"otc": otc} if (otc := [x for x in listings[company.lines[0].home] if x in OTC]) else {}),
             }
             for company in companies
         ],
