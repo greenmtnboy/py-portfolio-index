@@ -134,6 +134,8 @@ class SchwabProvider(BaseProvider):
     API_KEY_ENV = "SCHWAB_API_KEY"
     APP_SECRET_ENV = "SCHWAB_APP_SECRET"
     SUPPORTS_FRACTIONAL_SHARES = False
+    # OTC orders cost $6.95 each
+    SUPPORTS_OTC = False
     # TRADE_TOKEN_ENV = "SCHWAB_TRADE_TOKEN"
     # DEVICE_ID_ENV = "SCHWAB_DEVICE_ID"
 

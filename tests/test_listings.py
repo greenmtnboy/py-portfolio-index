@@ -200,3 +200,61 @@ def test_blended_index_carries_home_listings_and_adrs():
     assert by_ticker["AIR.PA"].listings == ["EADSY"]
     assert "LVMUY" in by_ticker["MC.PA"].listings
     assert abs(sum(x.weight for x in blended.holdings) - 1) < Decimal("1e-6")
+
+
+def roche_dual_listed_and_apple() -> IdealPortfolio:
+    return IdealPortfolio(
+        holdings=[
+            # Roche trades in the US only over the counter
+            IdealPortfolioElement(ticker="ROG.SW", weight=Decimal("0.25"), listings=["RHHBY"], otc=["RHHBY"]),
+            # a company with an NYSE line ahead of an OTC one
+            IdealPortfolioElement(ticker="X.SW", weight=Decimal("0.25"), listings=["XNYS", "XOTC"], otc=["XOTC"]),
+            IdealPortfolioElement(ticker="AAPL", weight=Decimal("0.5")),
+        ]
+    )
+
+
+def test_provider_without_otc_leaves_otc_only_names_for_others():
+    plan = generate_order_plan(
+        RealPortfolio(holdings=[]),
+        roche_dual_listed_and_apple(),
+        target_size=1000,
+        price_fetcher=PriceCache(fetcher=us_quotes).get_prices,
+        otc=False,
+    )
+
+    assert {x.ticker for x in plan.to_buy} == {"XNYS", "AAPL"}
+
+    later = generate_order_plan(
+        RealPortfolio(holdings=[]),
+        roche_dual_listed_and_apple(),
+        target_size=1000,
+        price_fetcher=PriceCache(fetcher=us_quotes).get_prices,
+        existing_orders=plan.to_buy,
+    )
+    assert {x.ticker for x in later.to_buy} == {"RHHBY"}
+
+
+def test_composite_routes_otc_to_providers_that_take_it():
+    class NoOtc(LocalDictProvider):
+        SUPPORTS_OTC = False
+
+    prices = {"RHHBY": Decimal(50), "XNYS": Decimal(50), "XOTC": Decimal(50), "AAPL": Decimal(50)}
+    no_otc = NoOtc(holdings=[], price_dict=prices, cash=Money(value=1000))
+    composite = CompositePortfolio([no_otc.get_holdings()])
+
+    plan = generate_composite_order_plan(
+        composite,
+        roche_dual_listed_and_apple(),
+        purchase_order_maps=PurchaseStrategy.LARGEST_DIFF_FIRST,
+        target_size=1000,
+        safety_threshold=Decimal(1),
+    )
+
+    assert "RHHBY" not in {x.ticker for x in plan[no_otc.PROVIDER].to_buy}
+
+
+def test_world_index_marks_otc_listings():
+    by_ticker = {x.ticker: x for x in INDEXES["blended_world_70_30"].holdings}
+    assert by_ticker["0700.HK"].otc == ["TCEHY"]
+    assert by_ticker["2330.TW"].otc == []

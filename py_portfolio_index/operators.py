@@ -312,12 +312,14 @@ def generate_order_plan(
     include_sell_orders: bool = False,
     sell_from: PortfolioProtocol | None = None,
     known_symbols: set[str] | None = None,
+    otc: bool = True,
 ) -> OrderPlan:
     """Plan orders that move real toward ideal.
 
     Elements with several listings are bought in the first one price_fetcher can
     quote, skipping any not in known_symbols when the provider lists what it
-    trades, and sold in the listing sell_from (default real) holds the most of.
+    trades, and any OTC listing when otc is off, and sold in the listing
+    sell_from (default real) holds the most of.
     """
     diff = Decimal("0.0")
     selling = Decimal("0.0")
@@ -386,6 +388,9 @@ def generate_order_plan(
             candidates = symbols
             if known_symbols and len(symbols) > 1:
                 candidates = [x for x in symbols if x in known_symbols]
+            if not otc and elements[k].otc:
+                # an element left with nothing goes unpriced, so a later provider buys it
+                candidates = [x for x in candidates if x not in elements[k].otc]
         elif include_sell_orders and v.diff < 0 and target_value * -v.diff >= min_order_value:
             # sell the listing actually held, largest first
             held = {x: holding.value.decimal for x in symbols if (holding := seller.get_holding(x)) and not holding.value.is_zero}
@@ -419,6 +424,7 @@ def generate_order_plan(
             include_sell_orders=include_sell_orders,
             sell_from=sell_from,
             known_symbols=known_symbols,
+            otc=otc,
         )
     prices: dict[str, Decimal | None] = {symbol: price for symbol, price in quoted.values()}
     order_symbol = {k: symbol for k, (symbol, _) in quoted.items()}
@@ -540,6 +546,7 @@ def generate_composite_order_plan(
             include_sell_orders=include_sell_orders,
             sell_from=port,
             known_symbols=known_symbols(provider) if has_listings else None,
+            otc=provider.SUPPORTS_OTC,
         )
         purchase_plan.to_sell = cap_sells_to_holdings(purchase_plan.to_sell, port)
         orders += purchase_plan.all_orders

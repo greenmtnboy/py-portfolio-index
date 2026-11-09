@@ -175,6 +175,9 @@ class IdealPortfolioElement(BaseModel):
     # its home listing (AIR.PA and EADSY for Airbus); holdings in any of them count
     # toward this element, and orders go to the first one a provider can quote
     listings: list[str] = Field(default_factory=list)
+    # the listings that trade over the counter, which a provider without
+    # SUPPORTS_OTC skips
+    otc: list[str] = Field(default_factory=list)
 
     @property
     def symbols(self) -> list[str]:
