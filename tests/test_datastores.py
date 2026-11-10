@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from py_portfolio_index.datastores.duckdb_datastore import DuckDBDatastore
+from py_portfolio_index.datastores.duckdb_datastore import DuckDBDatastore, unlisted_symbol_id
 from py_portfolio_index.enums import ProviderType
 from py_portfolio_index.models import (
     Money,
@@ -111,8 +111,7 @@ def test_datastore_repeat_persist_replaces_snapshot(tmp_path):
             RealPortfolioElement(ticker="AAPL", units=1.0, value=Money(value=100)),
             RealPortfolioElement(ticker="NOTAREALTICKERX", units=2.0, value=Money(value=50)),
         ]
-        # unrecognized tickers pool into one row; persisting again used to
-        # collide on that row's primary key
+        # persisting again used to collide on the pooled unknown row's primary key
         db.persist_holding_data(first, ProviderType.SCHWAB)
         db.persist_holding_data(first, ProviderType.SCHWAB)
         assert len(holding_rows(db)) == 2
@@ -122,7 +121,7 @@ def test_datastore_repeat_persist_replaces_snapshot(tmp_path):
             RealPortfolioElement(ticker="NOTAREALTICKERX", units=3.0, value=Money(value=75)),
         ]
         db.persist_holding_data(second, ProviderType.SCHWAB)
-        assert holding_rows(db) == [(-1, 5, 3.0, 75.0)]
+        assert holding_rows(db) == [(unlisted_symbol_id("NOTAREALTICKERX"), 5, 3.0, 75.0)]
     finally:
         db.close()
 
@@ -186,3 +185,36 @@ def test_datastore_reopen_keeps_data_alongside_extra_tables(tmp_path):
         assert len(holding_rows(reopened)) == 1
     finally:
         reopened.close()
+
+
+def test_unlisted_tickers_keep_their_own_rows(tmp_path):
+    from py_portfolio_index.bin import STOCK_INFO
+    from py_portfolio_index.constants import UNKNOWN_TICKER
+
+    assert "TCEHY" not in STOCK_INFO
+    db = DuckDBDatastore(str(tmp_path / "unlisted.db"))
+    db.reset()
+    try:
+        holdings = [
+            RealPortfolioElement(ticker="TCEHY", units=10.0, value=Money(value=600)),
+            RealPortfolioElement(ticker="SSNLF", units=1.0, value=Money(value=1500)),
+            # what a provider reports when it can't name a position
+            RealPortfolioElement(ticker=UNKNOWN_TICKER, units=2.0, value=Money(value=20)),
+        ]
+        db.persist_holding_data(holdings, ProviderType.MOOMOO)
+        rows = db.executor.execute_raw_sql(
+            "SELECT s.ticker, s.name, h.value FROM ticker_holdings h JOIN symbols s ON s.id = h.symbol ORDER BY s.ticker;"
+        ).fetchall()
+        assert rows == [
+            (UNKNOWN_TICKER, "Unknown", 20.0),
+            ("SSNLF", "Samsung Electronics Co., Ltd.", 1500.0),
+            ("TCEHY", "Tencent Holdings Limited", 600.0),
+        ]
+
+        # the next export rebuilds the table; a provider it skips still resolves
+        db.intialize_tickers()
+        assert db.executor.execute_raw_sql(
+            "SELECT s.ticker FROM ticker_holdings h JOIN symbols s ON s.id = h.symbol WHERE s.ticker = 'TCEHY';"
+        ).fetchall() == [("TCEHY",)]
+    finally:
+        db.close()
