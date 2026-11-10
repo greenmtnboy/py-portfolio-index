@@ -55,6 +55,8 @@ class AlpacaProvider(BaseProvider):
     # OTC orders cost a per-order fee, which Alpaca doesn't publish, so none is estimated
     SUPPORTS_OTC = False
     PROVIDER = ProviderType.ALPACA
+    # batched, but from daily bars an hour old
+    QUOTE_PRIORITY = 1
 
     API_KEY_VARIABLE = "ALPACA_API_KEY"
     API_SECRET_VARIABLE = "ALPACA_API_SECRET"

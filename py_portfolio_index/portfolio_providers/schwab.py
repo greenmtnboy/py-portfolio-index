@@ -130,6 +130,8 @@ class SchwabProvider(BaseProvider):
     """
 
     PROVIDER = ProviderType.SCHWAB
+    # 100 live quotes per request
+    QUOTE_PRIORITY = 4
     SUPPORTS_BATCH_HISTORY = 0
     API_KEY_ENV = "SCHWAB_API_KEY"
     APP_SECRET_ENV = "SCHWAB_APP_SECRET"

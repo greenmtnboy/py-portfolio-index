@@ -78,6 +78,8 @@ class RobinhoodProvider(BaseProvider):
     """
 
     PROVIDER: ProviderType = ProviderType.ROBINHOOD
+    # 50 live quotes per request
+    QUOTE_PRIORITY = 3
     SUPPORTS_BATCH_HISTORY: int = 70
 
     def __init__(

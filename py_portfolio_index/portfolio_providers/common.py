@@ -75,18 +75,25 @@ class PriceCache:
             prices: dict[str, Decimal | None] = {}
             try:
                 prices = self.fetcher(missing, date, fail_on_missing=fail_on_missing)
-            except PriceFetchError:
+            except PriceFetchError as e:
+                # keep what did quote, so the retry only asks for the rest
+                self._store(label, e.prices, found)
                 if fail_on_missing:
                     raise
             except Exception as e:
                 if fail_on_missing:
-                    raise PriceFetchError(missing, e)
-            for ticker, price in prices.items():
-                cached[ticker] = price
-                found[ticker] = price
-                if label == "INSTANT":
-                    self.instant_refresh_times[ticker] = datetime.now(timezone.utc)
+                    # chained, so callers can tell a failed fetch from a bad symbol
+                    raise PriceFetchError(missing, e) from e
+            self._store(label, prices, found)
         return found
+
+    def _store(self, label: str, prices: dict[str, Decimal | None], found: dict[str, Decimal | None]) -> None:
+        cached = self.store[label]
+        for ticker, price in prices.items():
+            cached[ticker] = price
+            found[ticker] = price
+            if label == "INSTANT":
+                self.instant_refresh_times[ticker] = datetime.now(timezone.utc)
 
 
 def instance_cache(func: Callable) -> Callable:

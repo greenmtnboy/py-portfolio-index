@@ -5,7 +5,6 @@ from decimal import Decimal, InvalidOperation
 from os import environ
 from typing import Any
 
-from py_portfolio_index.common import divide_into_batches
 from py_portfolio_index.enums import ProviderType
 from py_portfolio_index.exceptions import (
     ConfigurationError,
@@ -167,7 +166,7 @@ class MooMooProvider(BaseProvider):
             if ret_sub == RET_OK:  # Subscription successful
                 ret, data = self._quote_context.get_stock_quote(["US." + ticker])  # Get real-time data of subscription stock quotes
                 if ret == RET_OK:
-                    return next(iter(data.itertuples()))
+                    return Decimal(str(next(iter(data.itertuples())).last_price))
             raise PriceFetchError([ticker], f"Subscription failed, could not get price: {err_message}")
 
     def _buy_instrument(
@@ -356,15 +355,17 @@ class MooMooProvider(BaseProvider):
         at_day: date | None = None,
         fail_on_missing: bool = True,
     ) -> dict[str, Decimal | None]:
-        batches: list[dict[str, Decimal | None]] = []
-        for list_batch in divide_into_batches(tickers, 1):
-            # TODO: determine if there is a bulk API
-            ticker: str = list_batch[0]
-            rval = self._get_instrument_price(ticker, at_day=at_day)
-            batches.append({ticker: rval})
+        # TODO: determine if there is a bulk API
         prices: dict[str, Decimal | None] = {}
-        for fbatch in batches:
-            prices = {**prices, **fbatch}
+        missing: list[str] = []
+        for ticker in tickers:
+            # one bad symbol shouldn't cost the quotes already fetched
+            try:
+                prices[ticker] = self._get_instrument_price(ticker, at_day=at_day)
+            except PriceFetchError:
+                missing.append(ticker)
+        if missing and fail_on_missing:
+            raise PriceFetchError(missing, f"No Moomoo price found for {missing}", prices=prices)
         return prices
 
     def get_per_ticker_profit_or_loss(self) -> dict[str, ProfitModel]:

@@ -1,5 +1,5 @@
 from collections import defaultdict
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from math import ceil, floor
@@ -472,6 +472,64 @@ def generate_order_plan(
     return OrderPlan(to_buy=to_purchase, to_sell=to_sell)
 
 
+class SharedQuotes:
+    """Prices for one composite plan, fetched once and shared by every provider.
+
+    Providers quote at very different speeds (Webull and Moomoo one symbol per
+    request, Schwab a hundred) and a price doesn't depend on who buys, so each
+    symbol is asked once, of the best batch quoter signed in. A symbol it
+    can't price is left unpriced, so no provider buys it, except an OTC
+    listing: not every quoter covers those, so the buying provider is asked.
+    """
+
+    def __init__(self, providers: Iterable[BaseProvider]):
+        ranked = [x for x in providers if x.QUOTE_PRIORITY > 0]
+        self.quoter: BaseProvider | None = max(ranked, key=lambda x: x.QUOTE_PRIORITY) if ranked else None
+        self.prices: dict[str, Decimal | None] = {}
+
+    def fetcher_for(self, provider: BaseProvider) -> Callable[[list[str]], dict[str, Decimal | None]]:
+        def fetch(symbols: list[str]) -> dict[str, Decimal | None]:
+            unknown = [x for x in symbols if x not in self.prices]
+            if unknown and self.quoter is not None:
+                self._quote(unknown)
+            if self.quoter is None:
+                # no batch quoter, or it broke: each provider prices for itself
+                return provider.get_instrument_prices(symbols)
+            found = {x: self.prices[x] for x in symbols if self.prices.get(x)}
+            if provider is not self.quoter:
+                from py_portfolio_index.bin import otc_symbols
+
+                otc = otc_symbols()
+                retry = [x for x in symbols if x not in found and x in otc]
+                if retry:
+                    found.update(_prices_quoted(provider, retry))
+            return found
+
+        return fetch
+
+    def _quote(self, symbols: list[str]) -> None:
+        assert self.quoter is not None
+        try:
+            prices = self.quoter.get_instrument_prices(symbols)
+        except PriceFetchError as e:
+            if e.__cause__ is not None:
+                # the request failed, not a symbol; don't read that as nothing quoting
+                Logger.warning(f"{self.quoter.PROVIDER} could not quote for the plan, so each provider quotes its own: {e.__cause__}")
+                self.quoter = None
+                return
+            prices = e.prices
+        self.prices.update({x: prices.get(x) for x in symbols})
+
+
+def _prices_quoted(provider: BaseProvider, symbols: list[str]) -> dict[str, Decimal]:
+    """What provider can price of symbols, leaving out any it can't."""
+    try:
+        prices = provider.get_instrument_prices(symbols)
+    except PriceFetchError as e:
+        prices = e.prices
+    return {k: v for k, v in prices.items() if v}
+
+
 def generate_composite_order_plan(
     composite: CompositePortfolio,
     ideal: IdealPortfolio,
@@ -512,6 +570,7 @@ def generate_composite_order_plan(
     orders: list[OrderElement] = []
     # listing an asset universe can cost a request, so only ask when there's a choice
     has_listings = any(x.listings for x in ideal.holdings)
+    quotes = SharedQuotes(purchase_order)
     for provider in purchase_order:
         provider_purchase_power: Money = purchase_power_money.get(provider.PROVIDER) or Money(value=0)
         processed.add(provider.PROVIDER)
@@ -540,7 +599,7 @@ def generate_composite_order_plan(
             min_order_value=min_order_value,
             skip_tickers=skip_tickers,
             fractional_shares=provider.SUPPORTS_FRACTIONAL_SHARES,
-            price_fetcher=provider.get_instrument_prices,
+            price_fetcher=quotes.fetcher_for(provider),
             provider=provider.PROVIDER,
             existing_orders=orders,
             include_sell_orders=include_sell_orders,

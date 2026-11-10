@@ -49,6 +49,10 @@ class BaseProvider:
     SUPPORTS_OTC = True
     # commission on each OTC order, where the broker charges one
     OTC_ORDER_FEE = Decimal(0)
+    # how well this provider prices many symbols at once; a composite plan
+    # prices everything through the highest one signed in. 0 is one symbol per
+    # request, which is never used to price for others
+    QUOTE_PRIORITY = 0
 
     def estimated_order_fee(self, ticker: str) -> Money:
         """The commission an order for ticker is expected to cost here.
