@@ -5,9 +5,11 @@ if TYPE_CHECKING:
 
 
 class PriceFetchError(Exception):
-    def __init__(self, tickers: list[str] | None = None, *args):
+    def __init__(self, tickers: list[str] | None = None, *args, prices: dict | None = None):
         super().__init__(*args)
         self.tickers = tickers or []
+        # what did quote before the failure, so callers needn't ask again
+        self.prices = prices or {}
 
 
 class ConfigurationError(Exception):

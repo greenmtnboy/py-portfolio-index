@@ -233,7 +233,8 @@ class WebullProvider(BaseProvider):
         prices = {ticker: self._preview_price(ticker) for ticker in tickers}
         missing = [ticker for ticker, price in prices.items() if price is None]
         if missing and fail_on_missing:
-            raise PriceFetchError(missing, f"No Webull price found for {missing}")
+            found = {k: v for k, v in prices.items() if v is not None}
+            raise PriceFetchError(missing, f"No Webull price found for {missing}", prices=found)
         return prices
 
     def _get_instrument_price(self, ticker: str, at_day: date | None = None, fail_on_missing: bool = True) -> Decimal | None:

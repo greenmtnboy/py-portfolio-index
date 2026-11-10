@@ -127,6 +127,8 @@ class ETradeProvider(BaseProvider):
     """
 
     PROVIDER = ProviderType.ETRADE
+    # 25 live quotes per request
+    QUOTE_PRIORITY = 2
     SUPPORTS_BATCH_HISTORY = 0
     # E*TRADE's API only accepts whole-share equity orders
     SUPPORTS_FRACTIONAL_SHARES = False
@@ -240,7 +242,7 @@ class ETradeProvider(BaseProvider):
             try:
                 payload = self._get(f"/v1/market/quote/{','.join(batch)}.json")
             except ETradeAPIError as e:
-                raise PriceFetchError(batch, f"Could not fetch E*TRADE quotes for {batch}: {e}")
+                raise PriceFetchError(batch, f"Could not fetch E*TRADE quotes for {batch}: {e}", prices=prices)
             for row in _ensure_list(payload.get("QuoteResponse", {}).get("QuoteData")):
                 symbol = row.get("Product", {}).get("symbol")
                 last = row.get("All", {}).get("lastTrade")
@@ -250,7 +252,7 @@ class ETradeProvider(BaseProvider):
         # QuoteResponse.Messages), so reconcile against what was asked for
         missing = [ticker for ticker in tickers if ticker not in prices]
         if missing and fail_on_missing:
-            raise PriceFetchError(missing, f"No E*TRADE price found for {missing}")
+            raise PriceFetchError(missing, f"No E*TRADE price found for {missing}", prices=prices)
         return {ticker: prices.get(ticker) for ticker in tickers}
 
     def _get_instrument_price(self, ticker: str, at_day: date | None = None, fail_on_missing: bool = True) -> Decimal | None:
