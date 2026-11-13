@@ -23,6 +23,16 @@ def get_integer_id(value):
     return hash_int % (2**31)
 
 
+def unlisted_symbol_id(ticker: str) -> int:
+    """A stable id for a ticker outside STOCK_INFO.
+
+    Known tickers number up from 0 and the pooled unknown row is -1, so these
+    take the rest of the negative range; the same ticker gets the same id in
+    every export.
+    """
+    return -2 - get_integer_id(ticker) % (2**31 - 2)
+
+
 def map_provider(ptype: ProviderType):
     return {
         ProviderType.LOCAL_DICT_NO_PARTIAL: -2,
@@ -71,6 +81,11 @@ class DuckDBDatastore(BaseDatastore):
     def intialize_tickers(self, commit: bool = True):
         from py_portfolio_index.bin import STOCK_INFO
 
+        # unlisted tickers were registered by earlier exports; a provider left
+        # out of this one still has holdings pointing at them
+        unlisted: list[tuple] = []
+        if self.executor.execute_raw_sql("SELECT 1 FROM information_schema.tables WHERE table_name = 'symbols';").fetchall():
+            unlisted = self.executor.execute_raw_sql("SELECT id, ticker, name FROM symbols WHERE id < -1;").fetchall()
         self.executor.execute_raw_sql(
             """
         CREATE OR REPLACE TABLE symbols (
@@ -131,6 +146,12 @@ class DuckDBDatastore(BaseDatastore):
                 text(f"INSERT INTO symbols ({', '.join(columns)}) VALUES ({', '.join(':' + c for c in columns)})"),
                 final,
             )
+        for id, ticker, name in unlisted:
+            if ticker not in STOCK_INFO:
+                self.executor.execute_raw_sql(
+                    "INSERT INTO symbols (id, ticker, name) VALUES (:id, :ticker, :name);",
+                    {"id": id, "ticker": ticker, "name": name},
+                )
         if commit:
             self.executor.connection.commit()
 
@@ -206,9 +227,28 @@ class DuckDBDatastore(BaseDatastore):
             )
         self.executor.connection.commit()
 
-    def persist_holding_data(self, data: list[RealPortfolioElement], provider: ProviderType):
-        from py_portfolio_index.bin import STOCK_INFO
+    def register_symbols(self, tickers: set[str]) -> None:
+        """Give each ticker outside STOCK_INFO its own symbols row.
 
+        The table is rebuilt from STOCK_INFO, which lists US exchange stocks
+        only; without this, OTC ADRs and anything newer than the bundled data
+        were pooled into the unknown row.
+        """
+        from py_portfolio_index.bin import STOCK_INFO, listing_names
+
+        names = listing_names()
+        for ticker in sorted(tickers):
+            if not ticker or ticker == UNKNOWN_TICKER or ticker in STOCK_INFO:
+                continue
+            self.executor.execute_raw_sql(
+                """INSERT INTO symbols (id, ticker, name)
+                SELECT :id, :ticker, :name
+                WHERE NOT EXISTS (SELECT 1 FROM symbols WHERE ticker = :ticker)
+                ON CONFLICT DO NOTHING;""",
+                {"id": unlisted_symbol_id(ticker), "ticker": ticker, "name": names.get(ticker)},
+            )
+
+    def persist_holding_data(self, data: list[RealPortfolioElement], provider: ProviderType):
         mapping = defaultdict(list)
         for x in data:
             mapping[x.ticker.strip().lower()].append(x)
@@ -226,13 +266,15 @@ class DuckDBDatastore(BaseDatastore):
             "DELETE FROM ticker_holdings WHERE provider = :provider;",
             {"provider": provider_id},
         )
+        self.register_symbols({x.ticker for x in data})
         unknown_qty, unknown_value, unknown_basis = (
             Decimal("0.0"),
             Decimal("0.0"),
             Decimal("0.0"),
         )
         for x in data:
-            if x.ticker in STOCK_INFO:
+            # only a position the provider couldn't name is pooled
+            if x.ticker and x.ticker != UNKNOWN_TICKER:
                 self.executor.execute_raw_sql(
                     """INSERT INTO ticker_holdings
                                             SELECT 

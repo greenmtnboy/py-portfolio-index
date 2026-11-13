@@ -34,4 +34,15 @@ def otc_symbols() -> frozenset[str]:
         return frozenset(symbol for row in loads(f.read())["components"] for symbol in row.get("otc", []))
 
 
-__all__ = ["INDEXES", "STOCK_INFO", "STOCK_LISTS", "VALID_STOCKS", "otc_symbols"]
+@cache
+def listing_names() -> dict[str, str]:
+    """Company names for the world index's symbols, home and US lines alike.
+
+    Many of these, OTC ADRs especially, aren't in STOCK_INFO.
+    """
+    with open(Path(__file__).parent / "indexes" / "world_ex_us.json", "r", encoding="utf-8") as f:
+        components = loads(f.read())["components"]
+    return {symbol: row["name"] for row in components for symbol in [row["ticker"], *row.get("listings", [])] if row.get("name")}
+
+
+__all__ = ["INDEXES", "STOCK_INFO", "STOCK_LISTS", "VALID_STOCKS", "listing_names", "otc_symbols"]
