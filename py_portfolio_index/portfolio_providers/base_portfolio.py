@@ -15,7 +15,7 @@ from py_portfolio_index.common import (
 )
 from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import ObjectKey, OrderType, ProviderType, RoundingStrategy
-from py_portfolio_index.exceptions import OrderError
+from py_portfolio_index.exceptions import OrderError, PriceFetchError
 from py_portfolio_index.models import (
     DividendResult,
     Money,
@@ -253,11 +253,28 @@ class BaseProvider:
             else:
                 raise ValueError("Invalid rounding strategy provided with non-fractional shares.")
 
+    @staticmethod
+    def _planned_price(element: OrderElement) -> Decimal | None:
+        if element.price:
+            return element.price.decimal
+        if element.qty and element.value:
+            return element.value.decimal / Decimal(str(element.qty))
+        return None
+
     def handle_order_element(self, element: OrderElement, dry_run: bool = False):
         limit_price = element.limit_price.decimal if element.limit_price else None
         if limit_price and not self.SUPPORTS_LIMIT_ORDERS:
             raise OrderError(f"{self.PROVIDER} can't place limit orders for {element.ticker}")
-        raw_price = limit_price or self.get_instrument_price(element.ticker)
+        raw_price = limit_price
+        if not raw_price:
+            try:
+                raw_price = self.get_instrument_price(element.ticker)
+            except PriceFetchError:
+                raw_price = None
+        if not raw_price:
+            # a planned order was priced when it was planned, possibly by another
+            # broker; one this broker can't quote (Moomoo has no OTC quotes) can still be placed
+            raw_price = self._planned_price(element)
 
         if not raw_price:
             raise OrderError(f"No price found for this instrument: {element.ticker}")

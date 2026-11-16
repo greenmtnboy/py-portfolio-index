@@ -10,13 +10,25 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import date as datetype
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import ROUND_DOWN, ROUND_UP, Decimal
 from typing import Any
 
 from py_portfolio_index.exceptions import PriceFetchError
 
 # 1 hour
 DEFAULT_TIMEOUT = 60 * 60
+
+
+# how far past the quote an OTC limit order reaches, so it fills like a market order would
+OTC_LIMIT_BUFFER = Decimal("0.01")
+
+
+def otc_limit_price(price: Decimal, buying: bool, buffer: Decimal = OTC_LIMIT_BUFFER) -> Decimal:
+    """A limit price a buffer past ``price``, for brokers that won't take OTC market orders."""
+    limit = price * (1 + buffer if buying else 1 - buffer)
+    # round away from the quote so the buffer is never lost to rounding down
+    tick = Decimal("0.01") if price >= 1 else Decimal("0.0001")
+    return limit.quantize(tick, rounding=ROUND_UP if buying else ROUND_DOWN)
 
 
 class PriceCache:

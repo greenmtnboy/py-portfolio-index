@@ -4,7 +4,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from py_portfolio_index.models import Money
+from py_portfolio_index.enums import OrderType
+from py_portfolio_index.exceptions import OrderError
+from py_portfolio_index.models import Money, OrderElement
+from py_portfolio_index.portfolio_providers.base_portfolio import BaseProvider
 from py_portfolio_index.portfolio_providers.moomoo import MooMooProvider, _position_gain
 
 
@@ -38,3 +41,66 @@ def test_holdings_carry_appreciation():
 
     assert holdings.holdings[0].appreciation == Money(value=40)
     assert holdings.profit_and_loss.appreciation == Money(value=40)
+
+
+class FakeQuotes:
+    """Moomoo's quote context: it knows OTC symbols but serves no OTC quotes."""
+
+    def __init__(self, exchanges):
+        self.exchanges = exchanges
+
+    def get_stock_basicinfo(self, market, sec_type, codes):
+        import pandas as pd
+
+        rows = [{"code": c, "exchange_type": self.exchanges[c[3:]]} for c in codes if c[3:] in self.exchanges]
+        return 0, pd.DataFrame(rows, columns=["code", "exchange_type"])
+
+    def subscribe(self, codes, sub_types, subscribe_push=False):
+        return -1, f"Do not support OTC market data {codes[0][3:]}"
+
+
+def order_provider(exchanges):
+    provider = MooMooProvider.__new__(MooMooProvider)
+    BaseProvider.__init__(provider)
+    provider._quote_context = FakeQuotes(exchanges)
+    placed = []
+    provider._place_order = lambda ticker, qty, value, side, limit_price=None: (
+        placed.append(  # type: ignore[method-assign]
+            (ticker, qty, str(side), limit_price)
+        )
+        or True
+    )
+    return provider, placed
+
+
+def test_otc_buy_is_a_limit_order_at_the_planned_price():
+    provider, placed = order_provider({"TCEHY": "US_PINK"})
+
+    # a planned order carries the price another broker quoted for it
+    provider.handle_order_element(OrderElement(ticker="TCEHY", order_type=OrderType.BUY, qty=1, value=Money(value="50")))
+
+    assert placed == [("TCEHY", Decimal(1), "BUY", Decimal("50.50"))]
+
+
+def test_otc_sell_limit_sits_below_the_price():
+    provider, placed = order_provider({"WLWHY": "US_PINK"})
+
+    provider.handle_order_element(OrderElement(ticker="WLWHY", order_type=OrderType.SELL, qty=2, value=Money(value="1.70")))
+
+    assert placed == [("WLWHY", Decimal(2), "SELL", Decimal("0.8415"))]
+
+
+def test_listed_buy_stays_a_market_order():
+    provider, placed = order_provider({"AAPL": "US_NASDAQ"})
+
+    provider.buy_instrument("AAPL", Decimal(1), Money(value=200))
+
+    assert placed == [("AAPL", Decimal(1), "BUY", None)]
+
+
+def test_unquotable_order_without_a_planned_price_fails_cleanly():
+    provider, placed = order_provider({"TCEHY": "US_PINK"})
+
+    with pytest.raises(OrderError, match="No price found"):
+        provider.handle_order_element(OrderElement(ticker="TCEHY", order_type=OrderType.BUY, qty=1, value=None))
+    assert placed == []
