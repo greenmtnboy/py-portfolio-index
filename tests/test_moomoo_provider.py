@@ -59,6 +59,16 @@ class FakeQuotes:
         return -1, f"Do not support OTC market data {codes[0][3:]}"
 
 
+@pytest.fixture(autouse=True)
+def moomoo_sdk(monkeypatch):
+    # CI doesn't install the moomoo SDK; these tests only need its constants
+    import sys
+
+    sdk = SimpleNamespace(RET_OK=0, TrdSide=SimpleNamespace(BUY="BUY", SELL="SELL"))
+    monkeypatch.setitem(sys.modules, "moomoo", sdk)
+    return sdk
+
+
 def order_provider(exchanges):
     provider = MooMooProvider.__new__(MooMooProvider)
     BaseProvider.__init__(provider)
