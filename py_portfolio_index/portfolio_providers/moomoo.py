@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 from os import environ
 from typing import Any
 
+from py_portfolio_index.constants import Logger
 from py_portfolio_index.enums import ProviderType
 from py_portfolio_index.exceptions import (
     ConfigurationError,
@@ -21,7 +22,7 @@ from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
     ObjectKey,
 )
-from py_portfolio_index.portfolio_providers.common import instance_cache
+from py_portfolio_index.portfolio_providers.common import instance_cache, otc_limit_price
 from py_portfolio_index.portfolio_providers.helpers.moomoo import (
     DEFAULT_PORT,
     MooMooProxy,
@@ -215,6 +216,32 @@ class MooMooProvider(BaseProvider):
         else:
             raise OrderError(f"place_order error: {data} debug: {qty} {value}")
 
+    @instance_cache
+    def _is_otc(self, ticker: str) -> bool:
+        from moomoo import RET_OK
+
+        from py_portfolio_index.bin import otc_symbols
+
+        # the world index's US OTC symbols cover planned buys without a request
+        if ticker in otc_symbols():
+            return True
+        try:
+            # the SDK's Market.US and SecurityType.STOCK are these strings
+            ret, data = self._quote_context.get_stock_basicinfo("US", "STOCK", ["US." + ticker])
+            if ret == RET_OK and len(data):
+                return str(data["exchange_type"].iloc[0]) == "US_PINK"
+        except Exception as e:
+            Logger.warning(f"Moomoo couldn't look up the exchange for {ticker}: {e}")
+        return False
+
+    def _otc_limit(self, ticker: str, qty: Decimal, value: Money | None, buying: bool) -> Decimal | None:
+        """Moomoo only takes OTC orders as limit orders, and has no OTC quotes to set one from."""
+        if not self._is_otc(ticker):
+            return None
+        if not value or not qty:
+            raise OrderError(f"Moomoo needs a planned price to place an OTC order for {ticker}")
+        return otc_limit_price(value.decimal / Decimal(qty), buying=buying)
+
     def buy_instrument(
         self,
         ticker: str,
@@ -222,6 +249,8 @@ class MooMooProvider(BaseProvider):
         value: Money | None = None,
         limit_price: Decimal | None = None,
     ) -> bool:
+        if not limit_price and qty:
+            limit_price = self._otc_limit(ticker, qty, value, buying=True)
         if limit_price:
             from moomoo import TrdSide
 
@@ -255,6 +284,8 @@ class MooMooProvider(BaseProvider):
 
         if not qty:
             raise OrderError(f"Failed to sell {ticker}: no quantity given")
+        if not limit_price:
+            limit_price = self._otc_limit(ticker, qty, value, buying=False)
         # a market order is sized in shares, so the value isn't used
         return self._place_order(ticker, qty, None, TrdSide.SELL, limit_price)
 

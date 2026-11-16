@@ -1,7 +1,7 @@
 import json
 import uuid
 from datetime import date, datetime, timezone
-from decimal import ROUND_DOWN, ROUND_UP, Decimal
+from decimal import Decimal
 from functools import partial
 from os import environ
 from typing import Any
@@ -25,6 +25,7 @@ from py_portfolio_index.portfolio_providers.base_portfolio import (
     BaseProvider,
     ObjectKey,
 )
+from py_portfolio_index.portfolio_providers.common import otc_limit_price
 from py_portfolio_index.portfolio_providers.helpers.webull import (
     call_with_retries,
     get_api,
@@ -64,7 +65,6 @@ def _from_webull_symbol(symbol: str) -> str:
 # exchange codes for over-the-counter instruments, which take limit orders only
 OTC_EXCHANGES = ("OTC", "PIN", "GREY")
 # how far past the quote an OTC limit order may fill
-OTC_LIMIT_BUFFER = Decimal("0.01")
 
 
 class WebullProvider(BaseProvider):
@@ -417,11 +417,7 @@ class WebullProvider(BaseProvider):
         price = self._get_instrument_price(ticker)
         if not price:
             raise OrderError(f"Failed to {side.lower()} {ticker}: no quote to set a limit price from")
-        buying = side == "BUY"
-        limit = price * (1 + OTC_LIMIT_BUFFER if buying else 1 - OTC_LIMIT_BUFFER)
-        # round away from the quote so the buffer is never lost to rounding down
-        tick = Decimal("0.01") if price >= 1 else Decimal("0.0001")
-        return limit.quantize(tick, rounding=ROUND_UP if buying else ROUND_DOWN)
+        return otc_limit_price(price, buying=side == "BUY")
 
     @staticmethod
     def _order(ticker: str, qty: Decimal, side: str, terms: dict[str, Any]) -> dict[str, Any]:
