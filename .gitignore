@@ -88,3 +88,5 @@ test.db
 analytics.db
 *.parquet
 .env
+# written by scripts/ingest_index_data.py for the update PR body
+dropped_tickers.md
