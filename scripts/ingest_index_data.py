@@ -166,6 +166,36 @@ def fetch_vanguard_index(
     )
 
 
+RENAMES_PATH = Path(__file__).parent / "data" / "ticker_renames.json"
+DROPPED_REPORT_PATH = Path(__file__).parent.parent / "dropped_tickers.md"
+
+
+def load_renames(path: Path = RENAMES_PATH) -> dict[str, str]:
+    """Old ticker to new, for listings that changed symbol before the source caught up."""
+    with open(path, "r", encoding="utf-8") as f:
+        return {old: entry["to"] for old, entry in json.load(f).items()}
+
+
+def apply_renames(snapshot: IndexSnapshot, renames: dict[str, str]) -> IndexSnapshot:
+    """Swap renamed tickers for their new symbol, merging weights if the source has both."""
+    weights: dict[str, Decimal] = {}
+    for holding in snapshot.components:
+        ticker = renames.get(holding.ticker, holding.ticker)
+        weights[ticker] = weights.get(ticker, Decimal(0)) + Decimal(holding.weight)
+    return IndexSnapshot(
+        name=snapshot.name,
+        as_of=snapshot.as_of,
+        components=[
+            IndexHolding(ticker=ticker, weight=str(weight))
+            for ticker, weight in weights.items()
+        ],
+    )
+
+
+# why each ticker failed validation, for the dropped-ticker report
+failures: dict[str, str] = {}
+
+
 def validate_ticker(
     ticker: str,
     provider: PaperAlpacaProvider,
@@ -181,6 +211,7 @@ def validate_ticker(
         info = provider.get_stock_info(ticker)
         if not info.tradable:
             info_cache[ticker] = False
+            failures[ticker] = "not tradable"
             return False
         info_cache[ticker] = True
         return True
@@ -193,6 +224,7 @@ def validate_ticker(
             return validate_ticker(ticker, provider, info_cache, attempt + 1)
         print(f"Failed to validate {ticker} with error {e}")
         info_cache[ticker] = False
+        failures[ticker] = str(e)
         return False
 
 
@@ -255,6 +287,37 @@ def update_init_file():
         f.write(contents.replace(version_string, nversion))
 
 
+def dropped_report(
+    previous: set[str],
+    current: set[str],
+    weights: dict[str, str],
+    failures: dict[str, str],
+    renames: dict[str, str],
+) -> str:
+    """Markdown for the update PR: each ticker the update dropped, and why."""
+    lines = ["Automatic update of package stock info", ""]
+    dropped = sorted(previous - current)
+    if not dropped:
+        return "\n".join(lines + ["No tickers were dropped."]) + "\n"
+    lines += [
+        f"## Dropped tickers ({len(dropped)})",
+        "",
+        "A ticker that changed symbol but still trades belongs in `scripts/data/ticker_renames.json`.",
+        "",
+        "| Ticker | Total Market weight | Reason |",
+        "| --- | --- | --- |",
+    ]
+    for ticker in dropped:
+        weight = weights.get(ticker)
+        shown = f"{Decimal(weight):.4%}" if weight else "not in Total Market"
+        reason = failures.get(ticker, "no longer in the source index")
+        lines.append(f"| {ticker} | {shown} | {reason.replace('|', '/')} |")
+    stale = sorted(old for old, new in renames.items() if new not in current)
+    if stale:
+        lines += ["", f"Renamed tickers that still failed validation: {', '.join(stale)}"]
+    return "\n".join(lines) + "\n"
+
+
 def main() -> None:
     from py_portfolio_index import PaperAlpacaProvider
 
@@ -269,6 +332,8 @@ def main() -> None:
 
     provider = PaperAlpacaProvider()
     info_cache: dict[str, bool] = {}
+    renames = load_renames()
+    total_market: dict[str, str] = {}
     start = datetime.now()
 
     if args.source == "vanguard":
@@ -279,6 +344,9 @@ def main() -> None:
     for snapshot in snapshots:
         if snapshot.name.lower().startswith("crsp"):
             continue
+        snapshot = apply_renames(snapshot, renames)
+        if snapshot.name == "Total Market":
+            total_market = {h.ticker: h.weight for h in snapshot.components}
         validated = validate_snapshot(snapshot, provider, info_cache)
         write_snapshot(validated)
         print(
@@ -293,6 +361,12 @@ def main() -> None:
         / "cached_ticker_list.csv"
     )
     tickers = valid_tickers(info_cache)
+    with open(target, "r") as file:
+        previous = {line.strip() for line in file if line.strip()}
+    with open(DROPPED_REPORT_PATH, "w", encoding="utf-8") as file:
+        file.write(
+            dropped_report(previous, set(tickers), total_market, failures, renames)
+        )
     with open(target, "w") as file:
         for ticker in tickers:
             file.write(f"{ticker}\n")
