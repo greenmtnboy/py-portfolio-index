@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from py_portfolio_index.common import round_down_to_place
-from py_portfolio_index.enums import OrderType, PurchaseStrategy
+from py_portfolio_index.enums import ObjectKey, OrderType, PurchaseStrategy
 from py_portfolio_index.exceptions import OrderError, PriceFetchError
 from py_portfolio_index.models import (
     IdealPortfolio,
@@ -423,6 +423,39 @@ def test_webull_orders_go_by_symbol_with_class_shares_spaced():
     assert orders[0]["side"] == "SELL"
     assert orders[0]["support_trading_session"] == "CORE"
     assert "instrument_id" not in orders[0]
+
+
+@pytest.mark.parametrize(
+    "symbol, ticker",
+    [
+        ("BRK B", "BRK.B"),
+        # positions report some class shares with the separator dropped
+        ("BRKB", "BRK.B"),
+        ("BFB", "BF.B"),
+        # a known ticker, or one with no known class-share form, is left alone
+        ("AAPL", "AAPL"),
+        ("SIEGY", "SIEGY"),
+        ("HYACU", "HYACU"),
+    ],
+)
+def test_webull_symbol_maps_to_library_ticker(symbol, ticker):
+    from py_portfolio_index.portfolio_providers.webull import _from_webull_symbol
+
+    assert _from_webull_symbol(symbol) == ticker
+
+
+def test_webull_holdings_restore_collapsed_class_share():
+    provider = WebullProvider.__new__(WebullProvider)
+    cached = {
+        ObjectKey.ACCOUNT: {"total_cash_balance": "0"},
+        ObjectKey.POSITIONS: [{"symbol": "BRKB", "qty": "10", "market_value": "5000", "unrealized_profit_loss": "0"}],
+        ObjectKey.UNSETTLED: set(),
+    }
+    provider._get_cached_value = lambda key, callable: cached[key]  # type: ignore[method-assign]
+
+    holdings = provider.get_holdings()
+
+    assert [x.ticker for x in holdings.holdings] == ["BRK.B"]
 
 
 def test_webull_pink_sheet_listing_counts_as_otc():

@@ -59,7 +59,16 @@ def _to_webull_symbol(ticker: str) -> str:
 
 
 def _from_webull_symbol(symbol: str) -> str:
-    return symbol.replace(_SYMBOL_SEPARATOR, ".")
+    from py_portfolio_index.bin import STOCK_INFO
+
+    ticker = symbol.replace(_SYMBOL_SEPARATOR, ".")
+    # positions can also report a class share with no separator at all (BRKB
+    # for BRK.B); restore the dot when only the dotted form is a known ticker
+    if "." not in ticker and len(ticker) > 1 and ticker not in STOCK_INFO:
+        dotted = f"{ticker[:-1]}.{ticker[-1]}"
+        if dotted in STOCK_INFO:
+            return dotted
+    return ticker
 
 
 # exchange codes for over-the-counter instruments, which take limit orders only
